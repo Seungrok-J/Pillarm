@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx create-expo-app@latest . --template blank-typescript --yes)",
+      "Read(//c/Users/jsl/Desktop/**)",
+      "Bash(npx create-expo-app@latest pillarm --template blank-typescript --yes)",
+      "Bash(cp *)",
+      "Bash(npx expo *)",
+      "Bash(npm install *)",
+      "Bash(touch docs/erd.md)",
+      "Bash(touch src/domain/medication.ts src/domain/schedule.ts src/domain/doseEvent.ts src/domain/userSettings.ts src/domain/index.ts)",
+      "Bash(touch src/db/database.ts src/db/migrations.ts src/db/medications.ts src/db/schedules.ts src/db/doseEvents.ts src/db/userSettings.ts src/db/index.ts)",
+      "Bash(touch src/store/medicationStore.ts src/store/scheduleStore.ts src/store/doseEventStore.ts src/store/settingsStore.ts src/store/index.ts)",
+      "Bash(touch src/notifications/scheduler.ts src/notifications/snooze.ts src/notifications/index.ts)",
+      "Bash(cp prd_claude_md.md CLAUDE.md)",
+      "Bash(cp prd_phase1.md PRD_PHASE1.md)",
+      "Bash(cp prd_phase2.md PRD_PHASE2.md)",
+      "Bash(cp domain_model.md docs/domain-model.md)",
+      "Bash(npm test *)"
+    ]
+  }
+}
