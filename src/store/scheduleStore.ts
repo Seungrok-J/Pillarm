@@ -1,29 +1,75 @@
 import { create } from 'zustand';
 import { Schedule } from '../domain';
-import { getSchedulesByMedication, upsertSchedule } from '../db';
+import {
+  getSchedulesByMedication,
+  getAllSchedules,
+  upsertSchedule,
+  deleteSchedule,
+} from '../db';
 
 interface ScheduleState {
   schedules: Schedule[];
-  loadSchedules: (medicationId: string) => Promise<void>;
-  addOrUpdateSchedule: (schedule: Schedule) => Promise<void>;
+  isLoading: boolean;
+  error: string | null;
+  fetchSchedules: (medicationId: string) => Promise<void>;
+  addSchedule: (schedule: Schedule) => Promise<void>;
+  updateSchedule: (schedule: Schedule) => Promise<void>;
+  deleteSchedule: (id: string) => Promise<void>;
 }
 
-export const useScheduleStore = create<ScheduleState>((set) => ({
+export const useScheduleStore = create<ScheduleState>((set, get) => ({
   schedules: [],
+  isLoading: false,
+  error: null,
 
-  loadSchedules: async (medicationId) => {
-    const schedules = await getSchedulesByMedication(medicationId);
-    set({ schedules });
+  fetchSchedules: async (medicationId) => {
+    set({ isLoading: true, error: null });
+    try {
+      const schedules = await getSchedulesByMedication(medicationId);
+      set({ schedules, isLoading: false });
+    } catch (e) {
+      set({ isLoading: false, error: (e as Error).message });
+    }
   },
 
-  addOrUpdateSchedule: async (schedule) => {
-    await upsertSchedule(schedule);
-    set((state) => {
-      const exists = state.schedules.some((s) => s.id === schedule.id);
-      const schedules = exists
-        ? state.schedules.map((s) => (s.id === schedule.id ? schedule : s))
-        : [...state.schedules, schedule];
-      return { schedules };
-    });
+  addSchedule: async (schedule) => {
+    set({ error: null });
+    try {
+      await upsertSchedule(schedule);
+      set((state) => ({ schedules: [...state.schedules, schedule] }));
+    } catch (e) {
+      set({ error: (e as Error).message });
+      throw e;
+    }
+  },
+
+  updateSchedule: async (schedule) => {
+    set({ error: null });
+    const prev = get().schedules;
+    set((state) => ({
+      schedules: state.schedules.map((s) =>
+        s.id === schedule.id ? schedule : s,
+      ),
+    }));
+    try {
+      await upsertSchedule(schedule);
+    } catch (e) {
+      set({ schedules: prev, error: (e as Error).message });
+      throw e;
+    }
+  },
+
+  deleteSchedule: async (id) => {
+    set({ error: null });
+    const prev = get().schedules;
+    set((state) => ({
+      schedules: state.schedules.filter((s) => s.id !== id),
+    }));
+    try {
+      await deleteSchedule(id);
+    } catch (e) {
+      set({ schedules: prev, error: (e as Error).message });
+      throw e;
+    }
   },
 }));

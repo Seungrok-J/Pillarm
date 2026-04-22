@@ -1,12 +1,17 @@
-import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
-import { DoseEvent, DoseStatus } from '../domain';
+import React, { useRef } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  Animated,
+  PanResponder,
+  StyleSheet,
+} from 'react-native';
+import type { DoseEvent, DoseStatus } from '../domain';
 
-interface DoseCardProps {
-  event: DoseEvent;
-  medicationName: string;
-  onTake: (id: string) => void;
-}
+// ── 상수 ─────────────────────────────────────────────────────────────────────
+
+const SWIPE_THRESHOLD = 72;
 
 const STATUS_LABEL: Record<DoseStatus, string> = {
   scheduled: '복용',
@@ -16,34 +21,181 @@ const STATUS_LABEL: Record<DoseStatus, string> = {
   skipped: '건너뜀',
 };
 
-export default function DoseCard({ event, medicationName, onTake }: DoseCardProps) {
-  const isActionable = event.status === 'scheduled' || event.status === 'late';
-  const time = new Date(event.plannedAt).toTimeString().slice(0, 5);
+const CARD_BG: Record<DoseStatus, string> = {
+  scheduled: '#ffffff',
+  taken: '#f0fdf4',
+  late: '#fff7ed',
+  missed: '#fef2f2',
+  skipped: '#f3f4f6',
+};
+
+const BTN_BG: Record<DoseStatus, string> = {
+  scheduled: '#3b82f6',
+  taken: '#e5e7eb',
+  late: '#f97316',
+  missed: 'transparent',
+  skipped: '#e5e7eb',
+};
+
+const BTN_TXT: Record<DoseStatus, string> = {
+  scheduled: '#ffffff',
+  taken: '#6b7280',
+  late: '#ffffff',
+  missed: '#ef4444',
+  skipped: '#6b7280',
+};
+
+// ── 컴포넌트 ──────────────────────────────────────────────────────────────────
+
+export interface DoseCardProps {
+  event: DoseEvent;
+  medicationName: string;
+  onTake: (id: string) => void;
+  onSnooze?: (id: string) => void;
+  maxSnoozeCount?: number;
+}
+
+export default function DoseCard({
+  event,
+  medicationName,
+  onTake,
+  onSnooze,
+  maxSnoozeCount = 3,
+}: DoseCardProps) {
+  const isTakeable = event.status === 'scheduled' || event.status === 'late';
+  const isSnoozeable =
+    isTakeable && onSnooze != null && event.snoozeCount < maxSnoozeCount;
+
+  // "HH:mm" — ISO 문자열에서 직접 추출 (타임존 독립적)
+  const time = event.plannedAt.slice(11, 16);
+
+  // ── 스와이프 ─────────────────────────────────────────────────────────────
+  const translateX = useRef(new Animated.Value(0)).current;
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gs) =>
+        gs.dx > 8 && Math.abs(gs.dy) < Math.abs(gs.dx),
+      onPanResponderMove: (_, gs) => {
+        if (gs.dx > 0) translateX.setValue(gs.dx);
+      },
+      onPanResponderRelease: (_, gs) => {
+        if (gs.dx >= SWIPE_THRESHOLD && isSnoozeable) {
+          onSnooze!(event.id);
+        }
+        Animated.spring(translateX, {
+          toValue: 0,
+          useNativeDriver: true,
+        }).start();
+      },
+      onPanResponderTerminate: () => {
+        Animated.spring(translateX, {
+          toValue: 0,
+          useNativeDriver: true,
+        }).start();
+      },
+    }),
+  ).current;
 
   return (
-    <View
-      className={`flex-row items-center justify-between px-4 py-3 mb-2 rounded-xl ${
-        event.status === 'taken' ? 'bg-green-50' :
-        event.status === 'late' ? 'bg-orange-50' :
-        event.status === 'missed' ? 'bg-red-50' :
-        event.status === 'skipped' ? 'bg-gray-100' : 'bg-white'
-      }`}
-      accessibilityLabel={`${medicationName} ${time} ${STATUS_LABEL[event.status]}`}
-    >
-      <Text className="text-base font-medium text-gray-800">{time}</Text>
-      <Text className="flex-1 mx-3 text-base text-gray-700">{medicationName}</Text>
-      <TouchableOpacity
-        onPress={() => isActionable && onTake(event.id)}
-        disabled={!isActionable}
-        accessibilityRole="button"
-        className={`px-4 py-2 rounded-lg min-w-[72px] items-center ${
-          isActionable ? 'bg-blue-500' : 'bg-gray-200'
-        }`}
+    <View style={{ position: 'relative', marginBottom: 8 }}>
+      {/* 스와이프 뒤에 보이는 미루기 힌트 */}
+      {isSnoozeable && (
+        <View style={styles.swipeHint}>
+          <Text style={{ color: '#fff', fontSize: 13 }}>미루기 →</Text>
+        </View>
+      )}
+
+      <Animated.View
+        style={[
+          styles.card,
+          { backgroundColor: CARD_BG[event.status], transform: [{ translateX }] },
+        ]}
+        {...panResponder.panHandlers}
+        accessibilityLabel={`${medicationName} ${time} ${STATUS_LABEL[event.status]}`}
+        testID={`card-${event.id}`}
       >
-        <Text className={`text-sm font-semibold ${isActionable ? 'text-white' : 'text-gray-500'}`}>
-          {STATUS_LABEL[event.status]}
+        {/* 시간 */}
+        <Text testID={`card-time-${event.id}`} style={styles.time}>{time}</Text>
+
+        {/* 약 이름 */}
+        <Text testID={`card-name-${event.id}`} style={styles.name} numberOfLines={1}>
+          {medicationName}
         </Text>
-      </TouchableOpacity>
+
+        {/* 미루기 버튼 (접근성 + 테스트용) */}
+        {isSnoozeable && (
+          <TouchableOpacity
+            testID={`btn-snooze-${event.id}`}
+            onPress={() => onSnooze!(event.id)}
+            accessibilityLabel="미루기"
+            style={styles.snoozeBtn}
+          >
+            <Text style={styles.snoozeTxt}>미루기</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* 복용/상태 버튼 */}
+        <TouchableOpacity
+          testID={`btn-take-${event.id}`}
+          onPress={() => isTakeable && onTake(event.id)}
+          disabled={!isTakeable}
+          accessibilityRole="button"
+          style={[
+            styles.actionBtn,
+            { backgroundColor: BTN_BG[event.status] },
+            event.status === 'missed' && styles.missedBtn,
+          ]}
+        >
+          <Text style={[styles.actionTxt, { color: BTN_TXT[event.status] }]}>
+            {STATUS_LABEL[event.status]}
+          </Text>
+        </TouchableOpacity>
+      </Animated.View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  swipeHint: {
+    position: 'absolute',
+    left: 12,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    backgroundColor: '#3b82f6',
+    borderRadius: 12,
+  },
+  time: { fontSize: 15, fontWeight: '600', color: '#374151', width: 44 },
+  name: { flex: 1, marginHorizontal: 10, fontSize: 15, color: '#111827' },
+  snoozeBtn: {
+    marginRight: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+  },
+  snoozeTxt: { fontSize: 12, color: '#6b7280' },
+  actionBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    minWidth: 76,
+    alignItems: 'center',
+  },
+  missedBtn: { backgroundColor: 'transparent' },
+  actionTxt: { fontSize: 13, fontWeight: '600' },
+});

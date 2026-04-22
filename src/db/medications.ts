@@ -10,7 +10,7 @@ export async function getAllMedications(): Promise<Medication[]> {
 export async function upsertMedication(medication: Medication): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
-    \`INSERT INTO medications (id, name, dosage_value, dosage_unit, color, is_active, created_at, updated_at)
+    `INSERT INTO medications (id, name, dosage_value, dosage_unit, color, is_active, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET
        name = excluded.name,
@@ -18,7 +18,7 @@ export async function upsertMedication(medication: Medication): Promise<void> {
        dosage_unit = excluded.dosage_unit,
        color = excluded.color,
        is_active = excluded.is_active,
-       updated_at = excluded.updated_at\`,
+       updated_at = excluded.updated_at`,
     medication.id,
     medication.name,
     medication.dosageValue ?? null,
@@ -28,6 +28,15 @@ export async function upsertMedication(medication: Medication): Promise<void> {
     medication.createdAt,
     medication.updatedAt,
   );
+}
+
+export async function getMedicationById(id: string): Promise<Medication | null> {
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<Record<string, unknown>>(
+    'SELECT * FROM medications WHERE id = ?',
+    id,
+  );
+  return row ? rowToMedication(row) : null;
 }
 
 export async function deleteMedication(id: string): Promise<void> {

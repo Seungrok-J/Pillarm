@@ -12,7 +12,7 @@ import ScheduleEditScreen from './app/schedule/ScheduleEditScreen';
 export type RootStackParamList = {
   Main: undefined;
   ScheduleNew: undefined;
-  ScheduleEdit: { scheduleId: string };
+  ScheduleEdit: { scheduleId: string; medicationId: string };
 };
 
 export type BottomTabParamList = {

@@ -28,7 +28,7 @@ export async function getUserSettings(): Promise<UserSettings> {
 export async function saveUserSettings(settings: UserSettings): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
-    \`INSERT INTO user_settings (user_id, time_zone, quiet_hours_start, quiet_hours_end, default_snooze_minutes, max_snooze_count, missed_to_late_minutes, auto_mark_missed_enabled)
+    `INSERT INTO user_settings (user_id, time_zone, quiet_hours_start, quiet_hours_end, default_snooze_minutes, max_snooze_count, missed_to_late_minutes, auto_mark_missed_enabled)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(user_id) DO UPDATE SET
        time_zone = excluded.time_zone,
@@ -37,7 +37,7 @@ export async function saveUserSettings(settings: UserSettings): Promise<void> {
        default_snooze_minutes = excluded.default_snooze_minutes,
        max_snooze_count = excluded.max_snooze_count,
        missed_to_late_minutes = excluded.missed_to_late_minutes,
-       auto_mark_missed_enabled = excluded.auto_mark_missed_enabled\`,
+       auto_mark_missed_enabled = excluded.auto_mark_missed_enabled`,
     settings.userId,
     settings.timeZone,
     settings.quietHoursStart ?? null,

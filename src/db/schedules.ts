@@ -13,7 +13,7 @@ export async function getSchedulesByMedication(medicationId: string): Promise<Sc
 export async function upsertSchedule(schedule: Schedule): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
-    \`INSERT INTO schedules (id, medication_id, schedule_type, start_date, end_date, days_of_week, times, with_food, grace_minutes, is_active, created_at, updated_at)
+    `INSERT INTO schedules (id, medication_id, schedule_type, start_date, end_date, days_of_week, times, with_food, grace_minutes, is_active, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET
        schedule_type = excluded.schedule_type,
@@ -24,7 +24,7 @@ export async function upsertSchedule(schedule: Schedule): Promise<void> {
        with_food = excluded.with_food,
        grace_minutes = excluded.grace_minutes,
        is_active = excluded.is_active,
-       updated_at = excluded.updated_at\`,
+       updated_at = excluded.updated_at`,
     schedule.id,
     schedule.medicationId,
     schedule.scheduleType,
@@ -37,6 +37,32 @@ export async function upsertSchedule(schedule: Schedule): Promise<void> {
     schedule.isActive ? 1 : 0,
     schedule.createdAt,
     schedule.updatedAt,
+  );
+}
+
+export async function getScheduleById(id: string): Promise<Schedule | null> {
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<Record<string, unknown>>(
+    'SELECT * FROM schedules WHERE id = ?',
+    id,
+  );
+  return row ? rowToSchedule(row) : null;
+}
+
+export async function getAllSchedules(): Promise<Schedule[]> {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<Record<string, unknown>>(
+    'SELECT * FROM schedules WHERE is_active = 1 ORDER BY created_at',
+  );
+  return rows.map(rowToSchedule);
+}
+
+export async function deleteSchedule(id: string): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(
+    'UPDATE schedules SET is_active = 0, updated_at = ? WHERE id = ?',
+    new Date().toISOString(),
+    id,
   );
 }
 
