@@ -8,12 +8,18 @@ import {
   AppStateStatus,
   ActivityIndicator,
   StyleSheet,
+  Animated,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RootStackParamList } from '../../navigation';
-import { useDoseEventStore, useMedicationStore, useSettingsStore } from '../../store';
-import { checkAndMarkMissed, rescheduleSnooze } from '../../notifications';
+import {
+  useDoseEventStore,
+  useMedicationStore,
+  useSettingsStore,
+  usePointStore,
+} from '../../store';
+import { rescheduleSnooze } from '../../notifications';
 import { todayString } from '../../utils';
 import DoseCard from '../../components/DoseCard';
 import NextDoseBanner from '../../components/NextDoseBanner';
@@ -39,26 +45,48 @@ export default function HomeScreen() {
     useDoseEventStore((s) => s);
   const { medications, fetchMedications } = useMedicationStore((s) => s);
   const settings = useSettingsStore((s) => s.settings) ?? FALLBACK_SETTINGS;
+  const { balance, streak, fetchBalance } = usePointStore();
 
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+
+  // ── 토스트 애니메이션 ───────────────────────────────────────────────────
+  const toastOpacity = useRef(new Animated.Value(0)).current;
+  const toastTranslateY = useRef(new Animated.Value(20)).current;
+
+  function triggerToast() {
+    toastOpacity.setValue(0);
+    toastTranslateY.setValue(20);
+    Animated.sequence([
+      Animated.parallel([
+        Animated.timing(toastOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+        Animated.timing(toastTranslateY, { toValue: 0, duration: 200, useNativeDriver: true }),
+      ]),
+      Animated.delay(1400),
+      Animated.parallel([
+        Animated.timing(toastOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+        Animated.timing(toastTranslateY, { toValue: -10, duration: 300, useNativeDriver: true }),
+      ]),
+    ]).start();
+  }
 
   // ── 초기 로드 ──────────────────────────────────────────────────────────
   useEffect(() => {
     fetchTodayEvents(todayString());
     fetchMedications();
+    fetchBalance();
   }, []);
 
-  // ── AppState: active 전환 시 missed 자동 처리 + 새로고침 ───────────────
+  // ── AppState: active 전환 시 오늘 이벤트 새로고침 ───────────────────────
   useEffect(() => {
     const sub = AppState.addEventListener('change', async (nextState: AppStateStatus) => {
       if (appStateRef.current !== 'active' && nextState === 'active') {
-        await checkAndMarkMissed(settings);
         await fetchTodayEvents(todayString());
+        await fetchBalance();
       }
       appStateRef.current = nextState;
     });
     return () => sub.remove();
-  }, [settings]);
+  }, []);
 
   // ── 파생 값 ────────────────────────────────────────────────────────────
   const medicationNames = useMemo<Record<string, string>>(
@@ -82,6 +110,8 @@ export default function HomeScreen() {
   async function handleTake(id: string) {
     try {
       await markTaken(id);
+      triggerToast();
+      fetchBalance();
     } catch {
       // 낙관적 업데이트 롤백은 store 에서 처리됨
     }
@@ -113,9 +143,28 @@ export default function HomeScreen() {
   // ── 렌더 ───────────────────────────────────────────────────────────────
   return (
     <View style={styles.container} testID="screen-home">
-      {/* 날짜 헤더 */}
+      {/* 날짜 + 포인트 헤더 */}
       <View style={styles.header}>
-        <Text testID="header-date" style={styles.dateText}>{dateHeader}</Text>
+        <View style={styles.headerTop}>
+          <Text testID="header-date" style={styles.dateText}>{dateHeader}</Text>
+          {/* 포인트 배지 */}
+          <TouchableOpacity
+            testID="badge-points"
+            style={styles.pointBadgeRow}
+            onPress={() => navigation.navigate('Main')}
+            accessibilityLabel={`포인트 ${balance}, 연속 ${streak}일`}
+            accessibilityRole="button"
+          >
+            {streak > 0 && (
+              <View style={styles.streakBadge}>
+                <Text style={styles.badgeText}>🔥 {streak}일</Text>
+              </View>
+            )}
+            <View style={styles.balanceBadge}>
+              <Text style={styles.badgeText}>⭐ {balance.toLocaleString()}P</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
         {pendingCount > 0 && (
           <Text testID="header-remaining" style={styles.remainingText}>
             남은 복용 {pendingCount}건
@@ -172,6 +221,18 @@ export default function HomeScreen() {
       >
         <Text style={styles.fabText}>＋</Text>
       </TouchableOpacity>
+
+      {/* 포인트 토스트 */}
+      <Animated.View
+        testID="toast-points"
+        pointerEvents="none"
+        style={[
+          styles.toast,
+          { opacity: toastOpacity, transform: [{ translateY: toastTranslateY }] },
+        ]}
+      >
+        <Text style={styles.toastText}>+10 포인트! 🎉</Text>
+      </Animated.View>
     </View>
   );
 }
@@ -186,8 +247,29 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#f3f4f6',
   },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   dateText: { fontSize: 18, fontWeight: '700', color: '#111827' },
   remainingText: { fontSize: 13, color: '#6b7280', marginTop: 2 },
+
+  pointBadgeRow: { flexDirection: 'row', gap: 6 },
+  streakBadge: {
+    backgroundColor: '#fff7ed',
+    borderRadius: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+  },
+  balanceBadge: {
+    backgroundColor: '#eff6ff',
+    borderRadius: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+  },
+  badgeText: { fontSize: 13, fontWeight: '600', color: '#111827' },
+
   banner: {
     marginHorizontal: 16,
     marginTop: 12,
@@ -215,4 +297,19 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   fabText: { color: '#fff', fontSize: 28, lineHeight: 32 },
+
+  toast: {
+    position: 'absolute',
+    bottom: 100,
+    alignSelf: 'center',
+    backgroundColor: '#16a34a',
+    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  toastText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 });

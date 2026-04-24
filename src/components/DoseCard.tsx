@@ -141,6 +141,7 @@ export default function DoseCard({
           onPress={() => isTakeable && onTake(event.id)}
           disabled={!isTakeable}
           accessibilityRole="button"
+          accessibilityLabel={`${medicationName} ${STATUS_LABEL[event.status]}`}
           style={[
             styles.actionBtn,
             { backgroundColor: BTN_BG[event.status] },
@@ -178,24 +179,28 @@ const styles = StyleSheet.create({
     backgroundColor: '#3b82f6',
     borderRadius: 12,
   },
-  time: { fontSize: 15, fontWeight: '600', color: '#374151', width: 44 },
-  name: { flex: 1, marginHorizontal: 10, fontSize: 15, color: '#111827' },
+  time: { fontSize: 16, fontWeight: '600', color: '#374151', width: 44 },
+  name: { flex: 1, marginHorizontal: 10, fontSize: 16, color: '#111827' },
   snoozeBtn: {
     marginRight: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#d1d5db',
+    minHeight: 44,
+    justifyContent: 'center',
   },
-  snoozeTxt: { fontSize: 12, color: '#6b7280' },
+  snoozeTxt: { fontSize: 14, color: '#6b7280' },
   actionBtn: {
-    paddingVertical: 8,
+    paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: 8,
     minWidth: 76,
+    minHeight: 44,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   missedBtn: { backgroundColor: 'transparent' },
-  actionTxt: { fontSize: 13, fontWeight: '600' },
+  actionTxt: { fontSize: 14, fontWeight: '600' },
 });

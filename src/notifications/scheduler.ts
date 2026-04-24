@@ -3,7 +3,12 @@ import { Schedule, Medication, UserSettings } from '../domain';
 import { generateId } from '../utils';
 import { addMinutes } from '../utils/date';
 import { isInQuietHours, adjustForQuietHours } from './quietHours';
-import { insertDoseEvent, markOverdueEventsMissed } from '../db';
+import {
+  insertDoseEvent,
+  markOverdueEventsMissed,
+  getAllSchedules,
+  getMedicationById,
+} from '../db';
 
 // ── 스케줄링 ──────────────────────────────────────────────────────────────
 
@@ -110,16 +115,33 @@ export async function rescheduleSnooze(
   const snoozeAt = addMinutes(new Date(), snoozeMinutes);
 
   await Notifications.scheduleNotificationAsync({
-    content: existing?.content ?? {
-      title: '약 복용 시간이에요 💊',
-      body: '복용할 시간입니다',
-      data: { doseEventId },
-    },
+    content: existing
+      ? (existing.content as unknown as Notifications.NotificationContentInput)
+      : { title: '약 복용 시간이에요 💊', body: '복용할 시간입니다', data: { doseEventId } },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.DATE,
       date: snoozeAt,
     },
   });
+}
+
+// ── 전체 재스케줄링 ───────────────────────────────────────────────────────
+
+/**
+ * 조용한 시간 변경 등으로 UserSettings 가 바뀔 때 모든 활성 스케줄을
+ * 새 설정 기준으로 재등록합니다.
+ */
+export async function rescheduleAllSchedules(settings: UserSettings): Promise<void> {
+  const schedules = await getAllSchedules();
+  const medCache = new Map<string, Medication | null>();
+
+  for (const schedule of schedules) {
+    if (!medCache.has(schedule.medicationId)) {
+      medCache.set(schedule.medicationId, await getMedicationById(schedule.medicationId));
+    }
+    const med = medCache.get(schedule.medicationId);
+    if (med) await scheduleForSchedule(schedule, med, settings);
+  }
 }
 
 // ── 누락 자동 처리 ────────────────────────────────────────────────────────

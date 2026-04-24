@@ -18,7 +18,12 @@
       "Bash(cp domain_model.md docs/domain-model.md)",
       "Bash(npm test *)",
       "Bash(npx jest *)",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(node -e \"console.log\\(require\\('react-native-calendars/package.json'\\).version\\)\")",
+      "Bash(node -e \"require\\('react-native-svg/package.json'\\)\")",
+      "Bash(node -e \"require\\('@react-native-async-storage/async-storage/package.json'\\)\")",
+      "Bash(node -e \"const s=require\\('./coverage/coverage-summary.json'\\).total; console.log\\('Stmts:',s.statements.pct,'%  Branch:',s.branches.pct,'%  Funcs:',s.functions.pct,'%  Lines:',s.lines.pct,'%'\\)\")",
+      "Bash(node -e \"const s=require\\('./coverage/coverage-summary.json'\\).total; console.log\\('Stmts:',s.statements.pct,'Branch:',s.branches.pct,'Funcs:',s.functions.pct,'Lines:',s.lines.pct\\)\")"
     ]
   }
 }

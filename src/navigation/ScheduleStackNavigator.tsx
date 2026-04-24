@@ -1,0 +1,53 @@
+import React from 'react';
+import { createStackNavigator } from '@react-navigation/stack';
+import type { RootStackParamList } from './types';
+import MainTabNavigator from './MainTabNavigator';
+import ScheduleFormScreen from '../app/schedule/ScheduleFormScreen';
+import ThemeShopScreen from '../features/points/ThemeShopScreen';
+import CareCircleScreen from '../features/careCircle/CareCircleScreen';
+import JoinCareCircleScreen from '../features/careCircle/JoinCareCircleScreen';
+import CareMonitorScreen from '../features/careCircle/CareMonitorScreen';
+
+const Stack = createStackNavigator<RootStackParamList>();
+
+export default function ScheduleStackNavigator() {
+  return (
+    <Stack.Navigator>
+      <Stack.Screen
+        name="Main"
+        component={MainTabNavigator}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="ScheduleNew"
+        component={ScheduleFormScreen}
+        options={{ title: '일정 추가', headerBackTitle: '뒤로' }}
+      />
+      <Stack.Screen
+        name="ScheduleEdit"
+        component={ScheduleFormScreen}
+        options={{ title: '일정 수정', headerBackTitle: '뒤로' }}
+      />
+      <Stack.Screen
+        name="ThemeShop"
+        component={ThemeShopScreen}
+        options={{ title: '테마 상점', headerBackTitle: '뒤로' }}
+      />
+      <Stack.Screen
+        name="CareCircle"
+        component={CareCircleScreen}
+        options={{ title: '보호 그룹', headerBackTitle: '뒤로' }}
+      />
+      <Stack.Screen
+        name="JoinCareCircle"
+        component={JoinCareCircleScreen}
+        options={{ title: '보호 그룹 참여', headerBackTitle: '뒤로' }}
+      />
+      <Stack.Screen
+        name="CareMonitor"
+        component={CareMonitorScreen}
+        options={{ title: '복용 현황', headerBackTitle: '뒤로' }}
+      />
+    </Stack.Navigator>
+  );
+}

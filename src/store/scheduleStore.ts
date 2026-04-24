@@ -6,6 +6,7 @@ import {
   upsertSchedule,
   deleteSchedule,
 } from '../db';
+import { cancelForSchedule } from '../notifications';
 
 interface ScheduleState {
   schedules: Schedule[];
@@ -66,6 +67,7 @@ export const useScheduleStore = create<ScheduleState>((set, get) => ({
       schedules: state.schedules.filter((s) => s.id !== id),
     }));
     try {
+      await cancelForSchedule(id);
       await deleteSchedule(id);
     } catch (e) {
       set({ schedules: prev, error: (e as Error).message });

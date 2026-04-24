@@ -21,10 +21,10 @@ export async function snoozeDoseEvent(
   const snoozeAt = addMinutes(new Date(), settings.defaultSnoozeMinutes);
 
   await Notifications.scheduleNotificationAsync({
-    content: {
-      ...existing?.content,
-      data: { ...((existing?.content.data as Record<string, unknown>) ?? {}), doseEventId: event.id },
-    },
+    content: (existing
+      ? { ...existing.content, data: { ...((existing.content.data as Record<string, unknown>) ?? {}), doseEventId: event.id } }
+      : { title: '약 복용 시간이에요 💊', body: '복용할 시간입니다', data: { doseEventId: event.id } }
+    ) as unknown as Notifications.NotificationContentInput,
     trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: snoozeAt },
   });
 

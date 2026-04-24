@@ -365,25 +365,11 @@ describe('AC4 — 모든 복용 완료 축하 메시지', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// AppState — 포그라운드 복귀 시 자동 누락 처리
+// AppState — 포그라운드 복귀 시 이벤트 새로고침
+// (checkAndMarkMissed 는 App.tsx 의 전역 AppState 리스너에서 처리됩니다)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-describe('AppState — 포그라운드 복귀 시 자동 누락 처리', () => {
-  it('background → active 전환 시 checkAndMarkMissed 를 호출한다', async () => {
-    render(<HomeScreen />);
-    await waitFor(() => expect(mockGetDoseEventsByDate).toHaveBeenCalledTimes(1));
-
-    // 첫 번째: background 으로 전환 (appStateRef 업데이트)
-    capturedAppStateHandler?.('background');
-
-    // 두 번째: active 로 복귀 → checkAndMarkMissed + 재조회 트리거
-    capturedAppStateHandler?.('active');
-
-    await waitFor(() =>
-      expect(mockCheckAndMarkMissed).toHaveBeenCalledWith(SETTINGS),
-    );
-  });
-
+describe('AppState — 포그라운드 복귀 시 이벤트 새로고침', () => {
   it('active 전환 후 이벤트 목록을 새로고침한다', async () => {
     render(<HomeScreen />);
     await waitFor(() => expect(mockGetDoseEventsByDate).toHaveBeenCalledTimes(1));

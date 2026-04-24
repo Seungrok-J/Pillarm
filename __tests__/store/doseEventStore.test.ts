@@ -9,6 +9,12 @@ jest.mock('../../src/db', () => ({
   updateDoseEventSnooze: jest.fn().mockResolvedValue(undefined),
 }));
 
+// 포인트 엔진 — 복용 완료와 독립적으로 fire-and-forget 으로 동작
+jest.mock('../../src/features/points/pointEngine', () => ({
+  awardDoseTaken: jest.fn().mockResolvedValue(null),
+  awardStreakBonus: jest.fn().mockResolvedValue(null),
+}));
+
 // mock 모듈 참조를 가져와서 각 테스트에서 spy/assert 합니다.
 import * as db from '../../src/db';
 

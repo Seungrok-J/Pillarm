@@ -1,0 +1,124 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Enums ─────────────────────────────────────────────────────────────────────
+
+enum MemberRole {
+  admin
+  viewer
+  notifyOnly
+}
+
+enum ShareScope {
+  all
+  specificMedication
+  specificSchedule
+}
+
+enum NotificationPolicy {
+  realtime
+  dailySummary
+}
+
+// ── Models ────────────────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  /// FCM 등록 토큰 (로그인 시 앱에서 업데이트)
+  fcmToken     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  ownedCircles  CareCircle[]        @relation("CircleOwner")
+  memberships   CareMember[]        @relation("MemberUser")
+  refreshTokens RefreshToken[]
+  snapshots     DoseEventSnapshot[] @relation("SnapshotPatient")
+}
+
+model CareCircle {
+  id          String   @id @default(cuid())
+  ownerUserId String
+  name        String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  owner       User                @relation("CircleOwner", fields: [ownerUserId], references: [id])
+  members     CareMember[]
+  policies    SharePolicy[]
+  inviteCodes InviteCode[]
+  snapshots   DoseEventSnapshot[]
+}
+
+model CareMember {
+  id           String     @id @default(cuid())
+  careCircleId String
+  memberUserId String
+  role         MemberRole @default(viewer)
+  createdAt    DateTime   @default(now())
+
+  careCircle CareCircle @relation(fields: [careCircleId], references: [id], onDelete: Cascade)
+  member     User       @relation("MemberUser", fields: [memberUserId], references: [id])
+
+  @@unique([careCircleId, memberUserId])
+}
+
+model SharePolicy {
+  id                 String             @id @default(cuid())
+  careCircleId       String
+  shareScope         ShareScope         @default(all)
+  /// 공개 허용 필드: e.g. ["status","time","note"]
+  allowedFields      String[]
+  notificationPolicy NotificationPolicy @default(realtime)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  careCircle CareCircle @relation(fields: [careCircleId], references: [id], onDelete: Cascade)
+}
+
+/// 클라이언트 SQLite DoseEvent 의 일별 스냅샷. 보호자 뷰에 사용.
+model DoseEventSnapshot {
+  id           String   @id @default(cuid())
+  careCircleId String
+  patientId    String
+  /// YYYY-MM-DD
+  date         String
+  /// DoseEvent[] JSON (SharePolicy.allowedFields 필터 적용 후)
+  data         Json
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  careCircle CareCircle @relation(fields: [careCircleId], references: [id], onDelete: Cascade)
+  patient    User       @relation("SnapshotPatient", fields: [patientId], references: [id])
+
+  @@unique([careCircleId, patientId, date])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// 6자리 일회용 초대 코드 (24h TTL)
+model InviteCode {
+  id           String    @id @default(cuid())
+  careCircleId String
+  code         String    @unique
+  expiresAt    DateTime
+  usedAt       DateTime?
+  createdAt    DateTime  @default(now())
+
+  careCircle CareCircle @relation(fields: [careCircleId], references: [id], onDelete: Cascade)
+}

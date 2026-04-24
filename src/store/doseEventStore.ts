@@ -6,6 +6,8 @@ import {
   updateDoseEventStatus,
   updateDoseEventSnooze,
 } from '../db';
+import { useSettingsStore } from './settingsStore';
+import { awardDoseTaken, awardStreakBonus } from '../features/points/pointEngine';
 
 interface DoseEventState {
   todayEvents: DoseEvent[];
@@ -44,8 +46,9 @@ export const useDoseEventStore = create<DoseEventState>((set, get) => ({
   },
 
   markTaken: async (id) => {
-    const now = new Date().toISOString();
-    const prev = get().todayEvents;
+    const now   = new Date().toISOString();
+    const event = get().todayEvents.find((e) => e.id === id);
+    const prev  = get().todayEvents;
     // Optimistic update — PRD: "탭 시 즉시 카드가 '완료' 상태로 변한다"
     set((state) => ({
       todayEvents: state.todayEvents.map((e) =>
@@ -55,6 +58,13 @@ export const useDoseEventStore = create<DoseEventState>((set, get) => ({
     }));
     try {
       await updateDoseEventStatus(id, 'taken', now);
+      // 포인트 적립 — 실패해도 복용 완료 처리에 영향 없음
+      if (event) {
+        const graceMinutes = useSettingsStore.getState().settings?.missedToLateMinutes ?? 120;
+        const takenEvent: DoseEvent = { ...event, status: 'taken', takenAt: now };
+        awardDoseTaken(takenEvent, graceMinutes).catch(() => {});
+        awardStreakBonus('local').catch(() => {});
+      }
     } catch (e) {
       set({ todayEvents: prev, error: (e as Error).message });
       throw e;
