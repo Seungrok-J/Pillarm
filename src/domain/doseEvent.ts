@@ -11,6 +11,7 @@ export interface DoseEvent {
   snoozeCount: number;
   source: DoseSource;
   note?: string;
+  photoPath?: string;
   createdAt: string;
   updatedAt: string;
 }

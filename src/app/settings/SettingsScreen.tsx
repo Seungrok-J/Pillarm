@@ -13,6 +13,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RootStackParamList } from '../../navigation';
 import { useSettingsStore } from '../../store';
+import { useAuthStore } from '../../store/authStore';
 import { rescheduleAllSchedules } from '../../notifications';
 import type { UserSettings } from '../../domain';
 
@@ -104,6 +105,7 @@ function TimeInput({ value, onSave, testID }: TimeInputProps) {
 export default function SettingsScreen() {
   const navigation = useNavigation<Nav>();
   const { settings, loadSettings, updateSettings } = useSettingsStore();
+  const { isLoggedIn, userEmail, clearSession } = useAuthStore();
 
   useEffect(() => {
     if (!settings) loadSettings();
@@ -241,6 +243,50 @@ export default function SettingsScreen() {
           <Text style={styles.chevron}>›</Text>
         </TouchableOpacity>
       </View>
+
+      {/* ── 계정 ─────────────────────────────────────────────────── */}
+      <Text style={styles.sectionTitle}>계정</Text>
+      <View style={styles.section}>
+        {isLoggedIn ? (
+          <>
+            <View style={styles.row}>
+              <Text style={styles.label}>로그인 계정</Text>
+              <Text testID="txt-user-email" style={styles.emailText}>{userEmail}</Text>
+            </View>
+            <View style={styles.divider} />
+            <TouchableOpacity
+              testID="btn-logout"
+              style={styles.row}
+              onPress={clearSession}
+              accessibilityRole="button"
+            >
+              <Text style={[styles.label, styles.logoutText]}>로그아웃</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            <TouchableOpacity
+              testID="btn-go-login"
+              style={styles.row}
+              onPress={() => navigation.navigate('Login')}
+              accessibilityRole="button"
+            >
+              <Text style={styles.label}>로그인</Text>
+              <Text style={styles.chevron}>›</Text>
+            </TouchableOpacity>
+            <View style={styles.divider} />
+            <TouchableOpacity
+              testID="btn-go-signup"
+              style={styles.row}
+              onPress={() => navigation.navigate('Signup')}
+              accessibilityRole="button"
+            >
+              <Text style={styles.label}>회원가입</Text>
+              <Text style={styles.chevron}>›</Text>
+            </TouchableOpacity>
+          </>
+        )}
+      </View>
     </ScrollView>
   );
 }
@@ -280,6 +326,8 @@ const styles = StyleSheet.create({
   label: { fontSize: 15, color: '#111827' },
   hint: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
   chevron: { fontSize: 20, color: '#9ca3af' },
+  emailText: { fontSize: 13, color: '#6b7280', flexShrink: 1, textAlign: 'right' },
+  logoutText: { color: '#ef4444' },
 
   // TimeInput
   timeInput: {

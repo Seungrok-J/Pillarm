@@ -1,7 +1,9 @@
+type SQLiteBindValue = string | number | boolean | null | Uint8Array;
+
 interface MigrationDb {
   execAsync(sql: string): Promise<void>;
-  getAllAsync<T>(sql: string): Promise<T[]>;
-  runAsync(sql: string, params: unknown[]): Promise<unknown>;
+  getAllAsync<T>(sql: string, ...params: SQLiteBindValue[]): Promise<T[]>;
+  runAsync(sql: string, params: SQLiteBindValue[]): Promise<unknown>;
 }
 
 export interface Migration {
@@ -115,6 +117,12 @@ export const MIGRATIONS: Migration[] = [
         created_at TEXT NOT NULL
       );
     `,
+  },
+
+  // ── v3: 복용 기록 사진 첨부 ───────────────────────────────────────────────────
+  {
+    version: 3,
+    sql: `ALTER TABLE dose_events ADD COLUMN photo_path TEXT;`,
   },
 ];
 

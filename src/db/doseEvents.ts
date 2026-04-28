@@ -28,8 +28,8 @@ export async function updateDoseEventStatus(
 export async function insertDoseEvent(event: DoseEvent): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
-    `INSERT INTO dose_events (id, schedule_id, medication_id, planned_at, status, taken_at, snooze_count, source, note, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO dose_events (id, schedule_id, medication_id, planned_at, status, taken_at, snooze_count, source, note, photo_path, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     event.id,
     event.scheduleId,
     event.medicationId,
@@ -39,8 +39,24 @@ export async function insertDoseEvent(event: DoseEvent): Promise<void> {
     event.snoozeCount,
     event.source,
     event.note ?? null,
+    event.photoPath ?? null,
     event.createdAt,
     event.updatedAt,
+  );
+}
+
+export async function updateDoseEventMemo(
+  id: string,
+  note: string | null,
+  photoPath: string | null,
+): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(
+    'UPDATE dose_events SET note = ?, photo_path = ?, updated_at = ? WHERE id = ?',
+    note,
+    photoPath,
+    new Date().toISOString(),
+    id,
   );
 }
 
@@ -105,6 +121,7 @@ function rowToDoseEvent(row: Record<string, unknown>): DoseEvent {
     snoozeCount: row['snooze_count'] as number,
     source: row['source'] as DoseEvent['source'],
     note: row['note'] as string | undefined,
+    photoPath: row['photo_path'] as string | undefined,
     createdAt: row['created_at'] as string,
     updatedAt: row['updated_at'] as string,
   };

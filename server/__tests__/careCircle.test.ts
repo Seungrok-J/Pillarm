@@ -1,6 +1,7 @@
 import request from 'supertest';
 import app from '../src/app';
 import { signAccess } from '../src/lib/jwt';
+import { AppError } from '../src/middleware/errorHandler';
 import db from '../src/lib/prisma';
 
 // ── Prisma mock ───────────────────────────────────────────────────────────────
@@ -264,7 +265,6 @@ describe('POST /care-circles/join', () => {
   });
 
   it('returns 400 for invalid/expired code', async () => {
-    const { AppError } = await import('../src/middleware/errorHandler');
     inviteSvc.validateInviteCode.mockRejectedValue(
       new AppError('Invalid or expired invite code', 400),
     );

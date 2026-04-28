@@ -17,6 +17,7 @@ import {
   type MissedPattern,
 } from '../../utils/statsCalculator';
 import type { DoseEvent } from '../../domain';
+import CoachingSection from '../../features/aiCoaching/CoachingSection';
 
 // ── 날짜 범위 유틸 ────────────────────────────────────────────────────────────
 
@@ -274,6 +275,9 @@ export default function StatsScreen() {
             <Text style={styles.sectionTitle}>가장 많이 누락된 시간대</Text>
             <MissedPatternList patterns={patterns} />
           </View>
+
+          {/* AI 코칭 섹션 */}
+          <CoachingSection />
         </ScrollView>
       )}
     </View>

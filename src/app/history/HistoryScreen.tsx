@@ -6,6 +6,9 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
+  Modal,
+  Image,
+  ScrollView,
 } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import { useDoseEventStore, useMedicationStore } from '../../store';
@@ -61,6 +64,7 @@ export default function HistoryScreen() {
   const [currentMonth, setCurrentMonth] = useState(today.slice(0, 7));
   const [monthEvents, setMonthEvents] = useState<DoseEvent[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [modalEvent, setModalEvent] = useState<DoseEvent | null>(null);
 
   const { fetchByDateRange } = useDoseEventStore();
   const { medications, fetchMedications } = useMedicationStore();
@@ -182,7 +186,12 @@ export default function HistoryScreen() {
       (event.status === 'scheduled' || event.status === 'late');
 
     return (
-      <View testID={`history-card-${event.id}`} style={styles.card}>
+      <TouchableOpacity
+        testID={`history-card-${event.id}`}
+        style={styles.card}
+        onPress={() => setModalEvent(event)}
+        activeOpacity={0.85}
+      >
         <Text testID={`history-time-${event.id}`} style={styles.time}>
           {time}
         </Text>
@@ -208,7 +217,7 @@ export default function HistoryScreen() {
             <Text style={styles.lateBtnTxt}>늦은 복용 처리</Text>
           </TouchableOpacity>
         )}
-      </View>
+      </TouchableOpacity>
     );
   }
 
@@ -280,6 +289,90 @@ export default function HistoryScreen() {
           }
         />
       )}
+
+      {/* 복용 상세 모달 */}
+      <Modal
+        visible={modalEvent != null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setModalEvent(null)}
+        testID="modal-event-detail"
+      >
+        <TouchableOpacity
+          style={styles.detailOverlay}
+          activeOpacity={1}
+          onPress={() => setModalEvent(null)}
+        >
+          <TouchableOpacity activeOpacity={1} style={styles.detailCard}>
+            {/* 헤더 */}
+            <View style={styles.detailHeader}>
+              <Text style={styles.detailTitle}>복용 상세</Text>
+              <TouchableOpacity
+                testID="btn-close-detail"
+                onPress={() => setModalEvent(null)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={styles.detailClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            {modalEvent && (
+              <ScrollView showsVerticalScrollIndicator={false}>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>약 이름</Text>
+                  <Text testID="detail-med-name" style={styles.detailValue}>
+                    {medicationNames[modalEvent.medicationId] ?? modalEvent.medicationId}
+                  </Text>
+                </View>
+
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>예정 시간</Text>
+                  <Text testID="detail-time" style={styles.detailValue}>
+                    {modalEvent.plannedAt.slice(11, 16)}
+                  </Text>
+                </View>
+
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>상태</Text>
+                  <Text
+                    testID="detail-status"
+                    style={[styles.detailValue, { color: STATUS_COLOR[modalEvent.status] }]}
+                  >
+                    {STATUS_LABEL[modalEvent.status]}
+                  </Text>
+                </View>
+
+                {modalEvent.takenAt ? (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>복용 시간</Text>
+                    <Text testID="detail-taken-at" style={styles.detailValue}>
+                      {modalEvent.takenAt.slice(11, 16)}
+                    </Text>
+                  </View>
+                ) : null}
+
+                {modalEvent.note ? (
+                  <View style={styles.detailNoteRow}>
+                    <Text style={styles.detailLabel}>메모</Text>
+                    <Text testID="detail-note" style={styles.detailNote}>
+                      {modalEvent.note}
+                    </Text>
+                  </View>
+                ) : null}
+
+                {modalEvent.photoPath ? (
+                  <Image
+                    testID="detail-photo"
+                    source={{ uri: modalEvent.photoPath }}
+                    style={styles.detailPhoto}
+                    resizeMode="cover"
+                  />
+                ) : null}
+              </ScrollView>
+            )}
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -335,4 +428,48 @@ const styles = StyleSheet.create({
     backgroundColor: '#f97316',
   },
   lateBtnTxt: { fontSize: 12, color: '#fff', fontWeight: '600' },
+
+  // 상세 모달
+  detailOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  detailCard: {
+    width: '85%',
+    maxHeight: '80%',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+  },
+  detailHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  detailTitle: { fontSize: 17, fontWeight: '700', color: '#111827' },
+  detailClose: { fontSize: 18, color: '#9ca3af' },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  detailLabel: { fontSize: 14, color: '#6b7280' },
+  detailValue: { fontSize: 14, fontWeight: '500', color: '#111827' },
+  detailNoteRow: {
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  detailNote: { fontSize: 14, color: '#374151', marginTop: 6, lineHeight: 20 },
+  detailPhoto: {
+    width: '100%',
+    height: 200,
+    borderRadius: 10,
+    marginTop: 14,
+  },
 });

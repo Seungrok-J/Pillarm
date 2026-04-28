@@ -1,11 +1,13 @@
 export type RootStackParamList = {
   Main:         undefined;
   ScheduleNew:  undefined;
-  ScheduleEdit: { scheduleId: string; medicationId: string };
+  ScheduleEdit: { scheduleId: string; medicationId: string; suggestedTime?: string };
   ThemeShop:    undefined;
   CareCircle:   undefined;
   JoinCareCircle: undefined;
   CareMonitor:  { circleId: string; patientId: string };
+  Login:        undefined;
+  Signup:       undefined;
 };
 
 export type BottomTabParamList = {

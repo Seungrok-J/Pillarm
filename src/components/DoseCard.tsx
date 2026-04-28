@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,14 @@ import {
   Animated,
   PanResponder,
   StyleSheet,
+  Modal,
+  TextInput,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
 import type { DoseEvent, DoseStatus } from '../domain';
 
 // ── 상수 ─────────────────────────────────────────────────────────────────────
@@ -53,6 +60,7 @@ export interface DoseCardProps {
   onTake: (id: string) => void;
   onSnooze?: (id: string) => void;
   maxSnoozeCount?: number;
+  onAfterTake?: (id: string, note: string, photoPath: string | undefined) => void;
 }
 
 export default function DoseCard({
@@ -61,13 +69,18 @@ export default function DoseCard({
   onTake,
   onSnooze,
   maxSnoozeCount = 3,
+  onAfterTake,
 }: DoseCardProps) {
   const isTakeable = event.status === 'scheduled' || event.status === 'late';
   const isSnoozeable =
     isTakeable && onSnooze != null && event.snoozeCount < maxSnoozeCount;
 
-  // "HH:mm" — ISO 문자열에서 직접 추출 (타임존 독립적)
   const time = event.plannedAt.slice(11, 16);
+
+  // ── 메모 바텀시트 상태 ─────────────────────────────────────────────────────
+  const [showMemoSheet, setShowMemoSheet] = useState(false);
+  const [memo, setMemo] = useState('');
+  const [localPhoto, setLocalPhoto] = useState<string | null>(null);
 
   // ── 스와이프 ─────────────────────────────────────────────────────────────
   const translateX = useRef(new Animated.Value(0)).current;
@@ -97,6 +110,47 @@ export default function DoseCard({
     }),
   ).current;
 
+  // ── 복용 버튼 핸들러 ──────────────────────────────────────────────────────
+  function handleTakePress() {
+    if (!isTakeable) return;
+    onTake(event.id);
+    if (onAfterTake) {
+      setMemo('');
+      setLocalPhoto(null);
+      setShowMemoSheet(true);
+    }
+  }
+
+  // ── 사진 선택 ─────────────────────────────────────────────────────────────
+  async function pickImage(source: 'camera' | 'gallery') {
+    const result =
+      source === 'camera'
+        ? await ImagePicker.launchCameraAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            quality: 0.8,
+          })
+        : await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            quality: 0.8,
+          });
+
+    if (!result.canceled && result.assets[0]) {
+      const srcUri = result.assets[0].uri;
+      try {
+        const dir = `${FileSystem.documentDirectory}dose-photos/`;
+        await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
+        const ext = srcUri.split('.').pop()?.split('?')[0] ?? 'jpg';
+        const dest = `${dir}${Date.now()}.${ext}`;
+        await FileSystem.copyAsync({ from: srcUri, to: dest });
+        setLocalPhoto(dest);
+      } catch {
+        setLocalPhoto(srcUri);
+      }
+    }
+  }
+
   return (
     <View style={{ position: 'relative', marginBottom: 8 }}>
       {/* 스와이프 뒤에 보이는 미루기 힌트 */}
@@ -123,7 +177,7 @@ export default function DoseCard({
           {medicationName}
         </Text>
 
-        {/* 미루기 버튼 (접근성 + 테스트용) */}
+        {/* 미루기 버튼 */}
         {isSnoozeable && (
           <TouchableOpacity
             testID={`btn-snooze-${event.id}`}
@@ -138,7 +192,7 @@ export default function DoseCard({
         {/* 복용/상태 버튼 */}
         <TouchableOpacity
           testID={`btn-take-${event.id}`}
-          onPress={() => isTakeable && onTake(event.id)}
+          onPress={handleTakePress}
           disabled={!isTakeable}
           accessibilityRole="button"
           accessibilityLabel={`${medicationName} ${STATUS_LABEL[event.status]}`}
@@ -153,6 +207,89 @@ export default function DoseCard({
           </Text>
         </TouchableOpacity>
       </Animated.View>
+
+      {/* 메모/사진 바텀시트 */}
+      {onAfterTake && (
+        <Modal
+          visible={showMemoSheet}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowMemoSheet(false)}
+          testID="modal-memo-sheet"
+        >
+          <TouchableOpacity
+            style={styles.backdrop}
+            activeOpacity={1}
+            onPress={() => setShowMemoSheet(false)}
+          >
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              style={styles.sheetWrapper}
+            >
+              <TouchableOpacity activeOpacity={1} style={styles.sheet}>
+                <Text style={styles.sheetTitle}>메모 추가 (선택사항)</Text>
+
+                <TextInput
+                  testID="input-memo"
+                  style={styles.memoInput}
+                  value={memo}
+                  onChangeText={setMemo}
+                  placeholder="복용 메모 입력..."
+                  multiline
+                  numberOfLines={3}
+                  textAlignVertical="top"
+                />
+
+                <View style={styles.photoRow}>
+                  <TouchableOpacity
+                    testID="btn-camera"
+                    style={styles.photoBtn}
+                    onPress={() => pickImage('camera')}
+                  >
+                    <Text style={styles.photoBtnTxt}>📷 카메라</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    testID="btn-gallery"
+                    style={styles.photoBtn}
+                    onPress={() => pickImage('gallery')}
+                  >
+                    <Text style={styles.photoBtnTxt}>🖼️ 갤러리</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {localPhoto != null && (
+                  <Image
+                    testID="photo-preview"
+                    source={{ uri: localPhoto }}
+                    style={styles.photoPreview}
+                    resizeMode="cover"
+                  />
+                )}
+
+                <View style={styles.sheetBtnRow}>
+                  <TouchableOpacity
+                    testID="btn-skip-memo"
+                    style={styles.skipBtn}
+                    onPress={() => setShowMemoSheet(false)}
+                  >
+                    <Text style={styles.skipTxt}>건너뛰기</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    testID="btn-save-memo"
+                    style={styles.saveBtn}
+                    onPress={() => {
+                      onAfterTake(event.id, memo.trim(), localPhoto ?? undefined);
+                      setShowMemoSheet(false);
+                    }}
+                  >
+                    <Text style={styles.saveTxt}>저장</Text>
+                  </TouchableOpacity>
+                </View>
+              </TouchableOpacity>
+            </KeyboardAvoidingView>
+          </TouchableOpacity>
+        </Modal>
+      )}
     </View>
   );
 }
@@ -203,4 +340,78 @@ const styles = StyleSheet.create({
   },
   missedBtn: { backgroundColor: 'transparent' },
   actionTxt: { fontSize: 14, fontWeight: '600' },
+
+  // ── 바텀시트 ─────────────────────────────────────────────────────────────
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
+  },
+  sheetWrapper: {
+    width: '100%',
+  },
+  sheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingBottom: 36,
+  },
+  sheetTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 12,
+  },
+  memoInput: {
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 14,
+    color: '#111827',
+    minHeight: 80,
+    marginBottom: 14,
+  },
+  photoRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 14,
+  },
+  photoBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    alignItems: 'center',
+  },
+  photoBtnTxt: { fontSize: 14, color: '#374151' },
+  photoPreview: {
+    width: '100%',
+    height: 160,
+    borderRadius: 10,
+    marginBottom: 14,
+  },
+  sheetBtnRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  skipBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    alignItems: 'center',
+  },
+  skipTxt: { fontSize: 15, color: '#6b7280' },
+  saveBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: '#3b82f6',
+    alignItems: 'center',
+  },
+  saveTxt: { fontSize: 15, color: '#fff', fontWeight: '600' },
 });

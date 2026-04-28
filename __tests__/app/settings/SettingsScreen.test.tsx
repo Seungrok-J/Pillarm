@@ -8,6 +8,11 @@
  * AC5 — TimeInput 잘못된 형식 → 원래 값으로 복원
  */
 
+jest.mock('@react-navigation/native', () => ({
+  useNavigation: () => ({ navigate: jest.fn(), goBack: jest.fn() }),
+  useRoute: () => ({ params: {} }),
+}));
+
 jest.mock('../../../src/db', () => ({
   saveUserSettings: jest.fn().mockResolvedValue(undefined),
   getUserSettings: jest.fn(),

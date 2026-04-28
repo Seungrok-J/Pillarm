@@ -32,6 +32,7 @@ jest.mock('../../../src/db', () => ({
   upsertMedication: jest.fn().mockResolvedValue(undefined),
   deleteMedication: jest.fn().mockResolvedValue(undefined),
   markOverdueEventsMissed: jest.fn().mockResolvedValue(undefined),
+  updateDoseEventMemo: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('../../../src/notifications', () => ({

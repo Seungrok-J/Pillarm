@@ -57,41 +57,43 @@ describe('runMigrations — 실행 흐름', () => {
       expect(firstSql).toContain('CREATE TABLE IF NOT EXISTS');
     });
 
-    it('v1, v2 마이그레이션을 순서대로 실행한다', async () => {
+    it('v1, v2, v3 마이그레이션을 순서대로 실행한다', async () => {
       await runMigrations(asDb(db));
 
-      // schema_migrations 생성(1) + v1(2) + v2(3)
-      expect(db.execAsync).toHaveBeenCalledTimes(3);
+      // schema_migrations 생성(1) + v1(2) + v2(3) + v3(4)
+      expect(db.execAsync).toHaveBeenCalledTimes(4);
     });
 
-    it('v1, v2 버전을 schema_migrations 에 기록한다', async () => {
+    it('v1, v2, v3 버전을 schema_migrations 에 기록한다', async () => {
       await runMigrations(asDb(db));
 
-      expect(db.runAsync).toHaveBeenCalledTimes(2);
+      expect(db.runAsync).toHaveBeenCalledTimes(3);
       expect((db.runAsync.mock.calls[0][1] as unknown[])).toContain(1);
       expect((db.runAsync.mock.calls[1][1] as unknown[])).toContain(2);
+      expect((db.runAsync.mock.calls[2][1] as unknown[])).toContain(3);
     });
   });
 
   // ── Phase 1 → Phase 2 업데이트 ──────────────────────────────────────────
 
-  describe('v1만 적용된 상태 (Phase 1 → Phase 2 앱 업데이트)', () => {
+  describe('v1만 적용된 상태 (Phase 1 → Phase 2+v3 앱 업데이트)', () => {
     beforeEach(() => {
       db.getAllAsync.mockResolvedValue([{ version: 1 }]);
     });
 
-    it('v2 마이그레이션만 실행한다', async () => {
+    it('v2, v3 마이그레이션을 실행한다', async () => {
       await runMigrations(asDb(db));
 
-      // schema_migrations(1) + v2(2)
-      expect(db.execAsync).toHaveBeenCalledTimes(2);
+      // schema_migrations(1) + v2(2) + v3(3)
+      expect(db.execAsync).toHaveBeenCalledTimes(3);
     });
 
-    it('v2 버전만 schema_migrations 에 기록한다', async () => {
+    it('v2, v3 버전을 schema_migrations 에 기록한다', async () => {
       await runMigrations(asDb(db));
 
-      expect(db.runAsync).toHaveBeenCalledTimes(1);
+      expect(db.runAsync).toHaveBeenCalledTimes(2);
       expect((db.runAsync.mock.calls[0][1] as unknown[])).toContain(2);
+      expect((db.runAsync.mock.calls[1][1] as unknown[])).toContain(3);
     });
 
     it('v1 마이그레이션 SQL은 실행하지 않는다', async () => {
@@ -105,9 +107,9 @@ describe('runMigrations — 실행 흐름', () => {
 
   // ── 최신 상태 (멱등성) ─────────────────────────────────────────────────
 
-  describe('v1, v2 모두 적용된 상태 (최신 버전)', () => {
+  describe('v1, v2, v3 모두 적용된 상태 (최신 버전)', () => {
     beforeEach(() => {
-      db.getAllAsync.mockResolvedValue([{ version: 1 }, { version: 2 }]);
+      db.getAllAsync.mockResolvedValue([{ version: 1 }, { version: 2 }, { version: 3 }]);
     });
 
     it('execAsync 를 schema_migrations 생성 1번만 호출한다', async () => {
@@ -134,7 +136,7 @@ describe('runMigrations — 실행 흐름', () => {
       // 1차 호출: 아무것도 적용 안 됨
       db.getAllAsync.mockResolvedValueOnce([]);
       // 2차 호출: 모두 적용됨 (1차가 기록했다고 가정)
-      db.getAllAsync.mockResolvedValueOnce([{ version: 1 }, { version: 2 }]);
+      db.getAllAsync.mockResolvedValueOnce([{ version: 1 }, { version: 2 }, { version: 3 }]);
 
       await runMigrations(asDb(db));
       const runAsyncCountAfterFirst = db.runAsync.mock.calls.length;
@@ -142,12 +144,12 @@ describe('runMigrations — 실행 흐름', () => {
       await runMigrations(asDb(db));
       const runAsyncCountAfterSecond = db.runAsync.mock.calls.length;
 
-      expect(runAsyncCountAfterFirst).toBe(2);   // v1, v2 기록
-      expect(runAsyncCountAfterSecond).toBe(2);  // 추가 기록 없음
+      expect(runAsyncCountAfterFirst).toBe(3);   // v1, v2, v3 기록
+      expect(runAsyncCountAfterSecond).toBe(3);  // 추가 기록 없음
     });
 
     it('두 번 호출해도 에러가 발생하지 않는다', async () => {
-      db.getAllAsync.mockResolvedValue([{ version: 1 }, { version: 2 }]);
+      db.getAllAsync.mockResolvedValue([{ version: 1 }, { version: 2 }, { version: 3 }]);
 
       await expect(runMigrations(asDb(db))).resolves.toBeUndefined();
       await expect(runMigrations(asDb(db))).resolves.toBeUndefined();
@@ -183,6 +185,13 @@ describe('MIGRATIONS 배열 내용 검증', () => {
     expect(v2.sql).not.toMatch(/CREATE TABLE IF NOT EXISTS schedules\b/);
     expect(v2.sql).not.toMatch(/CREATE TABLE IF NOT EXISTS dose_events\b/);
     expect(v2.sql).not.toMatch(/CREATE TABLE IF NOT EXISTS user_settings\b/);
+  });
+
+  it('v3 마이그레이션에 photo_path 컬럼 추가가 포함된다', () => {
+    const v3 = MIGRATIONS.find((m) => m.version === 3);
+    expect(v3).toBeDefined();
+    expect(v3!.sql).toContain('photo_path');
+    expect(v3!.sql).toContain('ALTER TABLE dose_events');
   });
 
   it('마이그레이션 버전이 오름차순으로 정의되어 있다', () => {

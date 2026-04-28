@@ -20,6 +20,7 @@ import {
   usePointStore,
 } from '../../store';
 import { rescheduleSnooze } from '../../notifications';
+import { updateDoseEventMemo } from '../../db';
 import { todayString } from '../../utils';
 import DoseCard from '../../components/DoseCard';
 import NextDoseBanner from '../../components/NextDoseBanner';
@@ -117,6 +118,12 @@ export default function HomeScreen() {
     }
   }
 
+  async function handleAfterTake(id: string, note: string, photoPath: string | undefined) {
+    if (note || photoPath) {
+      await updateDoseEventMemo(id, note || null, photoPath ?? null);
+    }
+  }
+
   async function handleSnooze(eventId: string) {
     try {
       const ok = await snooze(eventId, settings.maxSnoozeCount);
@@ -201,6 +208,7 @@ export default function HomeScreen() {
               onTake={handleTake}
               onSnooze={handleSnooze}
               maxSnoozeCount={settings.maxSnoozeCount}
+              onAfterTake={handleAfterTake}
             />
           )}
           ListEmptyComponent={

@@ -6,11 +6,11 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
-import type { AuthStackParamList } from '../../navigation';
+import type { RootStackParamList } from '../../navigation';
 import { useAuthStore } from '../../store/authStore';
 import { authLogin } from '../../features/careCircle/careCircleApi';
 
-type Nav = StackNavigationProp<AuthStackParamList, 'Login'>;
+type Nav = StackNavigationProp<RootStackParamList, 'Login'>;
 
 export default function LoginScreen() {
   const navigation = useNavigation<Nav>();
@@ -31,7 +31,7 @@ export default function LoginScreen() {
         userId:       data.userId,
         userEmail:    email.trim().toLowerCase(),
       });
-      // RootNavigator가 isLoggedIn 변화를 감지해 자동 전환
+      navigation.goBack();
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { error?: string } } })
         ?.response?.data?.error ?? '로그인에 실패했습니다';

@@ -23,12 +23,14 @@ import { scheduleForSchedule } from '../../notifications';
 import { useSettingsStore } from '../../store';
 import ColorPalette from '../../components/ColorPalette';
 import TimePickerList from '../../components/TimePickerList';
+import MedicationSearchInput from '../../features/medicationDB/MedicationSearchInput';
+import type { MedicationSearchResult } from '../../features/medicationDB/MedicationSearchInput';
 
 type Nav = StackNavigationProp<RootStackParamList>;
 
 type RouteParams =
   | undefined
-  | { scheduleId: string; medicationId: string };
+  | { scheduleId: string; medicationId: string; suggestedTime?: string };
 
 const DOSAGE_UNITS = ['mg', '정', 'mL'] as const;
 type DosageUnit = (typeof DOSAGE_UNITS)[number];
@@ -96,7 +98,9 @@ export default function ScheduleFormScreen() {
           setMedCreatedAt(med.createdAt);
         }
         if (sched) {
-          setTimes(sched.times);
+          const baseTimes = sched.times;
+          const suggested = (params as { suggestedTime?: string })?.suggestedTime;
+          setTimes(suggested ? [suggested, ...baseTimes.filter((t) => t !== suggested)] : baseTimes);
           setStartDate(sched.startDate);
           setEndDate(sched.endDate ?? '');
           setWithFood(sched.withFood);
@@ -203,15 +207,25 @@ export default function ScheduleFormScreen() {
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: '#fff' }} contentContainerStyle={{ padding: 20 }}>
-      {/* ── 약 이름 ── */}
+      {/* ── 약 이름 (자동완성) ── */}
       <Text style={styles.label}>약 이름 *</Text>
-      <TextInput
+      <MedicationSearchInput
         testID="input-name"
-        style={styles.input}
         value={name}
-        onChangeText={setName}
+        onChange={setName}
         placeholder="예: 혈압약"
-        maxLength={50}
+        onSelect={(result: MedicationSearchResult) => {
+          setName(result.itemName);
+          if (result.dosageValue != null) {
+            setDosageValue(String(result.dosageValue));
+          }
+          if (result.dosageUnit) {
+            const valid = DOSAGE_UNITS as readonly string[];
+            if (valid.includes(result.dosageUnit)) {
+              setDosageUnit(result.dosageUnit as DosageUnit);
+            }
+          }
+        }}
       />
       {!!errors.name && (
         <Text testID="error-name" style={styles.errorText}>{errors.name}</Text>

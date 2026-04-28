@@ -50,6 +50,93 @@ beforeEach(() => {
   jest.clearAllMocks();
 });
 
+// ─── import db mocks for error tests ──────────────────────────────────────
+const mockGetByDate      = db.getDoseEventsByDate      as jest.Mock;
+const mockGetByDateRange = db.getDoseEventsByDateRange as jest.Mock;
+
+// ═══════════════════════════════════════════════════════════════════════════
+// fetchTodayEvents
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('fetchTodayEvents', () => {
+  it('정상 조회 시 todayEvents 를 업데이트한다', async () => {
+    const events = [makeEvent()];
+    mockGetByDate.mockResolvedValue(events);
+
+    await useDoseEventStore.getState().fetchTodayEvents('2026-04-22');
+
+    expect(useDoseEventStore.getState().todayEvents).toEqual(events);
+    expect(useDoseEventStore.getState().isLoading).toBe(false);
+  });
+
+  it('DB 에러 시 isLoading=false 이고 error 를 설정한다', async () => {
+    mockGetByDate.mockRejectedValue(new Error('조회 실패'));
+
+    await useDoseEventStore.getState().fetchTodayEvents('2026-04-22');
+
+    expect(useDoseEventStore.getState().isLoading).toBe(false);
+    expect(useDoseEventStore.getState().error).toBe('조회 실패');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// fetchByDateRange
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('fetchByDateRange', () => {
+  it('기간별 이벤트를 반환한다', async () => {
+    const events = [makeEvent()];
+    mockGetByDateRange.mockResolvedValue(events);
+
+    const result = await useDoseEventStore.getState().fetchByDateRange('2026-01-01T00:00:00Z', '2026-01-08T00:00:00Z');
+
+    expect(result).toEqual(events);
+  });
+
+  it('DB 에러 시 빈 배열 반환하고 error 를 설정한다', async () => {
+    mockGetByDateRange.mockRejectedValue(new Error('범위 조회 실패'));
+
+    const result = await useDoseEventStore.getState().fetchByDateRange('2026-01-01T00:00:00Z', '2026-01-08T00:00:00Z');
+
+    expect(result).toEqual([]);
+    expect(useDoseEventStore.getState().error).toBe('범위 조회 실패');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// markSkipped
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('markSkipped', () => {
+  it('status 를 skipped 로 변경한다', async () => {
+    useDoseEventStore.setState({ todayEvents: [makeEvent()] });
+
+    await useDoseEventStore.getState().markSkipped('evt-1');
+
+    expect(useDoseEventStore.getState().todayEvents[0]?.status).toBe('skipped');
+  });
+
+  it('updateDoseEventStatus 를 "skipped" 로 호출한다', async () => {
+    useDoseEventStore.setState({ todayEvents: [makeEvent()] });
+
+    await useDoseEventStore.getState().markSkipped('evt-1');
+
+    expect(mockUpdateStatus).toHaveBeenCalledWith('evt-1', 'skipped');
+  });
+
+  it('DB 실패 시 이전 상태로 롤백하고 error 를 설정한다', async () => {
+    mockUpdateStatus.mockRejectedValueOnce(new Error('건너뛰기 실패'));
+    useDoseEventStore.setState({ todayEvents: [makeEvent()] });
+
+    await expect(
+      useDoseEventStore.getState().markSkipped('evt-1'),
+    ).rejects.toThrow('건너뛰기 실패');
+
+    expect(useDoseEventStore.getState().todayEvents[0]?.status).toBe('scheduled');
+    expect(useDoseEventStore.getState().error).toBe('건너뛰기 실패');
+  });
+});
+
 // ═══════════════════════════════════════════════════════════════════════════
 // markTaken
 // ═══════════════════════════════════════════════════════════════════════════

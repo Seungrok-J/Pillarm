@@ -23,7 +23,18 @@
       "Bash(node -e \"require\\('react-native-svg/package.json'\\)\")",
       "Bash(node -e \"require\\('@react-native-async-storage/async-storage/package.json'\\)\")",
       "Bash(node -e \"const s=require\\('./coverage/coverage-summary.json'\\).total; console.log\\('Stmts:',s.statements.pct,'%  Branch:',s.branches.pct,'%  Funcs:',s.functions.pct,'%  Lines:',s.lines.pct,'%'\\)\")",
-      "Bash(node -e \"const s=require\\('./coverage/coverage-summary.json'\\).total; console.log\\('Stmts:',s.statements.pct,'Branch:',s.branches.pct,'Funcs:',s.functions.pct,'Lines:',s.lines.pct\\)\")"
+      "Bash(node -e \"const s=require\\('./coverage/coverage-summary.json'\\).total; console.log\\('Stmts:',s.statements.pct,'Branch:',s.branches.pct,'Funcs:',s.functions.pct,'Lines:',s.lines.pct\\)\")",
+      "Bash(sort -t\"|\" -k5 -n)",
+      "Bash(node -e ' *)",
+      "Bash(sort -t\"|\" -k4 -n)",
+      "Bash(grep -v \"^$\")",
+      "Bash(xxd)",
+      "Bash(node *)",
+      "Bash(claude doctor *)",
+      "Bash(where psql *)",
+      "Bash(npx prisma *)",
+      "Bash(npm run *)",
+      "Bash(curl *)"
     ]
   }
 }

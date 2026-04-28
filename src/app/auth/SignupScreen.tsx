@@ -6,11 +6,11 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
-import type { AuthStackParamList } from '../../navigation';
+import type { RootStackParamList } from '../../navigation';
 import { useAuthStore } from '../../store/authStore';
 import { authSignup } from '../../features/careCircle/careCircleApi';
 
-type Nav = StackNavigationProp<AuthStackParamList, 'Signup'>;
+type Nav = StackNavigationProp<RootStackParamList, 'Signup'>;
 
 export default function SignupScreen() {
   const navigation = useNavigation<Nav>();
@@ -35,6 +35,7 @@ export default function SignupScreen() {
         userId:       data.userId,
         userEmail:    email.trim().toLowerCase(),
       });
+      navigation.goBack();
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { error?: string } } })
         ?.response?.data?.error ?? '회원가입에 실패했습니다';

@@ -11,6 +11,15 @@ import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 
 // ── react-native-svg mock ─────────────────────────────────────────────────────
 
+jest.mock('@react-navigation/native', () => ({
+  useNavigation: () => ({ navigate: jest.fn(), goBack: jest.fn() }),
+  useRoute: () => ({ params: {} }),
+}));
+
+// CoachingSection은 자체 DB 쿼리와 AsyncStorage를 사용하므로
+// StatsScreen 단위 테스트에서는 null 컴포넌트로 대체한다.
+jest.mock('../../../src/features/aiCoaching/CoachingSection', () => () => null);
+
 jest.mock('react-native-svg', () => {
   const React = require('react');
   const { View } = require('react-native');
@@ -32,7 +41,8 @@ jest.mock('../../../src/notifications', () => ({
 
 jest.mock('../../../src/db', () => ({
   getDoseEventsByDateRange: jest.fn(),
-  getAllMedications: jest.fn().mockResolvedValue([]),
+  getAllMedications:        jest.fn().mockResolvedValue([]),
+  getAllSchedules:          jest.fn().mockResolvedValue([]),
 }));
 
 // ── Utils mock (날짜 고정) ────────────────────────────────────────────────────

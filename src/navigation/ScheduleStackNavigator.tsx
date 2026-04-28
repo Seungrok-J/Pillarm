@@ -7,6 +7,8 @@ import ThemeShopScreen from '../features/points/ThemeShopScreen';
 import CareCircleScreen from '../features/careCircle/CareCircleScreen';
 import JoinCareCircleScreen from '../features/careCircle/JoinCareCircleScreen';
 import CareMonitorScreen from '../features/careCircle/CareMonitorScreen';
+import LoginScreen from '../app/auth/LoginScreen';
+import SignupScreen from '../app/auth/SignupScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
 
@@ -47,6 +49,16 @@ export default function ScheduleStackNavigator() {
         name="CareMonitor"
         component={CareMonitorScreen}
         options={{ title: '복용 현황', headerBackTitle: '뒤로' }}
+      />
+      <Stack.Screen
+        name="Login"
+        component={LoginScreen}
+        options={{ title: '로그인', headerBackTitle: '뒤로' }}
+      />
+      <Stack.Screen
+        name="Signup"
+        component={SignupScreen}
+        options={{ title: '회원가입', headerBackTitle: '뒤로' }}
       />
     </Stack.Navigator>
   );
