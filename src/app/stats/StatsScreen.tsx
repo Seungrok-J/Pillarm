@@ -8,6 +8,7 @@ import {
   StyleSheet,
   type DimensionValue,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 import { useDoseEventStore } from '../../store';
 import {
@@ -220,6 +221,7 @@ export default function StatsScreen() {
     tab === 'week' && stats.total > 0 && stats.missed === 0;
 
   return (
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
     <View style={styles.container} testID="screen-stats">
       {/* 탭 */}
       <View style={styles.tabRow}>
@@ -281,12 +283,14 @@ export default function StatsScreen() {
         </ScrollView>
       )}
     </View>
+    </SafeAreaView>
   );
 }
 
 // ── 스타일 ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: '#fff' },
   container: { flex: 1, backgroundColor: '#f9fafb' },
 
   // 탭

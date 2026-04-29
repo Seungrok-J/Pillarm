@@ -34,7 +34,14 @@
       "Bash(where psql *)",
       "Bash(npx prisma *)",
       "Bash(npm run *)",
-      "Bash(curl *)"
+      "Bash(curl *)",
+      "Bash(netstat -ano)",
+      "PowerShell(netstat *)",
+      "PowerShell(Stop-Process *)",
+      "Bash(sed -n '150,185p' src/app/schedule/ScheduleFormScreen.tsx)",
+      "Bash(sed -n '45,55p' src/features/aiCoaching/CoachingSection.tsx)",
+      "Bash(sed -n '85,135p' src/features/points/pointEngine.ts)",
+      "Bash(sed -n '25,35p' src/store/pointStore.ts)"
     ]
   }
 }

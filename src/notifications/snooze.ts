@@ -1,4 +1,5 @@
 import * as Notifications from 'expo-notifications';
+import { Platform } from 'react-native';
 import { DoseEvent, UserSettings } from '../domain';
 import { updateDoseEventStatus } from '../db';
 import { addMinutes } from '../utils/date';
@@ -8,6 +9,7 @@ export async function snoozeDoseEvent(
   event: DoseEvent,
   settings: UserSettings,
 ): Promise<DoseEvent | null> {
+  if (Platform.OS === 'web') return null;
   if (event.snoozeCount >= settings.maxSnoozeCount) return null;
 
   const scheduled = await Notifications.getAllScheduledNotificationsAsync();

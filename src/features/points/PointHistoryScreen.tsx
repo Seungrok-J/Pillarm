@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RootStackParamList } from '../../navigation';
@@ -72,6 +73,7 @@ export default function PointHistoryScreen() {
   }
 
   return (
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
     <View style={styles.container} testID="screen-point-history">
       {/* 잔액 카드 */}
       <View style={styles.balanceCard}>
@@ -114,12 +116,14 @@ export default function PointHistoryScreen() {
         }
       />
     </View>
+    </SafeAreaView>
   );
 }
 
 // ── 스타일 ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
+  safeArea:     { flex: 1, backgroundColor: '#3b82f6' },
   container:    { flex: 1, backgroundColor: '#f9fafb' },
 
   balanceCard: {

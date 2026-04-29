@@ -8,6 +8,7 @@ import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RootStackParamList } from '../../navigation';
 import { useDoseEventStore } from '../../store';
 import { getAllSchedules } from '../../db';
+import { useAuthStore } from '../../store/authStore';
 import type { Schedule } from '../../domain';
 import { generateCoachingMessages, type CoachingMessage } from './coachingEngine';
 
@@ -46,7 +47,7 @@ export default function CoachingSection() {
         const cutoff = new Date(now.getTime() - THIRTY_DAYS_MS).toISOString();
         const [events, allSchedules] = await Promise.all([
           fetchByDateRange(cutoff, now.toISOString()),
-          getAllSchedules(),
+          getAllSchedules(useAuthStore.getState().userId ?? 'local'),
         ]);
 
         setSchedules(allSchedules);

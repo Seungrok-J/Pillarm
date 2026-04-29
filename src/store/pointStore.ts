@@ -3,6 +3,11 @@ import type { PointLedger } from '../domain';
 import { getBalance, getHistory } from '../features/points/pointEngine';
 import { getCurrentStreak } from '../features/points/streakCalculator';
 import { getDoseEventsByDateRange } from '../db';
+import { useAuthStore } from './authStore';
+
+function currentUserId() {
+  return useAuthStore.getState().userId ?? 'local';
+}
 
 interface PointState {
   balance: number;
@@ -27,7 +32,7 @@ export const usePointStore = create<PointState>((set) => ({
       from.setDate(from.getDate() - 90);
       const [balance, events] = await Promise.all([
         getBalance('local'),
-        getDoseEventsByDateRange(from.toISOString(), new Date().toISOString()),
+        getDoseEventsByDateRange(from.toISOString(), new Date().toISOString(), currentUserId()),
       ]);
       set({ balance, streak: getCurrentStreak(events) });
     } catch {}

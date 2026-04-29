@@ -11,9 +11,11 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
+  Alert,
+  Linking,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import type { DoseEvent, DoseStatus } from '../domain';
 
 // ── 상수 ─────────────────────────────────────────────────────────────────────
@@ -123,15 +125,30 @@ export default function DoseCard({
 
   // ── 사진 선택 ─────────────────────────────────────────────────────────────
   async function pickImage(source: 'camera' | 'gallery') {
+    if (source === 'camera') {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          '카메라 권한이 필요합니다',
+          '사진을 찍으려면 설정에서 카메라 접근을 허용해 주세요.',
+          [
+            { text: '취소', style: 'cancel' },
+            { text: '설정 열기', onPress: () => void Linking.openSettings() },
+          ],
+        );
+        return;
+      }
+    }
+
     const result =
       source === 'camera'
         ? await ImagePicker.launchCameraAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            mediaTypes: ['images'],
             allowsEditing: true,
             quality: 0.8,
           })
         : await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            mediaTypes: ['images'],
             allowsEditing: true,
             quality: 0.8,
           });

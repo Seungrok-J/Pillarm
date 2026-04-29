@@ -1,11 +1,12 @@
 import { getDatabase } from './database';
 import { DoseEvent } from '../domain';
 
-export async function getDoseEventsByDate(dateStr: string): Promise<DoseEvent[]> {
+export async function getDoseEventsByDate(dateStr: string, userId: string): Promise<DoseEvent[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<Record<string, unknown>>(
-    `SELECT * FROM dose_events WHERE date(planned_at) = ? ORDER BY planned_at`,
+    `SELECT * FROM dose_events WHERE date(planned_at) = ? AND user_id = ? ORDER BY planned_at`,
     dateStr,
+    userId,
   );
   return rows.map(rowToDoseEvent);
 }
@@ -25,11 +26,11 @@ export async function updateDoseEventStatus(
   );
 }
 
-export async function insertDoseEvent(event: DoseEvent): Promise<void> {
+export async function insertDoseEvent(event: DoseEvent, userId: string): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
-    `INSERT INTO dose_events (id, schedule_id, medication_id, planned_at, status, taken_at, snooze_count, source, note, photo_path, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO dose_events (id, schedule_id, medication_id, planned_at, status, taken_at, snooze_count, source, note, photo_path, user_id, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     event.id,
     event.scheduleId,
     event.medicationId,
@@ -40,6 +41,7 @@ export async function insertDoseEvent(event: DoseEvent): Promise<void> {
     event.source,
     event.note ?? null,
     event.photoPath ?? null,
+    userId,
     event.createdAt,
     event.updatedAt,
   );
@@ -63,12 +65,14 @@ export async function updateDoseEventMemo(
 export async function getDoseEventsByDateRange(
   startIso: string,
   endIso: string,
+  userId: string,
 ): Promise<DoseEvent[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<Record<string, unknown>>(
-    'SELECT * FROM dose_events WHERE planned_at >= ? AND planned_at < ? ORDER BY planned_at',
+    'SELECT * FROM dose_events WHERE planned_at >= ? AND planned_at < ? AND user_id = ? ORDER BY planned_at',
     startIso,
     endIso,
+    userId,
   );
   return rows.map(rowToDoseEvent);
 }

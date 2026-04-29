@@ -1,4 +1,5 @@
 import * as Notifications from 'expo-notifications';
+import { Platform } from 'react-native';
 import { Schedule, Medication, UserSettings } from '../domain';
 import { generateId } from '../utils';
 import { addMinutes } from '../utils/date';
@@ -9,6 +10,11 @@ import {
   getAllSchedules,
   getMedicationById,
 } from '../db';
+import { useAuthStore } from '../store/authStore';
+
+function currentUserId() {
+  return useAuthStore.getState().userId ?? 'local';
+}
 
 // ── 스케줄링 ──────────────────────────────────────────────────────────────
 
@@ -21,6 +27,7 @@ export async function scheduleForSchedule(
   medication: Medication,
   settings: UserSettings,
 ): Promise<void> {
+  if (Platform.OS === 'web') return;
   await cancelForSchedule(schedule.id);
 
   const now = new Date();
@@ -73,7 +80,7 @@ export async function scheduleForSchedule(
         source: 'notification',
         createdAt: now.toISOString(),
         updatedAt: now.toISOString(),
-      });
+      }, currentUserId());
     }
   }
 }
@@ -84,6 +91,7 @@ export async function scheduleForSchedule(
  * 특정 scheduleId 에 연결된 등록된 알림을 모두 취소합니다.
  */
 export async function cancelForSchedule(scheduleId: string): Promise<void> {
+  if (Platform.OS === 'web') return;
   const all = await Notifications.getAllScheduledNotificationsAsync();
   const toCancel = all.filter(
     (n) => (n.content.data as Record<string, unknown>)?.['scheduleId'] === scheduleId,
@@ -103,6 +111,7 @@ export async function rescheduleSnooze(
   doseEventId: string,
   snoozeMinutes: number,
 ): Promise<void> {
+  if (Platform.OS === 'web') return;
   const all = await Notifications.getAllScheduledNotificationsAsync();
   const existing = all.find(
     (n) => (n.content.data as Record<string, unknown>)?.['doseEventId'] === doseEventId,
@@ -132,7 +141,7 @@ export async function rescheduleSnooze(
  * 새 설정 기준으로 재등록합니다.
  */
 export async function rescheduleAllSchedules(settings: UserSettings): Promise<void> {
-  const schedules = await getAllSchedules();
+  const schedules = await getAllSchedules(currentUserId());
   const medCache = new Map<string, Medication | null>();
 
   for (const schedule of schedules) {

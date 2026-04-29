@@ -7,6 +7,11 @@ import {
   deleteSchedule,
 } from '../db';
 import { cancelForSchedule } from '../notifications';
+import { useAuthStore } from './authStore';
+
+function currentUserId() {
+  return useAuthStore.getState().userId ?? 'local';
+}
 
 interface ScheduleState {
   schedules: Schedule[];
@@ -26,7 +31,7 @@ export const useScheduleStore = create<ScheduleState>((set, get) => ({
   fetchSchedules: async (medicationId) => {
     set({ isLoading: true, error: null });
     try {
-      const schedules = await getSchedulesByMedication(medicationId);
+      const schedules = await getSchedulesByMedication(medicationId, currentUserId());
       set({ schedules, isLoading: false });
     } catch (e) {
       set({ isLoading: false, error: (e as Error).message });
@@ -36,7 +41,7 @@ export const useScheduleStore = create<ScheduleState>((set, get) => ({
   addSchedule: async (schedule) => {
     set({ error: null });
     try {
-      await upsertSchedule(schedule);
+      await upsertSchedule(schedule, currentUserId());
       set((state) => ({ schedules: [...state.schedules, schedule] }));
     } catch (e) {
       set({ error: (e as Error).message });
@@ -53,7 +58,7 @@ export const useScheduleStore = create<ScheduleState>((set, get) => ({
       ),
     }));
     try {
-      await upsertSchedule(schedule);
+      await upsertSchedule(schedule, currentUserId());
     } catch (e) {
       set({ schedules: prev, error: (e as Error).message });
       throw e;

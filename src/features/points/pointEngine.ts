@@ -88,7 +88,7 @@ export async function awardDoseTaken(
 export async function awardStreakBonus(userId: string): Promise<PointLedger | null> {
   const from = new Date();
   from.setDate(from.getDate() - 90);
-  const events = await getDoseEventsByDateRange(from.toISOString(), new Date().toISOString());
+  const events = await getDoseEventsByDateRange(from.toISOString(), new Date().toISOString(), userId);
 
   const streak = getCurrentStreak(events);
   if (streak === 0 || streak % 7 !== 0) return null;
@@ -131,6 +131,7 @@ export async function awardPerfectWeek(userId: string): Promise<PointLedger | nu
   const events = await getDoseEventsByDateRange(
     monday.toISOString(),
     new Date().toISOString(),
+    userId,
   );
   if (!isPerfectWeek(events)) return null;
 

@@ -6,7 +6,10 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  Modal,
+  Platform,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RootStackParamList } from '../../navigation';
@@ -21,12 +24,139 @@ import {
 } from '../../db';
 import { scheduleForSchedule } from '../../notifications';
 import { useSettingsStore } from '../../store';
+import { useAuthStore } from '../../store/authStore';
 import ColorPalette from '../../components/ColorPalette';
 import TimePickerList from '../../components/TimePickerList';
 import MedicationSearchInput from '../../features/medicationDB/MedicationSearchInput';
 import type { MedicationSearchResult } from '../../features/medicationDB/MedicationSearchInput';
 
 type Nav = StackNavigationProp<RootStackParamList>;
+
+// ── 날짜 헬퍼 ─────────────────────────────────────────────────────────────────
+
+function addDays(dateStr: string, days: number): string {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function formatDisplayDate(dateStr: string): string {
+  const [y, m, day] = dateStr.split('-');
+  return `${y}년 ${Number(m)}월 ${Number(day)}일`;
+}
+
+// ── DatePickerField ───────────────────────────────────────────────────────────
+
+interface DatePickerFieldProps {
+  testID: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  minimumDate?: Date;
+}
+
+function DatePickerField({ testID, value, onChange, placeholder, minimumDate }: DatePickerFieldProps) {
+  const [show,     setShow]     = useState(false);
+  const [tempDate, setTempDate] = useState<Date>(new Date());
+
+  function openPicker() {
+    setTempDate(value ? new Date(value + 'T00:00:00') : new Date());
+    setShow(true);
+  }
+
+  const pickerNode = (
+    <DateTimePicker
+      value={tempDate}
+      mode="date"
+      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+      locale="ko-KR"
+      minimumDate={minimumDate}
+      onChange={(_, selected) => {
+        if (Platform.OS === 'android') {
+          setShow(false);
+          if (selected) onChange(selected.toISOString().slice(0, 10));
+        } else {
+          if (selected) setTempDate(selected);
+        }
+      }}
+    />
+  );
+
+  return (
+    <>
+      <TouchableOpacity
+        testID={testID}
+        style={dateStyles.btn}
+        onPress={openPicker}
+        accessibilityRole="button"
+      >
+        <Text style={value ? dateStyles.valueTxt : dateStyles.placeholderTxt}>
+          {value ? formatDisplayDate(value) : placeholder}
+        </Text>
+        <Text style={dateStyles.icon}>📅</Text>
+      </TouchableOpacity>
+
+      {Platform.OS === 'ios' ? (
+        <Modal visible={show} transparent animationType="slide" onRequestClose={() => setShow(false)}>
+          <View style={dateStyles.overlay}>
+            <View style={dateStyles.sheet}>
+              <View style={dateStyles.toolbar}>
+                <TouchableOpacity onPress={() => setShow(false)}>
+                  <Text style={dateStyles.cancelTxt}>취소</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => {
+                  onChange(tempDate.toISOString().slice(0, 10));
+                  setShow(false);
+                }}>
+                  <Text style={dateStyles.confirmTxt}>확인</Text>
+                </TouchableOpacity>
+              </View>
+              {pickerNode}
+            </View>
+          </View>
+        </Modal>
+      ) : (
+        show && pickerNode
+      )}
+    </>
+  );
+}
+
+const dateStyles = {
+  btn: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'space-between' as const,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+    marginBottom: 4,
+  },
+  valueTxt:       { fontSize: 16, color: '#111827' },
+  placeholderTxt: { fontSize: 16, color: '#9ca3af' },
+  icon: { fontSize: 18 },
+  overlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' as const,
+  },
+  sheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    paddingBottom: 36,
+  },
+  toolbar: {
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  cancelTxt:  { fontSize: 16, color: '#6b7280' },
+  confirmTxt: { fontSize: 16, color: '#3b82f6', fontWeight: '600' as const },
+};
 
 type RouteParams =
   | undefined
@@ -74,7 +204,7 @@ export default function ScheduleFormScreen() {
   const [repeatType, setRepeatType] = useState<'daily' | 'weekly'>('daily');
   const [selectedDays, setSelectedDays] = useState<number[]>([]);
   const [startDate, setStartDate] = useState(todayString());
-  const [endDate, setEndDate] = useState('');
+  const [endDate,   setEndDate]   = useState(() => addDays(todayString(), 7));
   const [withFood, setWithFood] = useState<WithFood>('none');
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSaving, setIsSaving] = useState(false);
@@ -155,7 +285,7 @@ export default function ScheduleFormScreen() {
         createdAt: medCreatedAt,
         updatedAt: now,
       };
-      await upsertMedication(med);
+      await upsertMedication(med, useAuthStore.getState().userId ?? 'local');
 
       // Step 2 — Schedule upsert
       const sched: Schedule = {
@@ -172,7 +302,7 @@ export default function ScheduleFormScreen() {
         createdAt: schedCreatedAt,
         updatedAt: now,
       };
-      await upsertSchedule(sched);
+      await upsertSchedule(sched, useAuthStore.getState().userId ?? 'local');
 
       // Step 3 — 수정 시 기존 미래 DoseEvent 삭제
       if (isEdit) {
@@ -308,22 +438,24 @@ export default function ScheduleFormScreen() {
 
       {/* ── 시작일 ── */}
       <Text style={styles.label}>시작일 *</Text>
-      <TextInput
+      <DatePickerField
         testID="input-start-date"
-        style={styles.input}
         value={startDate}
-        onChangeText={setStartDate}
-        placeholder="YYYY-MM-DD"
+        onChange={(v) => {
+          setStartDate(v);
+          if (endDate && endDate < v) setEndDate(addDays(v, 7));
+        }}
+        placeholder="시작일 선택"
       />
 
       {/* ── 종료일 ── */}
       <Text style={[styles.label, { marginTop: 8 }]}>종료일</Text>
-      <TextInput
+      <DatePickerField
         testID="input-end-date"
-        style={styles.input}
         value={endDate}
-        onChangeText={setEndDate}
-        placeholder="YYYY-MM-DD (선택)"
+        onChange={setEndDate}
+        placeholder="종료일 선택"
+        minimumDate={new Date(startDate + 'T00:00:00')}
       />
       {!!errors.endDate && (
         <Text testID="error-endDate" style={styles.errorText}>{errors.endDate}</Text>

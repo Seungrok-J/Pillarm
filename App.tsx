@@ -2,6 +2,7 @@ import './global.css';
 import React, { useEffect, useRef, useState } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 import { getDatabase } from './src/db';
 import { checkAndMarkMissed } from './src/notifications';
@@ -49,9 +50,9 @@ export default function App() {
   if (!isReady) return null;
 
   return (
-    <>
+    <SafeAreaProvider>
       <RootNavigator />
-      <StatusBar style="auto" />
-    </>
+      <StatusBar style="dark" />
+    </SafeAreaProvider>
   );
 }

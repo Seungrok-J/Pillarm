@@ -1,6 +1,11 @@
 import { create } from 'zustand';
 import { Medication } from '../domain';
 import { getAllMedications, upsertMedication, deleteMedication } from '../db';
+import { useAuthStore } from './authStore';
+
+function currentUserId() {
+  return useAuthStore.getState().userId ?? 'local';
+}
 
 interface MedicationState {
   medications: Medication[];
@@ -20,7 +25,7 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
   fetchMedications: async () => {
     set({ isLoading: true, error: null });
     try {
-      const medications = await getAllMedications();
+      const medications = await getAllMedications(currentUserId());
       set({ medications, isLoading: false });
     } catch (e) {
       set({ isLoading: false, error: (e as Error).message });
@@ -30,7 +35,7 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
   addMedication: async (medication) => {
     set({ error: null });
     try {
-      await upsertMedication(medication);
+      await upsertMedication(medication, currentUserId());
       set((state) => ({ medications: [...state.medications, medication] }));
     } catch (e) {
       set({ error: (e as Error).message });
@@ -48,7 +53,7 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
       ),
     }));
     try {
-      await upsertMedication(medication);
+      await upsertMedication(medication, currentUserId());
     } catch (e) {
       set({ medications: prev, error: (e as Error).message });
       throw e;

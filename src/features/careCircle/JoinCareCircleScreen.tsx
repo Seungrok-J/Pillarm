@@ -1,10 +1,11 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
   ActivityIndicator, StyleSheet, Alert, Platform,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
+import type { RouteProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../../navigation';
 import { joinCircle } from './careCircleApi';
 
@@ -73,6 +74,8 @@ function CodeInputTab({ onSubmit, loading }: CodeInputProps) {
             onKeyPress={({ nativeEvent }) => handleKeyPress(nativeEvent.key, i)}
             maxLength={1}
             autoCapitalize="characters"
+            autoCorrect={false}
+            spellCheck={false}
             keyboardType={Platform.OS === 'ios' ? 'default' : 'visible-password'}
             textAlign="center"
             selectTextOnFocus
@@ -141,7 +144,8 @@ function QrScanTab({ onScan }: QrScanProps) {
   function handleScan({ data }: { data: string }) {
     if (scanned) return;
     setScanned(true);
-    const code = data.trim().toUpperCase();
+    const urlMatch = data.match(/\/join\/([A-Z0-9]{6})/i);
+    const code = urlMatch ? urlMatch[1].toUpperCase() : data.trim().toUpperCase();
     if (/^[A-Z0-9]{6}$/.test(code)) {
       onScan(code);
     } else {
@@ -161,7 +165,7 @@ function QrScanTab({ onScan }: QrScanProps) {
     <View style={styles.cameraWrap}>
       <CV
         style={styles.camera}
-        onBarcodeScanned={scanned ? undefined : handleScan}
+        onBarcodeScanned={scanned ? () => {} : handleScan}
         barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
       />
       <View style={styles.scanOverlay}>
@@ -178,8 +182,17 @@ type Tab = 'code' | 'qr';
 
 export default function JoinCareCircleScreen() {
   const navigation = useNavigation<Nav>();
+  const route = useRoute<RouteProp<RootStackParamList, 'JoinCareCircle'>>();
   const [tab,     setTab]     = useState<Tab>('code');
   const [loading, setLoading] = useState(false);
+
+  const deepLinkCode = route.params?.code?.toUpperCase();
+
+  useEffect(() => {
+    if (deepLinkCode && /^[A-Z0-9]{6}$/.test(deepLinkCode)) {
+      handleJoin(deepLinkCode);
+    }
+  }, [deepLinkCode]);
 
   async function handleJoin(code: string) {
     if (loading) return;

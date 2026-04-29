@@ -1,17 +1,20 @@
 import { getDatabase } from './database';
 import { Medication } from '../domain';
 
-export async function getAllMedications(): Promise<Medication[]> {
+export async function getAllMedications(userId: string): Promise<Medication[]> {
   const db = await getDatabase();
-  const rows = await db.getAllAsync<Record<string, unknown>>('SELECT * FROM medications WHERE is_active = 1 ORDER BY name');
+  const rows = await db.getAllAsync<Record<string, unknown>>(
+    'SELECT * FROM medications WHERE is_active = 1 AND user_id = ? ORDER BY name',
+    userId,
+  );
   return rows.map(rowToMedication);
 }
 
-export async function upsertMedication(medication: Medication): Promise<void> {
+export async function upsertMedication(medication: Medication, userId: string): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
-    `INSERT INTO medications (id, name, dosage_value, dosage_unit, color, is_active, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO medications (id, name, dosage_value, dosage_unit, color, is_active, user_id, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET
        name = excluded.name,
        dosage_value = excluded.dosage_value,
@@ -25,6 +28,7 @@ export async function upsertMedication(medication: Medication): Promise<void> {
     medication.dosageUnit ?? null,
     medication.color ?? null,
     medication.isActive ? 1 : 0,
+    userId,
     medication.createdAt,
     medication.updatedAt,
   );

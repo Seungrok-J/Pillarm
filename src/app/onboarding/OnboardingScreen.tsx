@@ -7,6 +7,7 @@ import {
   Dimensions,
   StyleSheet,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { requestNotificationPermission } from '../../notifications';
 
@@ -83,7 +84,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
   }
 
   return (
-    <View style={styles.container} testID="screen-onboarding">
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']} testID="screen-onboarding">
       {/* 슬라이드 */}
       <FlatList<Slide>
         ref={flatListRef}
@@ -124,7 +125,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
           <Text style={styles.btnText}>{isLast ? '시작하기' : '다음'}</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 

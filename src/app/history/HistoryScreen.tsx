@@ -10,6 +10,7 @@ import {
   Image,
   ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Calendar } from 'react-native-calendars';
 import { useDoseEventStore, useMedicationStore } from '../../store';
 import { updateDoseEventStatus } from '../../db';
@@ -223,6 +224,7 @@ export default function HistoryScreen() {
 
   // ── 렌더 ───────────────────────────────────────────────────────────────────
   return (
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
     <View style={styles.container} testID="screen-history">
       {/* 월 네비게이션 */}
       <View style={styles.monthNav}>
@@ -374,12 +376,14 @@ export default function HistoryScreen() {
         </TouchableOpacity>
       </Modal>
     </View>
+    </SafeAreaView>
   );
 }
 
 // ── 스타일 ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: '#fff' },
   container: { flex: 1, backgroundColor: '#f9fafb' },
   monthNav: {
     flexDirection: 'row',

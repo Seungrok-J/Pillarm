@@ -124,6 +124,17 @@ export const MIGRATIONS: Migration[] = [
     version: 3,
     sql: `ALTER TABLE dose_events ADD COLUMN photo_path TEXT;`,
   },
+
+  // ── v4: 사용자별 데이터 분리 ─────────────────────────────────────────────────
+  // 기존 행은 모두 'local'(비로그인)로 귀속. 로그인 사용자는 server userId로 구분.
+  {
+    version: 4,
+    sql: `
+      ALTER TABLE medications  ADD COLUMN user_id TEXT NOT NULL DEFAULT 'local';
+      ALTER TABLE schedules    ADD COLUMN user_id TEXT NOT NULL DEFAULT 'local';
+      ALTER TABLE dose_events  ADD COLUMN user_id TEXT NOT NULL DEFAULT 'local';
+    `,
+  },
 ];
 
 export async function runMigrations(db: MigrationDb): Promise<void> {

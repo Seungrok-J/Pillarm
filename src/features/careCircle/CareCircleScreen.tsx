@@ -1,24 +1,18 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-  View, Text, TouchableOpacity, FlatList, Modal,
-  ActivityIndicator, Alert, StyleSheet, Switch,
+  View, Text, TouchableOpacity, Modal,
+  ActivityIndicator, Alert, StyleSheet,
   ScrollView, TextInput, Share,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RootStackParamList } from '../../navigation';
 import { useAuthStore } from '../../store/authStore';
+import QRCode from 'react-native-qrcode-svg';
 import {
   listCircles, createCircle, deleteCircle, createInvite,
   type ApiCareCircle, type ApiCareMember,
 } from './careCircleApi';
-
-// react-native-qrcode-svg 미설치 시 graceful fallback
-let QRCode: React.ComponentType<{ value: string; size: number; backgroundColor: string; color: string }> | null = null;
-try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  QRCode = require('react-native-qrcode-svg').default;
-} catch { /* not installed */ }
 
 type Nav = StackNavigationProp<RootStackParamList>;
 
@@ -39,7 +33,11 @@ interface InviteModalProps {
 function InviteModal({ visible, code, onClose }: InviteModalProps) {
   function handleShare() {
     if (!code) return;
-    Share.share({ message: `필람 보호 그룹 초대 코드: ${code} (24시간 유효)` });
+    const url = `pillarm://join/${code}`;
+    Share.share({
+      message: `필람 앱에서 보호 그룹 초대를 수락하세요 (24시간 유효)\n\n${url}`,
+      url,
+    });
   }
 
   return (
@@ -59,13 +57,11 @@ function InviteModal({ visible, code, onClose }: InviteModalProps) {
           </View>
 
           {/* QR 코드 */}
-          {code && QRCode ? (
+          {code && (
             <View style={styles.qrWrap} testID="qr-code">
-              <QRCode value={code} size={160} backgroundColor="#fff" color="#111827" />
+              <QRCode value={`pillarm://join/${code}`} size={160} backgroundColor="#fff" color="#111827" />
             </View>
-          ) : code ? (
-            <Text style={styles.qrFallback}>QR 표시를 위해 react-native-qrcode-svg를 설치하세요</Text>
-          ) : null}
+          )}
 
           <Text style={styles.expireNote}>⏰ 24시간 후 만료</Text>
 

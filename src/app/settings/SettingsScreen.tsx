@@ -8,7 +8,9 @@ import {
   ScrollView,
   ActivityIndicator,
   StyleSheet,
+  Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RootStackParamList } from '../../navigation';
@@ -113,9 +115,24 @@ export default function SettingsScreen() {
 
   if (!settings) {
     return (
-      <View style={styles.loadingContainer}>
+      <SafeAreaView style={styles.loadingContainer} edges={['top']}>
         <ActivityIndicator testID="loading-indicator" />
-      </View>
+      </SafeAreaView>
+    );
+  }
+
+  function requireLogin(then: () => void) {
+    if (isLoggedIn) {
+      then();
+      return;
+    }
+    Alert.alert(
+      '로그인이 필요합니다',
+      '보호 그룹 기능을 사용하려면 먼저 로그인해 주세요.',
+      [
+        { text: '취소', style: 'cancel' },
+        { text: '로그인하기', onPress: () => navigation.navigate('Login') },
+      ],
     );
   }
 
@@ -132,6 +149,7 @@ export default function SettingsScreen() {
   }
 
   return (
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
@@ -226,7 +244,7 @@ export default function SettingsScreen() {
         <TouchableOpacity
           testID="btn-my-care-circle"
           style={styles.row}
-          onPress={() => navigation.navigate('CareCircle')}
+          onPress={() => requireLogin(() => navigation.navigate('CareCircle'))}
           accessibilityRole="button"
         >
           <Text style={styles.label}>내 보호 그룹 관리</Text>
@@ -236,7 +254,7 @@ export default function SettingsScreen() {
         <TouchableOpacity
           testID="btn-join-care-circle"
           style={styles.row}
-          onPress={() => navigation.navigate('JoinCareCircle')}
+          onPress={() => requireLogin(() => navigation.navigate('JoinCareCircle'))}
           accessibilityRole="button"
         >
           <Text style={styles.label}>보호 그룹 참여하기</Text>
@@ -288,12 +306,14 @@ export default function SettingsScreen() {
         )}
       </View>
     </ScrollView>
+    </SafeAreaView>
   );
 }
 
 // ── 스타일 ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: '#f9fafb' },
   loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   container: { flex: 1, backgroundColor: '#f9fafb' },
   content: { paddingBottom: 40 },

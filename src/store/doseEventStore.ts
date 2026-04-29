@@ -7,7 +7,12 @@ import {
   updateDoseEventSnooze,
 } from '../db';
 import { useSettingsStore } from './settingsStore';
+import { useAuthStore } from './authStore';
 import { awardDoseTaken, awardStreakBonus } from '../features/points/pointEngine';
+
+function currentUserId() {
+  return useAuthStore.getState().userId ?? 'local';
+}
 
 interface DoseEventState {
   todayEvents: DoseEvent[];
@@ -29,7 +34,7 @@ export const useDoseEventStore = create<DoseEventState>((set, get) => ({
   fetchTodayEvents: async (dateStr) => {
     set({ isLoading: true, error: null });
     try {
-      const todayEvents = await getDoseEventsByDate(dateStr);
+      const todayEvents = await getDoseEventsByDate(dateStr, currentUserId());
       set({ todayEvents, isLoading: false });
     } catch (e) {
       set({ isLoading: false, error: (e as Error).message });
@@ -38,7 +43,7 @@ export const useDoseEventStore = create<DoseEventState>((set, get) => ({
 
   fetchByDateRange: async (startIso, endIso) => {
     try {
-      return await getDoseEventsByDateRange(startIso, endIso);
+      return await getDoseEventsByDateRange(startIso, endIso, currentUserId());
     } catch (e) {
       set({ error: (e as Error).message });
       return [];

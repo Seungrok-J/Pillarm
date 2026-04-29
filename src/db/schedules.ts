@@ -1,20 +1,21 @@
 import { getDatabase } from './database';
 import { Schedule } from '../domain';
 
-export async function getSchedulesByMedication(medicationId: string): Promise<Schedule[]> {
+export async function getSchedulesByMedication(medicationId: string, userId: string): Promise<Schedule[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<Record<string, unknown>>(
-    'SELECT * FROM schedules WHERE medication_id = ? AND is_active = 1',
+    'SELECT * FROM schedules WHERE medication_id = ? AND is_active = 1 AND user_id = ?',
     medicationId,
+    userId,
   );
   return rows.map(rowToSchedule);
 }
 
-export async function upsertSchedule(schedule: Schedule): Promise<void> {
+export async function upsertSchedule(schedule: Schedule, userId: string): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
-    `INSERT INTO schedules (id, medication_id, schedule_type, start_date, end_date, days_of_week, times, with_food, grace_minutes, is_active, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO schedules (id, medication_id, schedule_type, start_date, end_date, days_of_week, times, with_food, grace_minutes, is_active, user_id, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET
        schedule_type = excluded.schedule_type,
        start_date = excluded.start_date,
@@ -35,6 +36,7 @@ export async function upsertSchedule(schedule: Schedule): Promise<void> {
     schedule.withFood,
     schedule.graceMinutes,
     schedule.isActive ? 1 : 0,
+    userId,
     schedule.createdAt,
     schedule.updatedAt,
   );
@@ -49,10 +51,11 @@ export async function getScheduleById(id: string): Promise<Schedule | null> {
   return row ? rowToSchedule(row) : null;
 }
 
-export async function getAllSchedules(): Promise<Schedule[]> {
+export async function getAllSchedules(userId: string): Promise<Schedule[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<Record<string, unknown>>(
-    'SELECT * FROM schedules WHERE is_active = 1 ORDER BY created_at',
+    'SELECT * FROM schedules WHERE is_active = 1 AND user_id = ? ORDER BY created_at',
+    userId,
   );
   return rows.map(rowToSchedule);
 }

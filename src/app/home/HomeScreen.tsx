@@ -10,6 +10,7 @@ import {
   StyleSheet,
   Animated,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RootStackParamList } from '../../navigation';
@@ -149,6 +150,7 @@ export default function HomeScreen() {
 
   // ── 렌더 ───────────────────────────────────────────────────────────────
   return (
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
     <View style={styles.container} testID="screen-home">
       {/* 날짜 + 포인트 헤더 */}
       <View style={styles.header}>
@@ -242,10 +244,12 @@ export default function HomeScreen() {
         <Text style={styles.toastText}>+10 포인트! 🎉</Text>
       </Animated.View>
     </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: '#fff' },
   container: { flex: 1, backgroundColor: '#f9fafb' },
   header: {
     paddingHorizontal: 20,

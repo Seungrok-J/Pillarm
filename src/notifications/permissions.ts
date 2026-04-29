@@ -1,23 +1,21 @@
 import * as Notifications from 'expo-notifications';
-import { Alert, Linking } from 'react-native';
+import { Alert, Linking, Platform } from 'react-native';
 
-// 앱이 포그라운드일 때 알림을 배너로 표시합니다.
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+if (Platform.OS !== 'web') {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
+}
 
-/**
- * 알림 권한을 요청합니다.
- * - 이미 허용됐으면 바로 true 를 반환합니다.
- * - 거부됐으면 시스템 설정으로 안내하는 Alert 를 표시하고 false 를 반환합니다.
- */
 export async function requestNotificationPermission(): Promise<boolean> {
+  if (Platform.OS === 'web') return true;
+
   const { status: existing } = await Notifications.getPermissionsAsync();
   if (existing === 'granted') return true;
 

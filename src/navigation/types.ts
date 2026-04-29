@@ -4,7 +4,7 @@ export type RootStackParamList = {
   ScheduleEdit: { scheduleId: string; medicationId: string; suggestedTime?: string };
   ThemeShop:    undefined;
   CareCircle:   undefined;
-  JoinCareCircle: undefined;
+  JoinCareCircle: { code?: string } | undefined;
   CareMonitor:  { circleId: string; patientId: string };
   Login:        undefined;
   Signup:       undefined;
