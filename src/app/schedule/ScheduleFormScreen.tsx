@@ -183,6 +183,9 @@ const FALLBACK_SETTINGS = {
   maxSnoozeCount: 3,
   missedToLateMinutes: 120,
   autoMarkMissedEnabled: true,
+  mealTimeBreakfast: '09:00',
+  mealTimeLunch: '12:00',
+  mealTimeDinner: '17:00',
 };
 
 interface FormErrors {
@@ -353,15 +356,6 @@ export default function ScheduleFormScreen() {
         placeholder="예: 혈압약"
         onSelect={(result: MedicationSearchResult) => {
           setName(result.itemName);
-          if (result.dosageValue != null) {
-            setDosageValue(String(result.dosageValue));
-          }
-          if (result.dosageUnit) {
-            const valid = DOSAGE_UNITS as readonly string[];
-            if (valid.includes(result.dosageUnit)) {
-              setDosageUnit(result.dosageUnit as DosageUnit);
-            }
-          }
         }}
       />
       {!!errors.name && (
@@ -399,6 +393,39 @@ export default function ScheduleFormScreen() {
 
       {/* ── 복용 시간 ── */}
       <Text style={[styles.label, { marginTop: 16 }]}>복용 시간 *</Text>
+
+      {/* 식사 시간 단축 선택 */}
+      <View style={styles.mealRow}>
+        {(
+          [
+            { label: '아침', time: settings.mealTimeBreakfast },
+            { label: '점심', time: settings.mealTimeLunch },
+            { label: '저녁', time: settings.mealTimeDinner },
+          ] as const
+        ).map(({ label, time }) => {
+          const selected = times.includes(time);
+          return (
+            <TouchableOpacity
+              key={label}
+              testID={`btn-meal-${label}`}
+              onPress={() =>
+                setTimes((prev) =>
+                  selected
+                    ? prev.filter((t) => t !== time)
+                    : [...prev, time].sort(),
+                )
+              }
+              style={[styles.mealBtn, selected && styles.mealBtnActive]}
+              accessibilityRole="button"
+              accessibilityLabel={`${label} ${time} ${selected ? '선택됨' : ''}`}
+            >
+              <Text style={selected ? styles.mealTxtActive : styles.mealTxt}>{label}</Text>
+              <Text style={selected ? styles.mealTimeActive : styles.mealTime}>{time}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
       <TimePickerList
         times={times}
         onAdd={(t) => setTimes((prev) => [...prev, t].sort())}
@@ -509,6 +536,21 @@ export default function ScheduleFormScreen() {
 
 const styles = {
   label: { fontSize: 15, fontWeight: '500' as const, marginBottom: 6, color: '#111827' },
+  mealRow: { flexDirection: 'row' as const, gap: 8, marginBottom: 10 },
+  mealBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 10,
+    alignItems: 'center' as const,
+    gap: 2,
+  },
+  mealBtnActive: { backgroundColor: '#eff6ff', borderColor: '#3b82f6' },
+  mealTxt:       { fontSize: 14, fontWeight: '600' as const, color: '#374151' },
+  mealTxtActive: { fontSize: 14, fontWeight: '600' as const, color: '#3b82f6' },
+  mealTime:      { fontSize: 12, color: '#9ca3af' },
+  mealTimeActive:{ fontSize: 12, color: '#3b82f6' },
   input: {
     borderWidth: 1,
     borderColor: '#d1d5db',

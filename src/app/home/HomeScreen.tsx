@@ -41,6 +41,9 @@ const FALLBACK_SETTINGS = {
   maxSnoozeCount: 3,
   missedToLateMinutes: 120,
   autoMarkMissedEnabled: true,
+  mealTimeBreakfast: '09:00',
+  mealTimeLunch: '12:00',
+  mealTimeDinner: '17:00',
 };
 
 export default function HomeScreen() {
@@ -137,7 +140,7 @@ export default function HomeScreen() {
     try {
       await markTaken(id);
       triggerToast();
-      fetchBalance();
+      await fetchBalance();
     } catch {
       // 낙관적 업데이트 롤백은 store 에서 처리됨
     }

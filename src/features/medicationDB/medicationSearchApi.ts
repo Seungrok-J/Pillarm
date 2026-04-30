@@ -16,12 +16,12 @@ export interface MedicationSearchResult {
 }
 
 interface DrbEasyItem {
-  ITEM_SEQ:            string;
-  ITEM_NAME:           string;
-  ENTP_NAME:           string;
-  EFCY_QESITM?:        string;
-  USE_METHOD_QESITM?:  string;
-  ATPN_QESITM?:       string;
+  itemSeq:           string;
+  itemName:          string;
+  entpName:          string;
+  efcyQesitm?:       string;
+  useMethodQesitm?:  string;
+  atpnQesitm?:       string;
 }
 
 interface DrbEasyResponse {
@@ -77,12 +77,12 @@ export async function searchMedications(
 
   const items: DrbEasyItem[] = data?.body?.items ?? [];
   return items.map((item) => ({
-    itemSeq:          item.ITEM_SEQ,
-    itemName:         item.ITEM_NAME,
-    entpName:         item.ENTP_NAME,
-    efcyQesitm:       item.EFCY_QESITM,
-    useMethodQesitm:  item.USE_METHOD_QESITM,
-    atpnQesitm:       item.ATPN_QESITM,
-    ...parseDosage(item.ITEM_NAME),
+    itemSeq:         item.itemSeq,
+    itemName:        item.itemName,
+    entpName:        item.entpName,
+    efcyQesitm:      item.efcyQesitm,
+    useMethodQesitm: item.useMethodQesitm,
+    atpnQesitm:      item.atpnQesitm,
+    ...parseDosage(item.itemName),
   }));
 }

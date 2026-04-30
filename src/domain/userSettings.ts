@@ -7,4 +7,7 @@ export interface UserSettings {
   maxSnoozeCount: number;
   missedToLateMinutes: number;
   autoMarkMissedEnabled: boolean;
+  mealTimeBreakfast: string;
+  mealTimeLunch: string;
+  mealTimeDinner: string;
 }

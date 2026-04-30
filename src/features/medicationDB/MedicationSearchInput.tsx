@@ -23,6 +23,7 @@ export default function MedicationSearchInput({
   const [results,  setResults]  = useState<MedicationSearchResult[]>([]);
   const [loading,  setLoading]  = useState(false);
   const [isOnline, setIsOnline] = useState(true);
+  const justSelectedRef = useRef(false);
   const toastOpacity   = useRef(new Animated.Value(0)).current;
   const toastTranslateY = useRef(new Animated.Value(8)).current;
 
@@ -77,6 +78,10 @@ export default function MedicationSearchInput({
   );
 
   useEffect(() => {
+    if (justSelectedRef.current) {
+      justSelectedRef.current = false;
+      return;
+    }
     if (value.length < 2 || !isOnline) {
       debouncedSearch.cancel();
       setResults([]);
@@ -91,6 +96,7 @@ export default function MedicationSearchInput({
   // ── 항목 선택 ────────────────────────────────────────────────────────────────
 
   function handleSelect(item: MedicationSearchResult) {
+    justSelectedRef.current = true;
     debouncedSearch.cancel();
     setResults([]);
     setLoading(false);

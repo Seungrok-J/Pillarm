@@ -135,6 +135,16 @@ export const MIGRATIONS: Migration[] = [
       ALTER TABLE dose_events  ADD COLUMN user_id TEXT NOT NULL DEFAULT 'local';
     `,
   },
+
+  // ── v5: 식사 시간 설정 ────────────────────────────────────────────────────────
+  {
+    version: 5,
+    sql: `
+      ALTER TABLE user_settings ADD COLUMN meal_time_breakfast TEXT NOT NULL DEFAULT '09:00';
+      ALTER TABLE user_settings ADD COLUMN meal_time_lunch     TEXT NOT NULL DEFAULT '12:00';
+      ALTER TABLE user_settings ADD COLUMN meal_time_dinner    TEXT NOT NULL DEFAULT '17:00';
+    `,
+  },
 ];
 
 export async function runMigrations(db: MigrationDb): Promise<void> {

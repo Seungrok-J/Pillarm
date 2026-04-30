@@ -224,6 +224,37 @@ export default function SettingsScreen() {
         </View>
       </View>
 
+      {/* ── 식사 시간 ────────────────────────────────────────────── */}
+      <Text style={styles.sectionTitle}>식사 시간</Text>
+      <View style={styles.section}>
+        <View style={styles.row}>
+          <Text style={styles.label}>아침</Text>
+          <TimeInput
+            testID="input-meal-breakfast"
+            value={settings.mealTimeBreakfast}
+            onSave={(v) => saveSetting({ mealTimeBreakfast: v })}
+          />
+        </View>
+        <View style={styles.divider} />
+        <View style={styles.row}>
+          <Text style={styles.label}>점심</Text>
+          <TimeInput
+            testID="input-meal-lunch"
+            value={settings.mealTimeLunch}
+            onSave={(v) => saveSetting({ mealTimeLunch: v })}
+          />
+        </View>
+        <View style={styles.divider} />
+        <View style={styles.row}>
+          <Text style={styles.label}>저녁</Text>
+          <TimeInput
+            testID="input-meal-dinner"
+            value={settings.mealTimeDinner}
+            onSave={(v) => saveSetting({ mealTimeDinner: v })}
+          />
+        </View>
+      </View>
+
       {/* ── 누락 처리 ────────────────────────────────────────────── */}
       <Text style={styles.sectionTitle}>누락 처리</Text>
       <View style={styles.section}>
