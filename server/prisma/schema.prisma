@@ -32,7 +32,11 @@ enum NotificationPolicy {
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
-  passwordHash String
+  passwordHash String?
+  /// 표시 이름 (이메일 가입 시 직접 입력, 소셜 로그인 시 provider 값)
+  name         String?
+  /// OAuth provider (null = 이메일 가입, "kakao" | "google" 등)
+  provider     String?
   /// FCM 등록 토큰 (로그인 시 앱에서 업데이트)
   fcmToken     String?
   createdAt    DateTime @default(now())
@@ -63,6 +67,8 @@ model CareMember {
   careCircleId String
   memberUserId String
   role         MemberRole @default(viewer)
+  /// 보호 그룹 소유자(환자)가 붙인 별칭 (예: "엄마", "할머니")
+  nickname     String?
   createdAt    DateTime   @default(now())
 
   careCircle CareCircle @relation(fields: [careCircleId], references: [id], onDelete: Cascade)

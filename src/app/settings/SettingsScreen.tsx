@@ -107,7 +107,7 @@ function TimeInput({ value, onSave, testID }: TimeInputProps) {
 export default function SettingsScreen() {
   const navigation = useNavigation<Nav>();
   const { settings, loadSettings, updateSettings } = useSettingsStore();
-  const { isLoggedIn, userEmail, clearSession } = useAuthStore();
+  const { isLoggedIn, userEmail, userName, clearSession } = useAuthStore();
 
   useEffect(() => {
     if (!settings) loadSettings();
@@ -267,10 +267,18 @@ export default function SettingsScreen() {
       <View style={styles.section}>
         {isLoggedIn ? (
           <>
-            <View style={styles.row}>
-              <Text style={styles.label}>로그인 계정</Text>
-              <Text testID="txt-user-email" style={styles.emailText}>{userEmail}</Text>
-            </View>
+            <TouchableOpacity
+              testID="btn-go-account"
+              style={styles.row}
+              onPress={() => navigation.navigate('Account')}
+              accessibilityRole="button"
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={styles.label}>{userName || userEmail}</Text>
+                {userName ? <Text style={styles.emailText}>{userEmail}</Text> : null}
+              </View>
+              <Text style={styles.chevron}>›</Text>
+            </TouchableOpacity>
             <View style={styles.divider} />
             <TouchableOpacity
               testID="btn-logout"
@@ -346,7 +354,7 @@ const styles = StyleSheet.create({
   label: { fontSize: 15, color: '#111827' },
   hint: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
   chevron: { fontSize: 20, color: '#9ca3af' },
-  emailText: { fontSize: 13, color: '#6b7280', flexShrink: 1, textAlign: 'right' },
+  emailText: { fontSize: 13, color: '#6b7280', flexShrink: 1, marginTop: 2 },
   logoutText: { color: '#ef4444' },
 
   // TimeInput

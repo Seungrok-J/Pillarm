@@ -91,10 +91,11 @@ export interface AuthResponse {
   accessToken:  string;
   refreshToken: string;
   userId:       string;
+  name?:        string;
 }
 
-export async function authSignup(email: string, password: string): Promise<AuthResponse> {
-  const res = await api.post<AuthResponse>('/auth/signup', { email, password });
+export async function authSignup(email: string, password: string, name?: string): Promise<AuthResponse> {
+  const res = await api.post<AuthResponse>('/auth/signup', { email, password, name });
   return res.data;
 }
 
@@ -103,14 +104,32 @@ export async function authLogin(email: string, password: string): Promise<AuthRe
   return res.data;
 }
 
+// ── Auth Profile ─────────────────────────────────────────────────────────────
+
+export interface UserProfile {
+  id:        string;
+  email:     string;
+  name?:     string;
+  provider?: string;
+  createdAt: string;
+}
+
+export const getMyProfile   = () => api.get<UserProfile>('/auth/me').then((r) => r.data);
+export const updateMyName   = (name: string) => api.patch<UserProfile>('/auth/me', { name }).then((r) => r.data);
+export const resetPassword  = (email: string, name: string, newPassword: string) =>
+  api.post<{ message: string }>('/auth/reset-password', { email, name, newPassword }).then((r) => r.data);
+
 // ── CareCircle 타입 ───────────────────────────────────────────────────────────
 
 export interface ApiCareMember {
-  id:           string;
-  careCircleId: string;
-  memberUserId: string;
-  role:         'admin' | 'viewer' | 'notifyOnly';
-  createdAt:    string;
+  id:              string;
+  careCircleId:    string;
+  memberUserId:    string;
+  memberUserName?: string;
+  memberUserEmail?: string;
+  role:            'admin' | 'viewer' | 'notifyOnly';
+  nickname?:       string;
+  createdAt:       string;
 }
 
 export interface ApiSharePolicy {
@@ -122,11 +141,13 @@ export interface ApiSharePolicy {
 }
 
 export interface ApiCareCircle {
-  id:          string;
-  ownerUserId: string;
-  name:        string;
-  members:     ApiCareMember[];
-  policies:    ApiSharePolicy[];
+  id:             string;
+  ownerUserId:    string;
+  ownerUserName?: string;
+  ownerUserEmail?: string;
+  name:           string;
+  members:        ApiCareMember[];
+  policies:       ApiSharePolicy[];
 }
 
 export interface DoseSnapshot {
@@ -148,6 +169,10 @@ export const createInvite  = (id: string)    =>
   api.post<{ code: string; expiresAt: string }>(`/care-circles/${id}/invite`).then((r) => r.data);
 export const joinCircle    = (code: string)  =>
   api.post<ApiCareMember>('/care-circles/join', { code }).then((r) => r.data);
+export const deleteMember  = (circleId: string, memberId: string) =>
+  api.delete(`/care-circles/${circleId}/members/${memberId}`);
+export const updateMemberNickname = (circleId: string, memberId: string, nickname: string) =>
+  api.patch<ApiCareMember>(`/care-circles/${circleId}/members/${memberId}`, { nickname }).then((r) => r.data);
 
 // ── DoseSync API ──────────────────────────────────────────────────────────────
 

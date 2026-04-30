@@ -32,7 +32,7 @@ export const useDoseEventStore = create<DoseEventState>((set, get) => ({
   error: null,
 
   fetchTodayEvents: async (dateStr) => {
-    set({ isLoading: true, error: null });
+    set({ isLoading: true, error: null, todayEvents: [] });
     try {
       const todayEvents = await getDoseEventsByDate(dateStr, currentUserId());
       set({ todayEvents, isLoading: false });

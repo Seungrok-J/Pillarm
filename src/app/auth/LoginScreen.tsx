@@ -30,6 +30,7 @@ export default function LoginScreen() {
         refreshToken: data.refreshToken,
         userId:       data.userId,
         userEmail:    email.trim().toLowerCase(),
+        userName:     data.name ?? null,
       });
       navigation.goBack();
     } catch (err: unknown) {
@@ -93,6 +94,15 @@ export default function LoginScreen() {
               <Text style={styles.primaryBtnText}>로그인</Text>
             )}
           </TouchableOpacity>
+
+          <TouchableOpacity
+            testID="btn-forgot-password"
+            style={styles.forgotBtn}
+            onPress={() => navigation.navigate('ForgotPassword')}
+            accessibilityRole="button"
+          >
+            <Text style={styles.forgotBtnText}>비밀번호를 잊으셨나요?</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.footer}>
@@ -137,6 +147,9 @@ const styles = StyleSheet.create({
   },
   btnDisabled:    { opacity: 0.5 },
   primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+
+  forgotBtn:     { marginTop: 16, alignItems: 'center' },
+  forgotBtnText: { fontSize: 14, color: '#6b7280' },
 
   footer:     { flexDirection: 'row', justifyContent: 'center', marginTop: 32, gap: 6 },
   footerText: { fontSize: 14, color: '#6b7280' },

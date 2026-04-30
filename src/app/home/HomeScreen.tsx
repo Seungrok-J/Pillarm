@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   StyleSheet,
   Animated,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -20,6 +21,7 @@ import {
   useSettingsStore,
   usePointStore,
 } from '../../store';
+import { useAuthStore } from '../../store/authStore';
 import { rescheduleSnooze } from '../../notifications';
 import { updateDoseEventMemo } from '../../db';
 import { todayString } from '../../utils';
@@ -48,8 +50,10 @@ export default function HomeScreen() {
   const { medications, fetchMedications } = useMedicationStore((s) => s);
   const settings = useSettingsStore((s) => s.settings) ?? FALLBACK_SETTINGS;
   const { balance, streak, fetchBalance } = usePointStore();
+  const { userId } = useAuthStore();
 
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  const [showPointsInfo, setShowPointsInfo] = useState(false);
 
   // ── 토스트 애니메이션 ───────────────────────────────────────────────────
   const toastOpacity = useRef(new Animated.Value(0)).current;
@@ -71,12 +75,13 @@ export default function HomeScreen() {
     ]).start();
   }
 
-  // ── 초기 로드 ──────────────────────────────────────────────────────────
+  // ── 초기 로드 / 계정 전환 시 재로드 ────────────────────────────────────
   useEffect(() => {
     fetchTodayEvents(todayString());
     fetchMedications();
     fetchBalance();
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
   // ── AppState: active 전환 시 오늘 이벤트 새로고침 ───────────────────────
   useEffect(() => {
@@ -160,7 +165,7 @@ export default function HomeScreen() {
           <TouchableOpacity
             testID="badge-points"
             style={styles.pointBadgeRow}
-            onPress={() => navigation.navigate('Main')}
+            onPress={() => setShowPointsInfo(true)}
             accessibilityLabel={`포인트 ${balance}, 연속 ${streak}일`}
             accessibilityRole="button"
           >
@@ -220,6 +225,59 @@ export default function HomeScreen() {
           }
         />
       )}
+
+      {/* 포인트 안내 모달 */}
+      <Modal
+        visible={showPointsInfo}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowPointsInfo(false)}
+      >
+        <TouchableOpacity
+          style={styles.piOverlay}
+          activeOpacity={1}
+          onPress={() => setShowPointsInfo(false)}
+        >
+          <TouchableOpacity activeOpacity={1} style={styles.piCard}>
+            <View style={styles.piHeader}>
+              <Text style={styles.piTitle}>포인트 적립 방법</Text>
+              <TouchableOpacity onPress={() => setShowPointsInfo(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={styles.piClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.piRow}>
+              <Text style={styles.piIcon}>💊</Text>
+              <View style={styles.piTextBlock}>
+                <Text style={styles.piLabel}>복용 완료</Text>
+                <Text style={styles.piDesc}>예정 시간에 맞춰 복용하면 적립</Text>
+              </View>
+              <Text style={styles.piPoints}>+10P</Text>
+            </View>
+            <View style={styles.piDivider} />
+            <View style={styles.piRow}>
+              <Text style={styles.piIcon}>🔥</Text>
+              <View style={styles.piTextBlock}>
+                <Text style={styles.piLabel}>연속 7일 달성</Text>
+                <Text style={styles.piDesc}>7일마다 보너스 적립</Text>
+              </View>
+              <Text style={styles.piPoints}>+50P</Text>
+            </View>
+            <View style={styles.piDivider} />
+            <View style={styles.piRow}>
+              <Text style={styles.piIcon}>⭐</Text>
+              <View style={styles.piTextBlock}>
+                <Text style={styles.piLabel}>이번 주 누락 0건</Text>
+                <Text style={styles.piDesc}>한 주 동안 빠짐없이 복용하면 적립</Text>
+              </View>
+              <Text style={styles.piPoints}>+30P</Text>
+            </View>
+            <View style={styles.piCurrentRow}>
+              <Text style={styles.piCurrentLabel}>현재 보유</Text>
+              <Text style={styles.piCurrentValue}>⭐ {balance.toLocaleString()}P</Text>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
 
       {/* FAB */}
       <TouchableOpacity
@@ -324,4 +382,23 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   toastText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+
+  piOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center' },
+  piCard:    { width: '86%', backgroundColor: '#fff', borderRadius: 18, padding: 20 },
+  piHeader:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 },
+  piTitle:   { fontSize: 17, fontWeight: '700', color: '#111827' },
+  piClose:   { fontSize: 18, color: '#9ca3af' },
+  piRow:     { flexDirection: 'row', alignItems: 'center', paddingVertical: 12 },
+  piIcon:    { fontSize: 22, width: 36 },
+  piTextBlock: { flex: 1 },
+  piLabel:   { fontSize: 15, fontWeight: '600', color: '#111827' },
+  piDesc:    { fontSize: 13, color: '#6b7280', marginTop: 2 },
+  piPoints:  { fontSize: 16, fontWeight: '700', color: '#3b82f6', minWidth: 48, textAlign: 'right' },
+  piDivider: { height: 1, backgroundColor: '#f3f4f6' },
+  piCurrentRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: '#e5e7eb',
+  },
+  piCurrentLabel: { fontSize: 14, color: '#6b7280' },
+  piCurrentValue: { fontSize: 18, fontWeight: '700', color: '#111827' },
 });

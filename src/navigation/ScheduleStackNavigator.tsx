@@ -9,6 +9,8 @@ import JoinCareCircleScreen from '../features/careCircle/JoinCareCircleScreen';
 import CareMonitorScreen from '../features/careCircle/CareMonitorScreen';
 import LoginScreen from '../app/auth/LoginScreen';
 import SignupScreen from '../app/auth/SignupScreen';
+import AccountScreen from '../app/settings/AccountScreen';
+import ForgotPasswordScreen from '../app/auth/ForgotPasswordScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
 
@@ -59,6 +61,16 @@ export default function ScheduleStackNavigator() {
         name="Signup"
         component={SignupScreen}
         options={{ title: '회원가입', headerBackTitle: '뒤로' }}
+      />
+      <Stack.Screen
+        name="Account"
+        component={AccountScreen}
+        options={{ title: '내 계정', headerBackTitle: '뒤로' }}
+      />
+      <Stack.Screen
+        name="ForgotPassword"
+        component={ForgotPasswordScreen}
+        options={{ title: '비밀번호 찾기', headerBackTitle: '뒤로' }}
       />
     </Stack.Navigator>
   );

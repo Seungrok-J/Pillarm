@@ -35,9 +35,35 @@ router.get('/', async (req, res, next) => {
           { members: { some: { memberUserId: userId } } },
         ],
       },
-      include: { members: true },
+      include: {
+        owner: { select: { name: true, email: true } },
+        members: {
+          include: { member: { select: { name: true, email: true } } },
+        },
+      },
     });
-    res.json(circles);
+
+    const result = circles.map((c) => ({
+      id:             c.id,
+      ownerUserId:    c.ownerUserId,
+      ownerUserName:  c.owner.name,
+      ownerUserEmail: c.owner.email,
+      name:           c.name,
+      createdAt:      c.createdAt,
+      updatedAt:      c.updatedAt,
+      members: c.members.map((m) => ({
+        id:              m.id,
+        careCircleId:    m.careCircleId,
+        memberUserId:    m.memberUserId,
+        memberUserName:  m.member.name,
+        memberUserEmail: m.member.email,
+        role:            m.role,
+        nickname:        m.nickname,
+        createdAt:       m.createdAt,
+      })),
+    }));
+
+    res.json(result);
   } catch (err) {
     next(err);
   }
@@ -105,6 +131,63 @@ router.delete('/:id', async (req, res, next) => {
 
     await prisma.careCircle.delete({ where: { id } });
     res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── DELETE /care-circles/:id/members/:memberId ───────────────────────────────
+
+router.delete('/:id/members/:memberId', async (req, res, next) => {
+  try {
+    const { id, memberId } = req.params;
+    const userId = req.user!.userId;
+
+    const circle = await prisma.careCircle.findUnique({ where: { id } });
+    if (!circle) throw new AppError('Not found', 404);
+    if (circle.ownerUserId !== userId) throw new AppError('Forbidden', 403);
+
+    const member = await prisma.careMember.findUnique({ where: { id: memberId } });
+    if (!member || member.careCircleId !== id) throw new AppError('Not found', 404);
+
+    await prisma.careMember.delete({ where: { id: memberId } });
+    res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── PATCH /care-circles/:id/members/:memberId ─────────────────────────────────
+
+router.patch('/:id/members/:memberId', async (req, res, next) => {
+  try {
+    const { id, memberId } = req.params;
+    const userId = req.user!.userId;
+    const { nickname } = req.body as { nickname?: string };
+
+    const circle = await prisma.careCircle.findUnique({ where: { id } });
+    if (!circle) throw new AppError('Not found', 404);
+    if (circle.ownerUserId !== userId) throw new AppError('Forbidden', 403);
+
+    const member = await prisma.careMember.findUnique({ where: { id: memberId } });
+    if (!member || member.careCircleId !== id) throw new AppError('Not found', 404);
+
+    const updated = await prisma.careMember.update({
+      where: { id: memberId },
+      data: { nickname: nickname?.trim() || null },
+      include: { member: { select: { name: true, email: true } } },
+    });
+
+    res.json({
+      id:              updated.id,
+      careCircleId:    updated.careCircleId,
+      memberUserId:    updated.memberUserId,
+      memberUserName:  updated.member.name,
+      memberUserEmail: updated.member.email,
+      role:            updated.role,
+      nickname:        updated.nickname,
+      createdAt:       updated.createdAt,
+    });
   } catch (err) {
     next(err);
   }

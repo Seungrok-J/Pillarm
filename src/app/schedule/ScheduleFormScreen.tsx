@@ -34,10 +34,17 @@ type Nav = StackNavigationProp<RootStackParamList>;
 
 // ── 날짜 헬퍼 ─────────────────────────────────────────────────────────────────
 
+function toLocalDateString(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function addDays(dateStr: string, days: number): string {
   const d = new Date(dateStr + 'T00:00:00');
   d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
+  return toLocalDateString(d);
 }
 
 function formatDisplayDate(dateStr: string): string {
@@ -74,7 +81,7 @@ function DatePickerField({ testID, value, onChange, placeholder, minimumDate }: 
       onChange={(_, selected) => {
         if (Platform.OS === 'android') {
           setShow(false);
-          if (selected) onChange(selected.toISOString().slice(0, 10));
+          if (selected) onChange(toLocalDateString(selected));
         } else {
           if (selected) setTempDate(selected);
         }
@@ -105,7 +112,7 @@ function DatePickerField({ testID, value, onChange, placeholder, minimumDate }: 
                   <Text style={dateStyles.cancelTxt}>취소</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => {
-                  onChange(tempDate.toISOString().slice(0, 10));
+                  onChange(toLocalDateString(tempDate));
                   setShow(false);
                 }}>
                   <Text style={dateStyles.confirmTxt}>확인</Text>

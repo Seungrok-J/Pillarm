@@ -16,24 +16,26 @@ export default function SignupScreen() {
   const navigation = useNavigation<Nav>();
   const { saveSession } = useAuthStore();
 
+  const [name,     setName]     = useState('');
   const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');
   const [confirm,  setConfirm]  = useState('');
   const [loading,  setLoading]  = useState(false);
 
   const passwordMismatch = password.length > 0 && confirm.length > 0 && password !== confirm;
-  const canSubmit = !!email && password.length >= 8 && password === confirm && !loading;
+  const canSubmit = !!name.trim() && !!email && password.length >= 8 && password === confirm && !loading;
 
   async function handleSignup() {
     if (!canSubmit) return;
     setLoading(true);
     try {
-      const data = await authSignup(email.trim().toLowerCase(), password);
+      const data = await authSignup(email.trim().toLowerCase(), password, name.trim());
       await saveSession({
         accessToken:  data.accessToken,
         refreshToken: data.refreshToken,
         userId:       data.userId,
         userEmail:    email.trim().toLowerCase(),
+        userName:     data.name ?? name.trim(),
       });
       navigation.goBack();
     } catch (err: unknown) {
@@ -57,7 +59,19 @@ export default function SignupScreen() {
         </View>
 
         <View style={styles.form}>
-          <Text style={styles.label}>이메일</Text>
+          <Text style={styles.label}>이름</Text>
+          <TextInput
+            testID="input-name"
+            style={styles.input}
+            value={name}
+            onChangeText={setName}
+            autoCapitalize="words"
+            placeholder="홍길동"
+            placeholderTextColor="#9ca3af"
+            returnKeyType="next"
+          />
+
+          <Text style={[styles.label, { marginTop: 16 }]}>이메일</Text>
           <TextInput
             testID="input-email"
             style={styles.input}

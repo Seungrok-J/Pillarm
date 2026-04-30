@@ -11,6 +11,7 @@ import { useAuthStore } from '../../store/authStore';
 import QRCode from 'react-native-qrcode-svg';
 import {
   listCircles, createCircle, deleteCircle, createInvite,
+  deleteMember, updateMemberNickname,
   type ApiCareCircle, type ApiCareMember,
 } from './careCircleApi';
 
@@ -21,6 +22,80 @@ const ROLE_LABEL: Record<string, string> = {
   viewer:     '열람자',
   notifyOnly: '알림 전용',
 };
+
+// ── 멤버 표시 이름 헬퍼 ────────────────────────────────────────────────────────
+
+function memberDisplayName(m: ApiCareMember): string {
+  if (m.nickname) return m.nickname;
+  if (m.memberUserName) return m.memberUserName;
+  if (m.memberUserEmail) return m.memberUserEmail;
+  return m.memberUserId.slice(0, 8);
+}
+
+// ── 별칭 편집 모달 ─────────────────────────────────────────────────────────────
+
+interface NicknameModalProps {
+  visible:         boolean;
+  currentNickname: string;
+  displayName:     string;
+  onConfirm:       (nickname: string) => void;
+  onClose:         () => void;
+}
+
+function NicknameModal({ visible, currentNickname, displayName, onConfirm, onClose }: NicknameModalProps) {
+  const [value, setValue] = useState(currentNickname);
+
+  useEffect(() => {
+    if (visible) setValue(currentNickname);
+  }, [visible, currentNickname]);
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={nmStyles.overlay}>
+        <View style={nmStyles.sheet}>
+          <Text style={nmStyles.title}>별칭 수정</Text>
+          <Text style={nmStyles.sub}>{displayName}에게 부를 별칭을 입력하세요</Text>
+          <TextInput
+            style={nmStyles.input}
+            value={value}
+            onChangeText={setValue}
+            placeholder="예: 엄마, 할머니"
+            placeholderTextColor="#9ca3af"
+            autoFocus
+            maxLength={20}
+            returnKeyType="done"
+            onSubmitEditing={() => onConfirm(value)}
+          />
+          <View style={nmStyles.btns}>
+            <TouchableOpacity style={nmStyles.cancelBtn} onPress={onClose}>
+              <Text style={nmStyles.cancelTxt}>취소</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={nmStyles.confirmBtn} onPress={() => onConfirm(value)}>
+              <Text style={nmStyles.confirmTxt}>저장</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const nmStyles = StyleSheet.create({
+  overlay:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  sheet:      { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 28 },
+  title:      { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 4 },
+  sub:        { fontSize: 13, color: '#6b7280', marginBottom: 16 },
+  input: {
+    borderWidth: 1, borderColor: '#d1d5db', borderRadius: 12,
+    paddingHorizontal: 16, paddingVertical: 12, fontSize: 16, color: '#111827',
+    backgroundColor: '#f9fafb', marginBottom: 16,
+  },
+  btns:       { flexDirection: 'row', gap: 10 },
+  cancelBtn:  { flex: 1, backgroundColor: '#f3f4f6', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  cancelTxt:  { color: '#374151', fontWeight: '600' },
+  confirmBtn: { flex: 1, backgroundColor: '#3b82f6', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  confirmTxt: { color: '#fff', fontWeight: '700' },
+});
 
 // ── 초대 모달 ──────────────────────────────────────────────────────────────────
 
@@ -85,13 +160,16 @@ export default function CareCircleScreen() {
   const navigation = useNavigation<Nav>();
   const { userId } = useAuthStore();
 
-  const [circles,      setCircles]      = useState<ApiCareCircle[]>([]);
-  const [loading,      setLoading]      = useState(true);
-  const [inviteCode,   setInviteCode]   = useState<string | null>(null);
-  const [inviteVisible, setInviteVisible] = useState(false);
-  const [inviteLoading, setInviteLoading] = useState(false);
-  const [newName,      setNewName]      = useState('');
-  const [creating,     setCreating]     = useState(false);
+  const [circles,        setCircles]        = useState<ApiCareCircle[]>([]);
+  const [loading,        setLoading]        = useState(true);
+  const [inviteCode,     setInviteCode]     = useState<string | null>(null);
+  const [inviteVisible,  setInviteVisible]  = useState(false);
+  const [inviteLoading,  setInviteLoading]  = useState(false);
+  const [newName,        setNewName]        = useState('');
+  const [creating,       setCreating]       = useState(false);
+
+  // 별칭 편집 모달
+  const [nicknameTarget, setNicknameTarget] = useState<{ circleId: string; member: ApiCareMember } | null>(null);
 
   const loadCircles = useCallback(async () => {
     try {
@@ -107,14 +185,21 @@ export default function CareCircleScreen() {
 
   useEffect(() => { loadCircles(); }, [loadCircles]);
 
+  const [showCreateForm, setShowCreateForm] = useState(false);
+
   // ── 그룹 생성 ──────────────────────────────────────────────────────────────
 
   async function handleCreate() {
-    const name = newName.trim() || '나의 보호 그룹';
+    const name = newName.trim();
+    if (!name) {
+      Alert.alert('그룹 이름 필요', '그룹 이름을 입력해주세요');
+      return;
+    }
     setCreating(true);
     try {
       await createCircle(name);
       setNewName('');
+      setShowCreateForm(false);
       await loadCircles();
     } catch {
       Alert.alert('오류', '보호 그룹 생성에 실패했습니다');
@@ -135,6 +220,44 @@ export default function CareCircleScreen() {
       Alert.alert('오류', '초대 코드 생성에 실패했습니다');
     } finally {
       setInviteLoading(false);
+    }
+  }
+
+  // ── 멤버 삭제 ──────────────────────────────────────────────────────────────
+
+  function handleDeleteMember(circleId: string, member: ApiCareMember) {
+    const label = memberDisplayName(member);
+    Alert.alert(
+      '보호자 삭제',
+      `"${label}"을(를) 보호 그룹에서 삭제하시겠어요?`,
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '삭제', style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteMember(circleId, member.id);
+              await loadCircles();
+            } catch {
+              Alert.alert('오류', '보호자 삭제에 실패했습니다');
+            }
+          },
+        },
+      ],
+    );
+  }
+
+  // ── 별칭 저장 ──────────────────────────────────────────────────────────────
+
+  async function handleSaveNickname(nickname: string) {
+    if (!nicknameTarget) return;
+    try {
+      await updateMemberNickname(nicknameTarget.circleId, nicknameTarget.member.id, nickname);
+      await loadCircles();
+    } catch {
+      Alert.alert('오류', '별칭 저장에 실패했습니다');
+    } finally {
+      setNicknameTarget(null);
     }
   }
 
@@ -174,7 +297,7 @@ export default function CareCircleScreen() {
 
         {/* 보호자 목록 */}
         {guardians.length > 0 ? (
-          guardians.map((m) => renderMemberRow(m))
+          guardians.map((m) => renderMemberRow(m, circle.id))
         ) : (
           <Text style={styles.emptyMembers}>연결된 보호자가 없습니다</Text>
         )}
@@ -210,15 +333,39 @@ export default function CareCircleScreen() {
 
   // ── 렌더: 멤버 행 ──────────────────────────────────────────────────────────
 
-  function renderMemberRow(member: ApiCareMember) {
+  function renderMemberRow(member: ApiCareMember, circleId: string) {
+    const display = memberDisplayName(member);
+    const hasNickname = !!member.nickname;
+    const realName = member.memberUserName ?? member.memberUserEmail ?? '';
     return (
       <View key={member.id} testID={`member-${member.id}`} style={styles.memberRow}>
         <View style={styles.memberIcon}>
           <Text style={styles.memberIconText}>👤</Text>
         </View>
         <View style={styles.memberInfo}>
-          <Text style={styles.memberId} numberOfLines={1}>{member.memberUserId}</Text>
+          <Text style={styles.memberId} numberOfLines={1}>{display}</Text>
+          {hasNickname && realName ? (
+            <Text style={styles.memberRealName} numberOfLines={1}>{realName}</Text>
+          ) : null}
           <Text style={styles.memberRole}>{ROLE_LABEL[member.role] ?? member.role}</Text>
+        </View>
+        <View style={styles.memberActions}>
+          <TouchableOpacity
+            testID={`btn-nickname-${member.id}`}
+            style={styles.memberActionBtn}
+            onPress={() => setNicknameTarget({ circleId, member })}
+            accessibilityLabel="별칭 수정"
+          >
+            <Text style={styles.memberActionTxt}>별칭</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            testID={`btn-remove-${member.id}`}
+            style={[styles.memberActionBtn, styles.memberActionDanger]}
+            onPress={() => handleDeleteMember(circleId, member)}
+            accessibilityLabel="보호자 삭제"
+          >
+            <Text style={[styles.memberActionTxt, styles.memberActionDangerTxt]}>삭제</Text>
+          </TouchableOpacity>
         </View>
       </View>
     );
@@ -239,8 +386,9 @@ export default function CareCircleScreen() {
           style={styles.monitorBtn}
           onPress={() =>
             navigation.navigate('CareMonitor', {
-              circleId:  circle.id,
-              patientId: circle.ownerUserId,
+              circleId:    circle.id,
+              patientId:   circle.ownerUserId,
+              patientName: circle.ownerUserName ?? circle.ownerUserEmail ?? undefined,
             })
           }
           accessibilityLabel="오늘 복용 현황 보기"
@@ -270,41 +418,64 @@ export default function CareCircleScreen() {
       {/* ── 나의 보호 그룹 (환자 뷰) ──── */}
       <Text style={styles.sectionTitle}>나의 보호 그룹</Text>
 
-      {ownedCircles.length > 0 ? (
-        ownedCircles.map((c) => (
-          <View key={c.id}>{renderOwnedCircle(c)}</View>
-        ))
-      ) : (
+      {ownedCircles.length === 0 && (
         <View style={styles.emptyCard}>
           <Text style={styles.emptyTitle}>아직 보호 그룹이 없어요</Text>
           <Text style={styles.emptySub}>그룹을 만들어 보호자를 초대하세요</Text>
+        </View>
+      )}
 
-          <View style={styles.createRow}>
-            <TextInput
-              testID="input-circle-name"
-              style={styles.createInput}
-              value={newName}
-              onChangeText={setNewName}
-              placeholder="그룹 이름 (예: 우리 가족)"
-              placeholderTextColor="#9ca3af"
-              returnKeyType="done"
-              onSubmitEditing={handleCreate}
-            />
+      {ownedCircles.map((c) => (
+        <View key={c.id}>{renderOwnedCircle(c)}</View>
+      ))}
+
+      {/* ── 그룹 만들기 ── */}
+      {showCreateForm ? (
+        <View style={styles.createFormCard}>
+          <Text style={styles.createFormTitle}>새 보호 그룹</Text>
+          <TextInput
+            testID="input-circle-name"
+            style={styles.createInput}
+            value={newName}
+            onChangeText={setNewName}
+            placeholder="그룹 이름을 입력하세요 *"
+            placeholderTextColor="#9ca3af"
+            returnKeyType="done"
+            autoFocus
+            onSubmitEditing={handleCreate}
+          />
+          <View style={styles.createFormBtns}>
             <TouchableOpacity
-              testID="btn-create-circle"
-              style={[styles.createBtn, creating && styles.btnDisabled]}
+              style={[styles.createBtn, (creating || !newName.trim()) && styles.btnDisabled]}
               onPress={handleCreate}
-              disabled={creating}
+              testID="btn-create-circle"
+              disabled={creating || !newName.trim()}
               accessibilityLabel="보호 그룹 만들기"
               accessibilityRole="button"
             >
               {creating
-                ? <ActivityIndicator color="#fff" />
+                ? <ActivityIndicator color="#fff" size="small" />
                 : <Text style={styles.createBtnText}>만들기</Text>
               }
             </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.cancelCreateBtn}
+              onPress={() => { setShowCreateForm(false); setNewName(''); }}
+              disabled={creating}
+            >
+              <Text style={styles.cancelCreateBtnText}>취소</Text>
+            </TouchableOpacity>
           </View>
         </View>
+      ) : (
+        <TouchableOpacity
+          testID="btn-show-create-form"
+          style={styles.addGroupBtn}
+          onPress={() => setShowCreateForm(true)}
+          accessibilityRole="button"
+        >
+          <Text style={styles.addGroupBtnText}>+ 새 보호 그룹 만들기</Text>
+        </TouchableOpacity>
       )}
 
       {/* ── 참여 중인 그룹 (보호자 뷰) ─ */}
@@ -321,6 +492,14 @@ export default function CareCircleScreen() {
         visible={inviteVisible}
         code={inviteCode}
         onClose={() => { setInviteVisible(false); setInviteCode(null); }}
+      />
+
+      <NicknameModal
+        visible={!!nicknameTarget}
+        currentNickname={nicknameTarget?.member.nickname ?? ''}
+        displayName={nicknameTarget ? memberDisplayName(nicknameTarget.member) : ''}
+        onConfirm={handleSaveNickname}
+        onClose={() => setNicknameTarget(null)}
       />
     </ScrollView>
   );
@@ -363,7 +542,13 @@ const styles = StyleSheet.create({
   memberIconText: { fontSize: 18 },
   memberInfo:     { flex: 1 },
   memberId:       { fontSize: 14, color: '#374151', fontWeight: '500' },
+  memberRealName: { fontSize: 12, color: '#6b7280', marginTop: 1 },
   memberRole:     { fontSize: 12, color: '#9ca3af', marginTop: 1 },
+  memberActions:  { flexDirection: 'row', gap: 6, marginLeft: 8 },
+  memberActionBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: '#f3f4f6' },
+  memberActionDanger: { backgroundColor: '#fef2f2' },
+  memberActionTxt:    { fontSize: 12, fontWeight: '600', color: '#374151' },
+  memberActionDangerTxt: { color: '#ef4444' },
 
   emptyMembers: { fontSize: 14, color: '#9ca3af', textAlign: 'center', paddingVertical: 8 },
 
@@ -381,16 +566,30 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#f3f4f6', alignItems: 'center', marginBottom: 12,
   },
   emptyTitle: { fontSize: 16, fontWeight: '600', color: '#374151' },
-  emptySub:   { fontSize: 13, color: '#9ca3af', marginTop: 4, marginBottom: 16 },
+  emptySub:   { fontSize: 13, color: '#9ca3af', marginTop: 4 },
 
-  createRow:   { flexDirection: 'row', gap: 8, width: '100%' },
-  createInput: {
-    flex: 1, borderWidth: 1, borderColor: '#d1d5db', borderRadius: 10,
-    paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: '#111827',
+  addGroupBtn: {
+    borderWidth: 1.5, borderColor: '#3b82f6', borderStyle: 'dashed',
+    borderRadius: 14, paddingVertical: 14, alignItems: 'center', marginBottom: 12,
   },
-  createBtn:     { backgroundColor: '#3b82f6', borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10, alignItems: 'center', justifyContent: 'center' },
-  btnDisabled:   { opacity: 0.5 },
-  createBtnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
+  addGroupBtnText: { color: '#3b82f6', fontWeight: '600', fontSize: 15 },
+
+  createFormCard: {
+    backgroundColor: '#fff', borderRadius: 16, padding: 16,
+    borderWidth: 1, borderColor: '#3b82f6', marginBottom: 12,
+  },
+  createFormTitle: { fontSize: 15, fontWeight: '700', color: '#111827', marginBottom: 12 },
+  createInput: {
+    borderWidth: 1, borderColor: '#d1d5db', borderRadius: 10,
+    paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: '#111827',
+    backgroundColor: '#f9fafb',
+  },
+  createFormBtns:    { flexDirection: 'row', gap: 8, marginTop: 12 },
+  createBtn:         { flex: 1, backgroundColor: '#3b82f6', borderRadius: 10, paddingVertical: 12, alignItems: 'center', justifyContent: 'center' },
+  btnDisabled:       { opacity: 0.5 },
+  createBtnText:     { color: '#fff', fontWeight: '600', fontSize: 14 },
+  cancelCreateBtn:   { flex: 1, backgroundColor: '#f3f4f6', borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
+  cancelCreateBtnText: { color: '#374151', fontWeight: '600', fontSize: 14 },
 
   // Invite modal
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },

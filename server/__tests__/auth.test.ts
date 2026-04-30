@@ -69,7 +69,7 @@ describe('POST /auth/signup', () => {
     expect(m.refreshToken.create).toHaveBeenCalledTimes(1);
   });
 
-  it('returns 409 when email already exists', async () => {
+  it('returns 409 when ready exists', async () => {
     m.user.findUnique.mockResolvedValue(BASE_USER);
 
     const res = await request(app)

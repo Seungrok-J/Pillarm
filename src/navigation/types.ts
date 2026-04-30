@@ -5,9 +5,11 @@ export type RootStackParamList = {
   ThemeShop:    undefined;
   CareCircle:   undefined;
   JoinCareCircle: { code?: string } | undefined;
-  CareMonitor:  { circleId: string; patientId: string };
-  Login:        undefined;
-  Signup:       undefined;
+  CareMonitor:  { circleId: string; patientId: string; patientName?: string };
+  Login:          undefined;
+  Signup:         undefined;
+  Account:        undefined;
+  ForgotPassword: undefined;
 };
 
 export type BottomTabParamList = {

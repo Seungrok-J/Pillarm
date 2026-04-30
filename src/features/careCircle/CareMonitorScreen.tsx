@@ -77,7 +77,7 @@ function EventCard({ event, allowedFields }: { event: SnapshotEvent; allowedFiel
 
 export default function CareMonitorScreen() {
   const { params } = useRoute<Route>();
-  const { circleId, patientId } = params;
+  const { circleId, patientId, patientName } = params;
 
   const [snapshot,  setSnapshot]  = useState<DoseSnapshot | null>(null);
   const [loading,   setLoading]   = useState(true);
@@ -174,7 +174,7 @@ export default function CareMonitorScreen() {
       <View style={styles.header}>
         <Text style={styles.headerDate}>{today}</Text>
         <Text style={styles.headerPatient}>
-          보호 대상자 ID: {patientId.slice(0, 8)}...
+          {patientName ? `${patientName}님의 복용 현황` : '보호 대상자 복용 현황'}
         </Text>
         {lastSync && (
           <Text style={styles.lastSync}>마지막 업데이트: {fmtDateTime(lastSync.toISOString())}</Text>

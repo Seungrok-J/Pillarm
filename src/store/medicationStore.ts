@@ -23,7 +23,7 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
   error: null,
 
   fetchMedications: async () => {
-    set({ isLoading: true, error: null });
+    set({ isLoading: true, error: null, medications: [] });
     try {
       const medications = await getAllMedications(currentUserId());
       set({ medications, isLoading: false });
