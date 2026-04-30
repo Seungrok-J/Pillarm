@@ -80,11 +80,13 @@ export async function getDoseEventsByDateRange(
 export async function updateDoseEventSnooze(
   id: string,
   snoozeCount: number,
+  newPlannedAt: string,
 ): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
-    'UPDATE dose_events SET snooze_count = ?, updated_at = ? WHERE id = ?',
+    'UPDATE dose_events SET snooze_count = ?, planned_at = ?, updated_at = ? WHERE id = ?',
     snoozeCount,
+    newPlannedAt,
     new Date().toISOString(),
     id,
   );

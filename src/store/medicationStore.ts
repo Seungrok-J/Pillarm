@@ -11,6 +11,7 @@ interface MedicationState {
   medications: Medication[];
   isLoading: boolean;
   error: string | null;
+  _lastUserId: string | null;
   fetchMedications: () => Promise<void>;
   addMedication: (medication: Medication) => Promise<void>;
   updateMedication: (medication: Medication) => Promise<void>;
@@ -21,12 +22,19 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
   medications: [],
   isLoading: false,
   error: null,
+  _lastUserId: null,
 
   fetchMedications: async () => {
-    set({ isLoading: true, error: null, medications: [] });
+    const uid = currentUserId();
+    const userChanged = get()._lastUserId !== uid;
+    // 사용자가 바뀐 경우에만 즉시 초기화 (탭 재포커스 시 깜빡임 방지)
+    set(userChanged
+      ? { isLoading: true, error: null, medications: [], _lastUserId: uid }
+      : { isLoading: true, error: null },
+    );
     try {
-      const medications = await getAllMedications(currentUserId());
-      set({ medications, isLoading: false });
+      const medications = await getAllMedications(uid);
+      set({ medications, isLoading: false, _lastUserId: uid });
     } catch (e) {
       set({ isLoading: false, error: (e as Error).message });
     }

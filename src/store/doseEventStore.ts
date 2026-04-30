@@ -9,6 +9,7 @@ import {
 import { useSettingsStore } from './settingsStore';
 import { useAuthStore } from './authStore';
 import { awardDoseTaken, awardStreakBonus } from '../features/points/pointEngine';
+import { cancelNotificationForDoseEvent } from '../notifications/scheduler';
 
 function currentUserId() {
   return useAuthStore.getState().userId ?? 'local';
@@ -22,8 +23,8 @@ interface DoseEventState {
   fetchByDateRange: (startIso: string, endIso: string) => Promise<DoseEvent[]>;
   markTaken: (id: string) => Promise<void>;
   markSkipped: (id: string) => Promise<void>;
-  /** snoozeCount를 1 증가시킵니다. maxSnoozeCount 초과 시 false 반환. */
-  snooze: (id: string, maxSnoozeCount: number) => Promise<boolean>;
+  /** snoozeCount를 1 증가시키고 plannedAt을 snoozeMinutes 후로 업데이트합니다. 3회 고정 초과 시 false 반환. */
+  snooze: (id: string, snoozeMinutes: number) => Promise<boolean>;
 }
 
 export const useDoseEventStore = create<DoseEventState>((set, get) => ({
@@ -63,12 +64,16 @@ export const useDoseEventStore = create<DoseEventState>((set, get) => ({
     }));
     try {
       await updateDoseEventStatus(id, 'taken', now);
-      // 포인트 적립 — 실패해도 복용 완료 처리에 영향 없음
+      // 복용 완료 시 예약된 알림 취소
+      cancelNotificationForDoseEvent(id).catch(() => {});
+      // 포인트 적립 후 fetchBalance가 최신값을 읽도록 await 처리
       if (event) {
         const graceMinutes = useSettingsStore.getState().settings?.missedToLateMinutes ?? 120;
         const takenEvent: DoseEvent = { ...event, status: 'taken', takenAt: now };
-        awardDoseTaken(takenEvent, graceMinutes).catch(() => {});
-        awardStreakBonus('local').catch(() => {});
+        await Promise.all([
+          awardDoseTaken(takenEvent, graceMinutes).catch(() => {}),
+          awardStreakBonus('local').catch(() => {}),
+        ]);
       }
     } catch (e) {
       set({ todayEvents: prev, error: (e as Error).message });
@@ -93,23 +98,29 @@ export const useDoseEventStore = create<DoseEventState>((set, get) => ({
     }
   },
 
-  snooze: async (id, maxSnoozeCount) => {
+  snooze: async (id, snoozeMinutes) => {
+    const FIXED_MAX = 3;
     const event = get().todayEvents.find((e) => e.id === id);
     if (!event) return false;
-    if (event.snoozeCount >= maxSnoozeCount) return false;
+    if (event.snoozeCount >= FIXED_MAX) return false;
 
-    const newCount = event.snoozeCount + 1;
-    const now = new Date().toISOString();
+    const newCount  = event.snoozeCount + 1;
+    const snoozeDate = new Date(Date.now() + snoozeMinutes * 60_000);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const newPlannedAt =
+      `${snoozeDate.getFullYear()}-${pad(snoozeDate.getMonth() + 1)}-${pad(snoozeDate.getDate())}` +
+      `T${pad(snoozeDate.getHours())}:${pad(snoozeDate.getMinutes())}:${pad(snoozeDate.getSeconds())}`;
+    const nowIso = new Date().toISOString();
     const prev = get().todayEvents;
 
     set((state) => ({
       todayEvents: state.todayEvents.map((e) =>
-        e.id === id ? { ...e, snoozeCount: newCount, updatedAt: now } : e,
+        e.id === id ? { ...e, snoozeCount: newCount, plannedAt: newPlannedAt, updatedAt: nowIso } : e,
       ),
       error: null,
     }));
     try {
-      await updateDoseEventSnooze(id, newCount);
+      await updateDoseEventSnooze(id, newCount, newPlannedAt);
       return true;
     } catch (e) {
       set({ todayEvents: prev, error: (e as Error).message });

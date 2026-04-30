@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useCallback, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -10,9 +10,10 @@ import {
   StyleSheet,
   Animated,
   Modal,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RootStackParamList } from '../../navigation';
 import {
@@ -54,6 +55,17 @@ export default function HomeScreen() {
 
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const [showPointsInfo, setShowPointsInfo] = useState(false);
+  const [refreshing,     setRefreshing]     = useState(false);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    await Promise.all([
+      fetchTodayEvents(todayString()),
+      fetchMedications(),
+      fetchBalance(),
+    ]);
+    setRefreshing(false);
+  }
 
   // ── 토스트 애니메이션 ───────────────────────────────────────────────────
   const toastOpacity = useRef(new Animated.Value(0)).current;
@@ -75,13 +87,15 @@ export default function HomeScreen() {
     ]).start();
   }
 
-  // ── 초기 로드 / 계정 전환 시 재로드 ────────────────────────────────────
-  useEffect(() => {
-    fetchTodayEvents(todayString());
-    fetchMedications();
-    fetchBalance();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]);
+  // ── 탭 포커스 시마다 재조회 (탭 이동·로그인 전환 포함) ─────────────────
+  useFocusEffect(
+    useCallback(() => {
+      fetchTodayEvents(todayString());
+      fetchMedications();
+      fetchBalance();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [userId]),
+  );
 
   // ── AppState: active 전환 시 오늘 이벤트 새로고침 ───────────────────────
   useEffect(() => {
@@ -98,6 +112,11 @@ export default function HomeScreen() {
   // ── 파생 값 ────────────────────────────────────────────────────────────
   const medicationNames = useMemo<Record<string, string>>(
     () => Object.fromEntries(medications.map((m) => [m.id, m.name])),
+    [medications],
+  );
+
+  const medicationColors = useMemo<Record<string, string | undefined>>(
+    () => Object.fromEntries(medications.map((m) => [m.id, m.color])),
     [medications],
   );
 
@@ -132,7 +151,7 @@ export default function HomeScreen() {
 
   async function handleSnooze(eventId: string) {
     try {
-      const ok = await snooze(eventId, settings.maxSnoozeCount);
+      const ok = await snooze(eventId, settings.defaultSnoozeMinutes);
       if (ok) {
         await rescheduleSnooze(eventId, settings.defaultSnoozeMinutes);
       }
@@ -208,13 +227,16 @@ export default function HomeScreen() {
           data={sortedEvents}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#3b82f6" />
+          }
           renderItem={({ item }) => (
             <DoseCard
               event={item}
               medicationName={medicationNames[item.medicationId] ?? item.medicationId}
+              medicationColor={medicationColors[item.medicationId]}
               onTake={handleTake}
               onSnooze={handleSnooze}
-              maxSnoozeCount={settings.maxSnoozeCount}
               onAfterTake={handleAfterTake}
             />
           )}

@@ -9,6 +9,8 @@ import {
   ActivityIndicator,
   StyleSheet,
   Alert,
+  RefreshControl,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -108,6 +110,14 @@ export default function SettingsScreen() {
   const navigation = useNavigation<Nav>();
   const { settings, loadSettings, updateSettings } = useSettingsStore();
   const { isLoggedIn, userEmail, userName, clearSession } = useAuthStore();
+  const [refreshing, setRefreshing] = useState(false);
+  const [showQuietInfo, setShowQuietInfo] = useState(false);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    await loadSettings();
+    setRefreshing(false);
+  }
 
   useEffect(() => {
     if (!settings) loadSettings();
@@ -154,9 +164,21 @@ export default function SettingsScreen() {
       style={styles.container}
       contentContainerStyle={styles.content}
       testID="screen-settings"
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#3b82f6" />
+      }
     >
       {/* ── 조용한 시간 ──────────────────────────────────────────── */}
-      <Text style={styles.sectionTitle}>알림 설정</Text>
+      <View style={styles.sectionTitleRow}>
+        <Text style={styles.sectionTitleInRow}>알림 설정</Text>
+        <TouchableOpacity
+          onPress={() => setShowQuietInfo(true)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityLabel="조용한 시간 설명 보기"
+        >
+          <Text style={styles.infoIcon}>ⓘ</Text>
+        </TouchableOpacity>
+      </View>
       <View style={styles.section}>
         <View style={styles.row}>
           <Text style={styles.label}>조용한 시간 시작</Text>
@@ -194,16 +216,11 @@ export default function SettingsScreen() {
         </View>
         <View style={styles.divider} />
         <View style={styles.row}>
-          <Text style={styles.label}>최대 미루기 횟수</Text>
-          <Stepper
-            testID="stepper-snooze-count"
-            value={settings.maxSnoozeCount}
-            step={1}
-            min={1}
-            max={10}
-            format={(v) => `${v}회`}
-            onChange={(v) => saveSetting({ maxSnoozeCount: v })}
-          />
+          <View style={styles.labelBlock}>
+            <Text style={styles.label}>최대 미루기 횟수</Text>
+            <Text style={styles.hint}>앱 정책에 따라 3회로 고정되어 있습니다</Text>
+          </View>
+          <Text style={styles.fixedValue}>3회</Text>
         </View>
       </View>
 
@@ -236,6 +253,20 @@ export default function SettingsScreen() {
             onChange={(v) => saveSetting({ missedToLateMinutes: v })}
           />
         </View>
+      </View>
+
+      {/* ── 복용 일정 ────────────────────────────────────────────── */}
+      <Text style={styles.sectionTitle}>복용 일정</Text>
+      <View style={styles.section}>
+        <TouchableOpacity
+          testID="btn-schedule-manage"
+          style={styles.row}
+          onPress={() => navigation.navigate('ScheduleManage')}
+          accessibilityRole="button"
+        >
+          <Text style={styles.label}>복용 일정 관리</Text>
+          <Text style={styles.chevron}>›</Text>
+        </TouchableOpacity>
       </View>
 
       {/* ── 보호자 공유 ─────────────────────────────────────────── */}
@@ -314,6 +345,35 @@ export default function SettingsScreen() {
         )}
       </View>
     </ScrollView>
+
+    {/* ── 조용한 시간 설명 모달 ────────────────────────────────── */}
+    <Modal
+      visible={showQuietInfo}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowQuietInfo(false)}
+    >
+      <TouchableOpacity
+        style={styles.modalOverlay}
+        activeOpacity={1}
+        onPress={() => setShowQuietInfo(false)}
+      >
+        <TouchableOpacity activeOpacity={1} style={styles.modalCard}>
+          <Text style={styles.modalTitle}>조용한 시간이란?</Text>
+          <Text style={styles.modalBody}>
+            설정한 시작·종료 시간 사이에는 알림이 울리지 않습니다.{'\n\n'}
+            예를 들어 시작 23:00, 종료 07:00으로 설정하면 밤 11시부터 아침 7시 사이에 예정된 복용 알림은 종료 시간인 07:00으로 자동 조정됩니다.{'\n\n'}
+            야간 수면을 방해하지 않으면서도 복용을 놓치지 않도록 돕는 기능입니다.
+          </Text>
+          <TouchableOpacity
+            style={styles.modalCloseBtn}
+            onPress={() => setShowQuietInfo(false)}
+          >
+            <Text style={styles.modalCloseTxt}>확인</Text>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
     </SafeAreaView>
   );
 }
@@ -325,6 +385,14 @@ const styles = StyleSheet.create({
   loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   container: { flex: 1, backgroundColor: '#f9fafb' },
   content: { paddingBottom: 40 },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 6,
+    marginHorizontal: 16,
+    gap: 6,
+  },
   sectionTitle: {
     fontSize: 13,
     fontWeight: '600',
@@ -334,6 +402,23 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  sectionTitleInRow: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#6b7280',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  infoIcon: {
+    fontSize: 14,
+    color: '#9ca3af',
+    lineHeight: 18,
+  },
+  fixedValue: {
+    fontSize: 15,
+    color: '#6b7280',
+    fontWeight: '500',
   },
   section: {
     backgroundColor: '#fff',
@@ -370,6 +455,39 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   timeInputError: { borderColor: '#ef4444' },
+
+  // 조용한 시간 안내 모달
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCard: {
+    width: '86%',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 22,
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 12,
+  },
+  modalBody: {
+    fontSize: 14,
+    color: '#374151',
+    lineHeight: 22,
+    marginBottom: 20,
+  },
+  modalCloseBtn: {
+    backgroundColor: '#3b82f6',
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  modalCloseTxt: { color: '#fff', fontSize: 15, fontWeight: '600' },
 
   // Stepper
   stepper: {

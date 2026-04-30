@@ -3,6 +3,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import type { RootStackParamList } from './types';
 import MainTabNavigator from './MainTabNavigator';
 import ScheduleFormScreen from '../app/schedule/ScheduleFormScreen';
+import ScheduleManageScreen from '../app/schedule/ScheduleManageScreen';
 import ThemeShopScreen from '../features/points/ThemeShopScreen';
 import CareCircleScreen from '../features/careCircle/CareCircleScreen';
 import JoinCareCircleScreen from '../features/careCircle/JoinCareCircleScreen';
@@ -20,7 +21,12 @@ export default function ScheduleStackNavigator() {
       <Stack.Screen
         name="Main"
         component={MainTabNavigator}
-        options={{ headerShown: false }}
+        options={{ headerShown: false, gestureEnabled: false }}
+      />
+      <Stack.Screen
+        name="ScheduleManage"
+        component={ScheduleManageScreen}
+        options={{ title: '복용 일정 관리', headerBackTitle: '뒤로' }}
       />
       <Stack.Screen
         name="ScheduleNew"

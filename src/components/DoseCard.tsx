@@ -59,23 +59,28 @@ const BTN_TXT: Record<DoseStatus, string> = {
 export interface DoseCardProps {
   event: DoseEvent;
   medicationName: string;
+  medicationColor?: string;
   onTake: (id: string) => void;
   onSnooze?: (id: string) => void;
-  maxSnoozeCount?: number;
   onAfterTake?: (id: string, note: string, photoPath: string | undefined) => void;
+}
+
+function snoozeStyle(count: number): { color: string; borderColor: string } {
+  if (count >= 2) return { color: '#ea580c', borderColor: '#fb923c' };
+  if (count === 1) return { color: '#d97706', borderColor: '#fcd34d' };
+  return { color: '#6b7280', borderColor: '#d1d5db' };
 }
 
 export default function DoseCard({
   event,
   medicationName,
+  medicationColor,
   onTake,
   onSnooze,
-  maxSnoozeCount = 3,
   onAfterTake,
 }: DoseCardProps) {
   const isTakeable = event.status === 'scheduled' || event.status === 'late';
-  const isSnoozeable =
-    isTakeable && onSnooze != null && event.snoozeCount < maxSnoozeCount;
+  const isSnoozeable = isTakeable && onSnooze != null && event.snoozeCount < 3;
 
   const time = event.plannedAt.slice(11, 16);
 
@@ -186,6 +191,11 @@ export default function DoseCard({
         accessibilityLabel={`${medicationName} ${time} ${STATUS_LABEL[event.status]}`}
         testID={`card-${event.id}`}
       >
+        {/* 약 색상 바 */}
+        {medicationColor && (
+          <View style={[styles.colorBar, { backgroundColor: medicationColor }]} />
+        )}
+
         {/* 시간 */}
         <Text testID={`card-time-${event.id}`} style={styles.time}>{time}</Text>
 
@@ -199,10 +209,12 @@ export default function DoseCard({
           <TouchableOpacity
             testID={`btn-snooze-${event.id}`}
             onPress={() => onSnooze!(event.id)}
-            accessibilityLabel="미루기"
-            style={styles.snoozeBtn}
+            accessibilityLabel={`미루기 ${event.snoozeCount}/3`}
+            style={[styles.snoozeBtn, { borderColor: snoozeStyle(event.snoozeCount).borderColor }]}
           >
-            <Text style={styles.snoozeTxt}>미루기</Text>
+            <Text style={[styles.snoozeTxt, { color: snoozeStyle(event.snoozeCount).color }]}>
+              미루기 ({event.snoozeCount}/3)
+            </Text>
           </TouchableOpacity>
         )}
 
@@ -332,6 +344,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     backgroundColor: '#3b82f6',
     borderRadius: 12,
+  },
+  colorBar: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 4,
+    borderTopLeftRadius: 12,
+    borderBottomLeftRadius: 12,
   },
   time: { fontSize: 16, fontWeight: '600', color: '#374151', width: 44 },
   name: { flex: 1, marginHorizontal: 10, fontSize: 16, color: '#111827' },

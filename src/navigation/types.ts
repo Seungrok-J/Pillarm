@@ -1,7 +1,8 @@
 export type RootStackParamList = {
-  Main:         undefined;
-  ScheduleNew:  undefined;
-  ScheduleEdit: { scheduleId: string; medicationId: string; suggestedTime?: string };
+  Main:           undefined;
+  ScheduleNew:    undefined;
+  ScheduleEdit:   { scheduleId: string; medicationId: string; suggestedTime?: string };
+  ScheduleManage: undefined;
   ThemeShop:    undefined;
   CareCircle:   undefined;
   JoinCareCircle: { code?: string } | undefined;

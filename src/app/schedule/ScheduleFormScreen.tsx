@@ -319,8 +319,8 @@ export default function ScheduleFormScreen() {
       // Step 4+5 — 알림 취소 → DoseEvent 생성 → 알림 재등록
       await scheduleForSchedule(sched, med, settings);
 
-      // Step 6 — 홈으로 이동
-      navigation.navigate('Main');
+      // Step 6 — 홈으로 이동 (goBack으로 스택에서 제거)
+      navigation.goBack();
     } catch {
       setErrors({ _form: '저장 중 오류가 발생했습니다' });
     } finally {

@@ -12,13 +12,15 @@ import {
   PanResponder,
   Animated,
   Dimensions,
+  RefreshControl,
 } from 'react-native';
 
 const SW = Dimensions.get('window').width;
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Calendar } from 'react-native-calendars';
+import { useFocusEffect } from '@react-navigation/native';
 import { useDoseEventStore, useMedicationStore } from '../../store';
-import { updateDoseEventStatus } from '../../db';
+import { useAuthStore } from '../../store/authStore';
 import { getDotColor } from '../../components/DayDot';
 import { todayString } from '../../utils';
 import type { DoseEvent, DoseStatus } from '../../domain';
@@ -167,7 +169,9 @@ export default function HistoryScreen() {
   const [isLoading,      setIsLoading]      = useState(false);
   const [modalEvent,     setModalEvent]     = useState<DoseEvent | null>(null);
   const [showMonthPicker, setShowMonthPicker] = useState(false);
+  const [refreshing,      setRefreshing]      = useState(false);
 
+  const { userId } = useAuthStore();
   const { fetchByDateRange } = useDoseEventStore();
   const { medications, fetchMedications } = useMedicationStore();
 
@@ -176,7 +180,7 @@ export default function HistoryScreen() {
     [medications],
   );
 
-  useEffect(() => { fetchMedications(); }, []);
+  useEffect(() => { fetchMedications(); }, [userId]);
 
   const loadMonth = useCallback(async (yyyyMm: string) => {
     setIsLoading(true);
@@ -186,7 +190,25 @@ export default function HistoryScreen() {
     setIsLoading(false);
   }, [fetchByDateRange]);
 
-  useEffect(() => { loadMonth(currentMonth); }, [currentMonth]);
+  // 탭 포커스 시마다 재조회 (월 이동·로그인 전환 포함)
+  useFocusEffect(
+    useCallback(() => {
+      loadMonth(currentMonth);
+    }, [currentMonth, userId]),
+  );
+
+  // 로그인/로그아웃 시 오늘로 초기화
+  useEffect(() => {
+    const t = todayString();
+    setSelectedDate(t);
+    setCurrentMonth(t.slice(0, 7));
+  }, [userId]);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    await Promise.all([loadMonth(currentMonth), fetchMedications()]);
+    setRefreshing(false);
+  }
 
   // ── 달력 markedDates ────────────────────────────────────────────────────────
   const markedDates = useMemo(() => {
@@ -213,21 +235,6 @@ export default function HistoryScreen() {
       .sort((a, b) => a.plannedAt.localeCompare(b.plannedAt)),
     [monthEvents, selectedDate],
   );
-
-  const isToday = selectedDate === today;
-
-  // ── 늦은 복용 처리 ──────────────────────────────────────────────────────────
-  async function handleLateTake(id: string) {
-    const now = new Date().toISOString();
-    setMonthEvents((prev) => prev.map((e) =>
-      e.id === id ? { ...e, status: 'taken' as const, takenAt: now, updatedAt: now } : e,
-    ));
-    try {
-      await updateDoseEventStatus(id, 'taken', now);
-    } catch {
-      loadMonth(currentMonth);
-    }
-  }
 
   const [labelY, labelM] = currentMonth.split('-');
   const monthLabel = `${labelY}년 ${Number(labelM)}월`;
@@ -297,7 +304,6 @@ export default function HistoryScreen() {
   function renderItem({ item: event }: { item: DoseEvent }) {
     const plannedTime = fmtLocalTime(event.plannedAt);
     const name = medicationNames[event.medicationId] ?? event.medicationId;
-    const showLateBtn = isToday && (event.status === 'scheduled' || event.status === 'late');
 
     return (
       <TouchableOpacity
@@ -319,15 +325,6 @@ export default function HistoryScreen() {
             {event.takenAt ? `  복용 ${fmtLocalTime(event.takenAt)}` : ''}
           </Text>
         </View>
-        {showLateBtn && (
-          <TouchableOpacity
-            testID={`btn-late-take-${event.id}`}
-            onPress={() => handleLateTake(event.id)}
-            style={styles.lateBtn}
-          >
-            <Text style={styles.lateBtnTxt}>늦은 복용 처리</Text>
-          </TouchableOpacity>
-        )}
       </TouchableOpacity>
     );
   }
@@ -393,6 +390,9 @@ export default function HistoryScreen() {
           keyExtractor={(e) => e.id}
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#3b82f6" />
+          }
           ListEmptyComponent={
             <Text testID="txt-no-events" style={styles.emptyText}>
               이 날짜에 복용 일정이 없습니다
@@ -516,9 +516,6 @@ const styles = StyleSheet.create({
   cardBody: { flex: 1, marginHorizontal: 10 },
   name:     { fontSize: 14, color: '#111827' },
   status:   { fontSize: 12, marginTop: 2 },
-  lateBtn:  { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, backgroundColor: '#f97316' },
-  lateBtnTxt: { fontSize: 12, color: '#fff', fontWeight: '600' },
-
   detailOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
   detailCard:    { width: '85%', maxHeight: '80%', backgroundColor: '#fff', borderRadius: 16, padding: 20 },
   detailHeader:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },

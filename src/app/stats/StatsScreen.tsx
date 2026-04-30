@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,11 +7,14 @@ import {
   ActivityIndicator,
   StyleSheet,
   Dimensions,
+  RefreshControl,
   type DimensionValue,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
+import { useFocusEffect } from '@react-navigation/native';
 import { useDoseEventStore, usePointStore } from '../../store';
+import { useAuthStore } from '../../store/authStore';
 import {
   calculateWeeklyStats,
   calculateMissedPatterns,
@@ -212,25 +215,37 @@ function MissedList({ patterns }: { patterns: MissedPattern[] }) {
 type Tab = 'week' | 'all';
 
 export default function StatsScreen() {
-  const [tab,      setTab]      = useState<Tab>('week');
-  const [events,   setEvents]   = useState<DoseEvent[]>([]);
+  const [tab,       setTab]       = useState<Tab>('week');
+  const [events,    setEvents]    = useState<DoseEvent[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const { fetchByDateRange }       = useDoseEventStore();
-  const { streak, fetchBalance }   = usePointStore();
-
-  useEffect(() => { fetchBalance(); }, []);
+  const { fetchByDateRange }     = useDoseEventStore();
+  const { streak, fetchBalance } = usePointStore();
+  const { userId }               = useAuthStore();
 
   const range = tab === 'week' ? getWeekRange() : getAllTimeRange();
 
-  useEffect(() => {
-    setIsLoading(true);
-    fetchByDateRange(range.start, range.end).then((result) => {
-      setEvents(result);
-      setIsLoading(false);
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab]);
+  // 탭 포커스 시마다 재조회 (탭 이동·로그인 전환·복용 처리 후 돌아올 때 즉시 반영)
+  useFocusEffect(
+    useCallback(() => {
+      const r = tab === 'week' ? getWeekRange() : getAllTimeRange();
+      setIsLoading(true);
+      fetchByDateRange(r.start, r.end).then((result) => {
+        setEvents(result);
+        setIsLoading(false);
+      });
+      fetchBalance();
+    }, [tab, userId]),
+  );
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    const result = await fetchByDateRange(range.start, range.end);
+    setEvents(result);
+    await fetchBalance();
+    setRefreshing(false);
+  }
 
   const stats    = useMemo(() => calculateWeeklyStats(events), [events]);
   const patterns = useMemo(() => calculateMissedPatterns(events), [events]);
@@ -265,7 +280,14 @@ export default function StatsScreen() {
       {isLoading ? (
         <ActivityIndicator testID="loading-indicator" style={{ marginTop: 60 }} color="#3b82f6" size="large" />
       ) : (
-        <ScrollView testID="stats-scroll" contentContainerStyle={st.scroll} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          testID="stats-scroll"
+          contentContainerStyle={st.scroll}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#3b82f6" />
+          }
+        >
 
           {/* 기간 레이블 */}
           <Text style={st.periodLabel}>{range.label}</Text>

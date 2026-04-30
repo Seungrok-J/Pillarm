@@ -88,6 +88,21 @@ export async function scheduleForSchedule(
 // ── 취소 ──────────────────────────────────────────────────────────────────
 
 /**
+ * 특정 doseEventId 에 연결된 예약 알림 1건을 취소합니다.
+ * markTaken 호출 시 복용 전 알림을 제거하는 용도로 사용합니다.
+ */
+export async function cancelNotificationForDoseEvent(doseEventId: string): Promise<void> {
+  if (Platform.OS === 'web') return;
+  const all = await Notifications.getAllScheduledNotificationsAsync();
+  const target = all.find(
+    (n) => (n.content.data as Record<string, unknown>)?.['doseEventId'] === doseEventId,
+  );
+  if (target) {
+    await Notifications.cancelScheduledNotificationAsync(target.identifier);
+  }
+}
+
+/**
  * 특정 scheduleId 에 연결된 등록된 알림을 모두 취소합니다.
  */
 export async function cancelForSchedule(scheduleId: string): Promise<void> {

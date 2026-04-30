@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RootStackParamList } from '../../navigation';
 import { usePointStore } from '../../store';
@@ -48,10 +48,12 @@ export default function PointHistoryScreen() {
   const navigation = useNavigation<Nav>();
   const { balance, history, fetchBalance, fetchHistory } = usePointStore();
 
-  useEffect(() => {
-    fetchBalance();
-    fetchHistory();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchBalance();
+      fetchHistory();
+    }, []),
+  );
 
   function renderItem({ item }: { item: PointLedger }) {
     const gain = item.delta > 0;

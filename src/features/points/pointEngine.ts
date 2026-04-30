@@ -67,6 +67,13 @@ export async function awardDoseTaken(
   );
   if (dup) return null;
 
+  const today = new Date().toISOString().slice(0, 10);
+  const daily = await db.getFirstAsync<{ cnt: number }>(
+    `SELECT COUNT(*) as cnt FROM point_ledger WHERE user_id = 'local' AND reason = 'dose_taken' AND date(created_at) = ?`,
+    today,
+  );
+  if ((daily?.cnt ?? 0) >= 5) return null;
+
   const prev  = await latestBalance('local');
   const entry: PointLedger = {
     id:        generateId(),
