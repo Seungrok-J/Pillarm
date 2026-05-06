@@ -9,7 +9,7 @@ import {
 import { useSettingsStore } from './settingsStore';
 import { useAuthStore } from './authStore';
 import { awardDoseTaken, awardStreakBonus } from '../features/points/pointEngine';
-import { cancelNotificationForDoseEvent } from '../notifications/scheduler';
+import { cancelNotificationForDoseEvent, checkAndMarkMissed } from '../notifications/scheduler';
 
 function currentUserId() {
   return useAuthStore.getState().userId ?? 'local';
@@ -35,6 +35,8 @@ export const useDoseEventStore = create<DoseEventState>((set, get) => ({
   fetchTodayEvents: async (dateStr) => {
     set({ isLoading: true, error: null, todayEvents: [] });
     try {
+      const settings = useSettingsStore.getState().settings;
+      if (settings) await checkAndMarkMissed(settings);
       const todayEvents = await getDoseEventsByDate(dateStr, currentUserId());
       set({ todayEvents, isLoading: false });
     } catch (e) {
@@ -105,7 +107,7 @@ export const useDoseEventStore = create<DoseEventState>((set, get) => ({
     if (event.snoozeCount >= FIXED_MAX) return false;
 
     const newCount  = event.snoozeCount + 1;
-    const snoozeDate = new Date(Date.now() + snoozeMinutes * 60_000);
+    const snoozeDate = new Date(new Date(event.plannedAt).getTime() + snoozeMinutes * 60_000);
     const pad = (n: number) => String(n).padStart(2, '0');
     const newPlannedAt =
       `${snoozeDate.getFullYear()}-${pad(snoozeDate.getMonth() + 1)}-${pad(snoozeDate.getDate())}` +

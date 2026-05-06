@@ -32,10 +32,19 @@ jest.mock('react-native-calendars', () => {
   };
 });
 
+jest.mock('@react-navigation/native', () => {
+  const React = require('react');
+  return {
+    useNavigation: () => ({ navigate: jest.fn(), goBack: jest.fn() }),
+    useFocusEffect: (cb: () => void) => { React.useEffect(cb, [cb]); },
+  };
+});
+
 // ── notifications mock (scheduleStore 가 cancelForSchedule 을 임포트하므로 필요) ──
 
 jest.mock('../../../src/notifications', () => ({
   cancelForSchedule: jest.fn().mockResolvedValue(undefined),
+  checkAndMarkMissed: jest.fn().mockResolvedValue(undefined),
 }));
 
 // ── DB / notifications mock ───────────────────────────────────────────────────
@@ -337,6 +346,7 @@ describe('월 네비게이션', () => {
     expect(mockGetDoseEventsByDateRange).toHaveBeenCalledWith(
       '2026-04-01T00:00:00',
       '2026-05-01T00:00:00',
+      expect.any(String),
     );
 
     // 다음 달
@@ -348,6 +358,7 @@ describe('월 네비게이션', () => {
       expect(mockGetDoseEventsByDateRange).toHaveBeenCalledWith(
         '2026-05-01T00:00:00',
         '2026-06-01T00:00:00',
+        expect.any(String),
       ),
     );
   });

@@ -62,6 +62,7 @@ export interface DoseCardProps {
   medicationColor?: string;
   onTake: (id: string) => void;
   onSnooze?: (id: string) => void;
+  onSkip?: (id: string) => void;
   onAfterTake?: (id: string, note: string, photoPath: string | undefined) => void;
 }
 
@@ -77,10 +78,12 @@ export default function DoseCard({
   medicationColor,
   onTake,
   onSnooze,
+  onSkip,
   onAfterTake,
 }: DoseCardProps) {
   const isTakeable = event.status === 'scheduled' || event.status === 'late';
-  const isSnoozeable = isTakeable && onSnooze != null && event.snoozeCount < 3;
+  const isSnoozeable = event.status === 'late' && onSnooze != null && event.snoozeCount < 3;
+  const isSkippable = isTakeable && onSkip != null;
 
   const time = event.plannedAt.slice(11, 16);
 
@@ -203,6 +206,18 @@ export default function DoseCard({
         <Text testID={`card-name-${event.id}`} style={styles.name} numberOfLines={1}>
           {medicationName}
         </Text>
+
+        {/* 건너뜀 버튼 */}
+        {isSkippable && (
+          <TouchableOpacity
+            testID={`btn-skip-${event.id}`}
+            onPress={() => onSkip!(event.id)}
+            accessibilityLabel="건너뜀"
+            style={styles.skipActionBtn}
+          >
+            <Text style={styles.skipActionTxt}>건너뜀</Text>
+          </TouchableOpacity>
+        )}
 
         {/* 미루기 버튼 */}
         {isSnoozeable && (
@@ -356,6 +371,17 @@ const styles = StyleSheet.create({
   },
   time: { fontSize: 16, fontWeight: '600', color: '#374151', width: 44 },
   name: { flex: 1, marginHorizontal: 10, fontSize: 16, color: '#111827' },
+  skipActionBtn: {
+    marginRight: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  skipActionTxt: { fontSize: 14, color: '#9ca3af' },
   snoozeBtn: {
     marginRight: 8,
     paddingVertical: 8,

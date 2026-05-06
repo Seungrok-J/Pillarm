@@ -15,6 +15,11 @@ jest.mock('../../src/features/points/pointEngine', () => ({
   awardStreakBonus: jest.fn().mockResolvedValue(null),
 }));
 
+jest.mock('../../src/notifications/scheduler', () => ({
+  cancelNotificationForDoseEvent: jest.fn().mockResolvedValue(undefined),
+  checkAndMarkMissed: jest.fn().mockResolvedValue(undefined),
+}));
+
 // mock 모듈 참조를 가져와서 각 테스트에서 spy/assert 합니다.
 import * as db from '../../src/db';
 
@@ -229,7 +234,7 @@ describe('snooze', () => {
 
     await useDoseEventStore.getState().snooze('evt-1', 3);
 
-    expect(mockUpdateSnooze).toHaveBeenCalledWith('evt-1', 2);
+    expect(mockUpdateSnooze).toHaveBeenCalledWith('evt-1', 2, expect.any(String));
   });
 
   it('snoozeCount가 maxSnoozeCount에 도달하면 false를 반환하고 DB를 호출하지 않는다', async () => {

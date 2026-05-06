@@ -7,6 +7,7 @@ import { isInQuietHours, adjustForQuietHours } from './quietHours';
 import {
   insertDoseEvent,
   markOverdueEventsMissed,
+  markScheduledEventsLate,
   getAllSchedules,
   getMedicationById,
 } from '../db';
@@ -125,6 +126,7 @@ export async function cancelForSchedule(scheduleId: string): Promise<void> {
 export async function rescheduleSnooze(
   doseEventId: string,
   snoozeMinutes: number,
+  basePlannedAt: string,
 ): Promise<void> {
   if (Platform.OS === 'web') return;
   const all = await Notifications.getAllScheduledNotificationsAsync();
@@ -136,7 +138,7 @@ export async function rescheduleSnooze(
     await Notifications.cancelScheduledNotificationAsync(existing.identifier);
   }
 
-  const snoozeAt = addMinutes(new Date(), snoozeMinutes);
+  const snoozeAt = addMinutes(new Date(basePlannedAt), snoozeMinutes);
 
   await Notifications.scheduleNotificationAsync({
     content: existing
@@ -172,13 +174,16 @@ export async function rescheduleAllSchedules(settings: UserSettings): Promise<vo
 
 /**
  * AppState 가 active 로 전환될 때 호출합니다.
- * plannedAt + missedToLateMinutes 가 지난 'scheduled' 이벤트를 'missed' 로 일괄 처리합니다.
+ * 1) plannedAt + missedToLateMinutes 초과 → 'missed'
+ * 2) plannedAt 지남 but grace period 이내 → 'late'
  */
 export async function checkAndMarkMissed(settings: UserSettings): Promise<void> {
+  const now = toLocalISOString(new Date());
   const cutoff = toLocalISOString(
     new Date(Date.now() - settings.missedToLateMinutes * 60_000),
   );
   await markOverdueEventsMissed(cutoff);
+  await markScheduledEventsLate(now);
 }
 
 // ── 내부 헬퍼 ─────────────────────────────────────────────────────────────

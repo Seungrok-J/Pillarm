@@ -46,6 +46,9 @@ model User {
   memberships   CareMember[]        @relation("MemberUser")
   refreshTokens RefreshToken[]
   snapshots     DoseEventSnapshot[] @relation("SnapshotPatient")
+  medications   Medication[]        @relation("UserMedications")
+  schedules     Schedule[]          @relation("UserSchedules")
+  doseEvents    DoseEvent[]         @relation("UserDoseEvents")
 }
 
 model CareCircle {
@@ -116,6 +119,62 @@ model RefreshToken {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ── Sync models ───────────────────────────────────────────────────────────────
+
+/// 앱 로컬 SQLite 의 Medication 을 서버에 미러링 (기기 이전·복원용)
+model Medication {
+  id          String  @id
+  userId      String
+  name        String
+  dosageValue Float?
+  dosageUnit  String?
+  color       String?
+  isActive    Boolean @default(true)
+  /// ISO 8601 문자열 (앱 로컬 createdAt 그대로 저장)
+  createdAt   String
+  /// 마지막 업데이트 시각 — conflict resolution 기준
+  updatedAt   String
+
+  user User @relation("UserMedications", fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// 앱 로컬 SQLite 의 Schedule 을 서버에 미러링
+model Schedule {
+  id           String   @id
+  userId       String
+  medicationId String
+  scheduleType String   @default("fixed")
+  startDate    String
+  endDate      String?
+  times        String[]
+  daysOfWeek   Int[]
+  withFood     String   @default("none")
+  graceMinutes Int      @default(120)
+  isActive     Boolean  @default(true)
+  createdAt    String
+  updatedAt    String
+
+  user User @relation("UserSchedules", fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// 앱 로컬 SQLite 의 DoseEvent 를 서버에 미러링 (최근 90일)
+model DoseEvent {
+  id           String  @id
+  userId       String
+  scheduleId   String
+  medicationId String
+  plannedAt    String
+  status       String
+  takenAt      String?
+  snoozeCount  Int     @default(0)
+  source       String  @default("notification")
+  note         String?
+  createdAt    String
+  updatedAt    String
+
+  user User @relation("UserDoseEvents", fields: [userId], references: [id], onDelete: Cascade)
 }
 
 /// 6자리 일회용 초대 코드 (24h TTL)

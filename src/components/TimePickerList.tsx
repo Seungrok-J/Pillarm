@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  View, Text, TouchableOpacity, Modal, ScrollView, StyleSheet,
+  View, Text, TouchableOpacity, Modal, ScrollView, StyleSheet, TextInput,
 } from 'react-native';
 
 // ── 상수 ─────────────────────────────────────────────────────────────────────
@@ -150,6 +150,24 @@ export default function TimePickerList({ times, onAdd, onRemove }: Props) {
           <View style={styles.sheet}>
             <Text style={styles.sheetTitle}>복용 시간 선택</Text>
 
+            {/* 직접 입력 (테스트 및 UX 편의) */}
+            <TextInput
+              testID="input-time-value"
+              value={buildTime(periodIdx, hourIdx, minIdx)}
+              onChangeText={(text) => {
+                if (/^\d{2}:\d{2}$/.test(text)) {
+                  const parsed = parseTime(text);
+                  setPeriodIdx(parsed.periodIdx);
+                  setHourIdx(parsed.hourIdx);
+                  setMinIdx(parsed.minIdx);
+                }
+              }}
+              style={styles.timeInput}
+              placeholder="HH:MM"
+              keyboardType="numbers-and-punctuation"
+              maxLength={5}
+            />
+
             {/* 컬럼 레이블 */}
             <View style={styles.labelRow}>
               <Text style={[styles.colLabel, { width: COL_W.period }]}>오전/오후</Text>
@@ -265,4 +283,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#3b82f6', alignItems: 'center',
   },
   btnConfirmTxt: { color: '#fff', fontSize: 15, fontWeight: '600' },
+
+  timeInput: {
+    borderWidth: 1, borderColor: '#d1d5db', borderRadius: 10,
+    paddingVertical: 10, paddingHorizontal: 14,
+    fontSize: 16, color: '#111827', textAlign: 'center',
+    marginBottom: 12,
+  },
 });

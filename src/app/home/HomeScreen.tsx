@@ -49,7 +49,7 @@ const FALLBACK_SETTINGS = {
 export default function HomeScreen() {
   const navigation = useNavigation<Nav>();
 
-  const { todayEvents, isLoading, fetchTodayEvents, markTaken, snooze } =
+  const { todayEvents, isLoading, fetchTodayEvents, markTaken, markSkipped, snooze } =
     useDoseEventStore((s) => s);
   const { medications, fetchMedications } = useMedicationStore((s) => s);
   const settings = useSettingsStore((s) => s.settings) ?? FALLBACK_SETTINGS;
@@ -152,11 +152,21 @@ export default function HomeScreen() {
     }
   }
 
+  async function handleSkip(eventId: string) {
+    try {
+      await markSkipped(eventId);
+    } catch {
+      // 오류는 store error 상태로 전파됨
+    }
+  }
+
   async function handleSnooze(eventId: string) {
     try {
+      const event = todayEvents.find((e) => e.id === eventId);
+      if (!event) return;
       const ok = await snooze(eventId, settings.defaultSnoozeMinutes);
       if (ok) {
-        await rescheduleSnooze(eventId, settings.defaultSnoozeMinutes);
+        await rescheduleSnooze(eventId, settings.defaultSnoozeMinutes, event.plannedAt);
       }
     } catch {
       // 오류는 store error 상태로 전파됨
@@ -240,6 +250,7 @@ export default function HomeScreen() {
               medicationColor={medicationColors[item.medicationId]}
               onTake={handleTake}
               onSnooze={handleSnooze}
+              onSkip={handleSkip}
               onAfterTake={handleAfterTake}
             />
           )}

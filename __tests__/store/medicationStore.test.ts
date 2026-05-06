@@ -1,4 +1,4 @@
-/**
+﻿/**
  * useMedicationStore 단위 테스트
  * fetch / add / update / delete + 각 에러/롤백 케이스
  */
@@ -67,7 +67,7 @@ describe('addMedication', () => {
 
     await useMedicationStore.getState().addMedication(med);
 
-    expect(mockUpsert).toHaveBeenCalledWith(med);
+    expect(mockUpsert).toHaveBeenCalledWith(med, expect.any(String));
     expect(useMedicationStore.getState().medications).toContainEqual(med);
   });
 
@@ -95,7 +95,7 @@ describe('updateMedication', () => {
     await useMedicationStore.getState().updateMedication(updated);
 
     expect(useMedicationStore.getState().medications[0]?.name).toBe('수정된 약');
-    expect(mockUpsert).toHaveBeenCalledWith(updated);
+    expect(mockUpsert).toHaveBeenCalledWith(updated, expect.any(String));
   });
 
   it('DB 오류 시 이전 목록으로 롤백한다', async () => {
@@ -133,3 +133,4 @@ describe('deleteMedication', () => {
     expect(useMedicationStore.getState().medications).toHaveLength(1);
   });
 });
+

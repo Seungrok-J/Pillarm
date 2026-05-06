@@ -184,7 +184,7 @@ describe('doseEvents DB', () => {
       await markOverdueEventsMissed('2025-01-01T09:00:00.000Z');
       const sql = db.runAsync.mock.calls[0][0] as string;
       expect(sql).toContain("status = 'missed'");
-      expect(sql).toContain("status = 'scheduled'");
+      expect(sql).toContain("status IN ('scheduled', 'late')");
     });
   });
 

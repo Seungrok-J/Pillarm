@@ -18,6 +18,7 @@ jest.mock('expo-notifications', () => ({
 jest.mock('../../src/db', () => ({
   insertDoseEvent: jest.fn().mockResolvedValue(undefined),
   markOverdueEventsMissed: jest.fn().mockResolvedValue(undefined),
+  markScheduledEventsLate: jest.fn().mockResolvedValue(undefined),
 }));
 
 // generateId 는 예측 가능한 값으로 대체합니다.
@@ -34,6 +35,7 @@ const mockGetAll = Notifications.getAllScheduledNotificationsAsync as jest.Mock;
 const mockCancel = Notifications.cancelScheduledNotificationAsync as jest.Mock;
 const mockInsertDoseEvent = db.insertDoseEvent as jest.Mock;
 const mockMarkMissed = db.markOverdueEventsMissed as jest.Mock;
+const mockMarkLate = (db as unknown as Record<string, jest.Mock>).markScheduledEventsLate as jest.Mock;
 
 // ── 픽스처 ─────────────────────────────────────────────────────────────────
 
@@ -258,7 +260,7 @@ describe('rescheduleSnooze', () => {
       fakeNotif('n2', { doseEventId: 'evt-2' }),
     ]);
 
-    await rescheduleSnooze('evt-1', 15);
+    await rescheduleSnooze('evt-1', 15, new Date().toISOString());
 
     expect(mockCancel).toHaveBeenCalledWith('n1');
     expect(mockCancel).not.toHaveBeenCalledWith('n2');
@@ -267,14 +269,16 @@ describe('rescheduleSnooze', () => {
   it('기존 알림이 없어도 새 알림을 등록한다', async () => {
     mockGetAll.mockResolvedValue([]);
 
-    await rescheduleSnooze('evt-99', 15);
+    await rescheduleSnooze('evt-99', 15, new Date().toISOString());
 
     expect(mockCancel).not.toHaveBeenCalled();
     expect(mockSchedule).toHaveBeenCalledTimes(1);
   });
 
-  it('새 알림의 trigger 는 now + snoozeMinutes', async () => {
-    await rescheduleSnooze('evt-1', 15);
+  it('새 알림의 trigger 는 basePlannedAt + snoozeMinutes', async () => {
+    const base = new Date();
+    base.setHours(6, 0, 0, 0);
+    await rescheduleSnooze('evt-1', 15, base.toISOString());
 
     const triggerDate: Date = mockSchedule.mock.calls[0]?.[0].trigger.date;
     expect(triggerDate.getHours()).toBe(6);
@@ -293,7 +297,7 @@ describe('rescheduleSnooze', () => {
       },
     ]);
 
-    await rescheduleSnooze('evt-1', 15);
+    await rescheduleSnooze('evt-1', 15, new Date().toISOString());
 
     const content = mockSchedule.mock.calls[0]?.[0].content;
     expect(content.title).toBe('혈압약 복용 시간이에요');
@@ -313,6 +317,10 @@ describe('checkAndMarkMissed', () => {
     const cutoffDate = new Date(mockMarkMissed.mock.calls[0]?.[0] as string);
     const expected = new Date(Date.now() - 120 * 60_000);
     expect(Math.abs(cutoffDate.getTime() - expected.getTime())).toBeLessThan(1000);
+
+    expect(mockMarkLate).toHaveBeenCalledTimes(1);
+    const lateNowDate = new Date(mockMarkLate.mock.calls[0]?.[0] as string);
+    expect(Math.abs(lateNowDate.getTime() - Date.now())).toBeLessThan(1000);
   });
 
   it('missedToLateMinutes=60 이면 cutoff 가 1시간 전', async () => {

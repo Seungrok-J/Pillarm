@@ -93,15 +93,30 @@ export async function updateDoseEventSnooze(
 }
 
 /**
- * status='scheduled' 이고 planned_at < cutoffIso 인 이벤트를 일괄 'missed' 처리합니다.
- * AppState active 전환 시 호출됩니다.
+ * planned_at < nowIso 인 'scheduled' 이벤트를 'late' 로 전환합니다.
+ * missed 처리 이후에 호출해야 grace period 초과분이 late 로 내려가지 않습니다.
+ */
+export async function markScheduledEventsLate(nowIso: string): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(
+    `UPDATE dose_events
+        SET status = 'late', updated_at = ?
+      WHERE status = 'scheduled' AND planned_at < ?`,
+    new Date().toISOString(),
+    nowIso,
+  );
+}
+
+/**
+ * planned_at < cutoffIso 인 'scheduled'/'late' 이벤트를 'missed' 로 전환합니다.
+ * AppState active 전환 시 markScheduledEventsLate 보다 먼저 호출합니다.
  */
 export async function markOverdueEventsMissed(cutoffIso: string): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
     `UPDATE dose_events
         SET status = 'missed', updated_at = ?
-      WHERE status = 'scheduled' AND planned_at < ?`,
+      WHERE status IN ('scheduled', 'late') AND planned_at < ?`,
     new Date().toISOString(),
     cutoffIso,
   );

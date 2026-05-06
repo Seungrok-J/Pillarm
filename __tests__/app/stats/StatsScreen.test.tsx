@@ -1,4 +1,4 @@
-/**
+﻿/**
  * StatsScreen 통합 테스트
  *
  * AC1 — 주간/월간 탭 전환 시 데이터 즉시 반영
@@ -11,10 +11,14 @@ import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 
 // ── react-native-svg mock ─────────────────────────────────────────────────────
 
-jest.mock('@react-navigation/native', () => ({
-  useNavigation: () => ({ navigate: jest.fn(), goBack: jest.fn() }),
-  useRoute: () => ({ params: {} }),
-}));
+jest.mock('@react-navigation/native', () => {
+  const React = require('react');
+  return {
+    useFocusEffect: (cb: () => void) => { React.useEffect(cb, [cb]); },
+    useNavigation: () => ({ navigate: jest.fn(), goBack: jest.fn() }),
+    useRoute: () => ({ params: {} }),
+  };
+});
 
 // CoachingSection은 자체 DB 쿼리와 AsyncStorage를 사용하므로
 // StatsScreen 단위 테스트에서는 null 컴포넌트로 대체한다.
@@ -126,6 +130,7 @@ describe('AC1 — 탭 전환 시 데이터 반영', () => {
     expect(mockGetDoseEventsByDateRange).toHaveBeenCalledWith(
       '2026-04-20T00:00:00',
       '2026-04-26T23:59:59',
+      expect.any(String),
     );
   });
 
@@ -138,6 +143,7 @@ describe('AC1 — 탭 전환 시 데이터 반영', () => {
       expect(mockGetDoseEventsByDateRange).toHaveBeenCalledWith(
         '2026-04-01T00:00:00',
         '2026-04-30T23:59:59',
+        expect.any(String),
       ),
     );
   });
@@ -317,3 +323,4 @@ describe('누락 패턴 표시', () => {
     expect(getByTestId('missed-slot-1').props.children).toBe('08:00');
   });
 });
+

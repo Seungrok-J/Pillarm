@@ -1,4 +1,4 @@
-/**
+﻿/**
  * SettingsScreen 통합 테스트
  *
  * AC1 — 설정 로딩 중 ActivityIndicator 표시
@@ -8,10 +8,14 @@
  * AC5 — TimeInput 잘못된 형식 → 원래 값으로 복원
  */
 
-jest.mock('@react-navigation/native', () => ({
-  useNavigation: () => ({ navigate: jest.fn(), goBack: jest.fn() }),
-  useRoute: () => ({ params: {} }),
-}));
+jest.mock('@react-navigation/native', () => {
+  const React = require('react');
+  return {
+    useFocusEffect: (cb: () => void) => { React.useEffect(cb, [cb]); },
+    useNavigation: () => ({ navigate: jest.fn(), goBack: jest.fn() }),
+    useRoute: () => ({ params: {} }),
+  };
+});
 
 jest.mock('../../../src/db', () => ({
   saveUserSettings: jest.fn().mockResolvedValue(undefined),
@@ -153,3 +157,4 @@ describe('AC5 — TimeInput 잘못된 형식', () => {
     expect(mockSave).not.toHaveBeenCalled();
   });
 });
+

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * useScheduleStore 단위 테스트
  * fetch / add / update / delete + 알림 취소 통합 검증
  */
@@ -53,7 +53,7 @@ describe('fetchSchedules', () => {
 
     await useScheduleStore.getState().fetchSchedules('med-1');
 
-    expect(mockGetByMed).toHaveBeenCalledWith('med-1');
+    expect(mockGetByMed).toHaveBeenCalledWith('med-1', expect.any(String));
     expect(useScheduleStore.getState().schedules).toEqual(scheds);
     expect(useScheduleStore.getState().isLoading).toBe(false);
   });
@@ -75,7 +75,7 @@ describe('addSchedule', () => {
 
     await useScheduleStore.getState().addSchedule(sched);
 
-    expect(mockUpsert).toHaveBeenCalledWith(sched);
+    expect(mockUpsert).toHaveBeenCalledWith(sched, expect.any(String));
     expect(useScheduleStore.getState().schedules).toContainEqual(sched);
   });
 
@@ -102,7 +102,7 @@ describe('updateSchedule', () => {
     await useScheduleStore.getState().updateSchedule(updated);
 
     expect(useScheduleStore.getState().schedules[0]?.times).toEqual(['09:00']);
-    expect(mockUpsert).toHaveBeenCalledWith(updated);
+    expect(mockUpsert).toHaveBeenCalledWith(updated, expect.any(String));
   });
 
   it('DB 오류 시 이전 목록으로 롤백한다', async () => {
@@ -150,3 +150,5 @@ describe('deleteSchedule', () => {
     expect(useScheduleStore.getState().schedules).toHaveLength(1);
   });
 });
+
+

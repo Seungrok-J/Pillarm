@@ -23,6 +23,7 @@ import { useDoseEventStore, useMedicationStore } from '../../store';
 import { useAuthStore } from '../../store/authStore';
 import { getDotColor } from '../../components/DayDot';
 import { todayString } from '../../utils';
+import { updateDoseEventStatus } from '../../db';
 import type { DoseEvent, DoseStatus } from '../../domain';
 
 // ── 상수 ─────────────────────────────────────────────────────────────────────
@@ -210,6 +211,20 @@ export default function HistoryScreen() {
     setRefreshing(false);
   }
 
+  async function handleLateTake(eventId: string) {
+    const takenAt = new Date().toISOString();
+    setMonthEvents((prev) =>
+      prev.map((e) => e.id === eventId ? { ...e, status: 'taken' as DoseStatus, takenAt } : e),
+    );
+    try {
+      await updateDoseEventStatus(eventId, 'taken', takenAt);
+    } catch {
+      setMonthEvents((prev) =>
+        prev.map((e) => e.id === eventId ? { ...e, status: 'scheduled' as DoseStatus } : e),
+      );
+    }
+  }
+
   // ── 달력 markedDates ────────────────────────────────────────────────────────
   const markedDates = useMemo(() => {
     const byDate: Record<string, DoseEvent[]> = {};
@@ -304,6 +319,9 @@ export default function HistoryScreen() {
   function renderItem({ item: event }: { item: DoseEvent }) {
     const plannedTime = fmtLocalTime(event.plannedAt);
     const name = medicationNames[event.medicationId] ?? event.medicationId;
+    const showLateBtn =
+      selectedDate === today &&
+      (event.status === 'scheduled' || event.status === 'late');
 
     return (
       <TouchableOpacity
@@ -325,6 +343,15 @@ export default function HistoryScreen() {
             {event.takenAt ? `  복용 ${fmtLocalTime(event.takenAt)}` : ''}
           </Text>
         </View>
+        {showLateBtn && (
+          <TouchableOpacity
+            testID={`btn-late-take-${event.id}`}
+            onPress={() => handleLateTake(event.id)}
+            style={styles.lateTakeBtn}
+          >
+            <Text style={styles.lateTakeTxt}>늦은 복용 처리</Text>
+          </TouchableOpacity>
+        )}
       </TouchableOpacity>
     );
   }
@@ -516,6 +543,11 @@ const styles = StyleSheet.create({
   cardBody: { flex: 1, marginHorizontal: 10 },
   name:     { fontSize: 14, color: '#111827' },
   status:   { fontSize: 12, marginTop: 2 },
+  lateTakeBtn: {
+    marginLeft: 8, paddingHorizontal: 10, paddingVertical: 6,
+    borderRadius: 8, backgroundColor: '#f97316',
+  },
+  lateTakeTxt: { fontSize: 12, color: '#fff', fontWeight: '600' },
   detailOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
   detailCard:    { width: '85%', maxHeight: '80%', backgroundColor: '#fff', borderRadius: 16, padding: 20 },
   detailHeader:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },

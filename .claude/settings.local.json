@@ -42,7 +42,15 @@
       "Bash(sed -n '45,55p' src/features/aiCoaching/CoachingSection.tsx)",
       "Bash(sed -n '85,135p' src/features/points/pointEngine.ts)",
       "Bash(sed -n '25,35p' src/store/pointStore.ts)",
-      "Bash(xargs grep *)"
+      "Bash(xargs grep *)",
+      "Bash(adb devices *)",
+      "Bash(C:/Users/jsl/AppData/Local/Android/Sdk/platform-tools/adb.exe root *)",
+      "Bash(C:/Users/jsl/AppData/Local/Android/Sdk/platform-tools/adb.exe shell *)",
+      "PowerShell(& \"C:\\\\Users\\\\jsl\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" shell ls /data/data/)",
+      "PowerShell(& \"C:\\\\Users\\\\jsl\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" shell find /data/data/host.exp.exponent -name \"pillarm.db\")",
+      "Bash(findstr \"●\")",
+      "Bash(findstr /V \"console\")",
+      "PowerShell(cd \"C:\\\\Users\\\\jsl\\\\Desktop\\\\필람\\(Pillarm\\)\"; npx jest __tests__/app/home/HomeScreen.test.tsx --no-coverage 2>&1 | Select-String \"●|TypeError|Expected|Received|Cannot\" | Select-Object -First 30 | ForEach-Object { $_.Line })"
     ]
   }
 }

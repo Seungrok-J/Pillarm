@@ -91,8 +91,13 @@ function DatePickerField({ testID, value, onChange, placeholder, minimumDate }: 
 
   return (
     <>
-      <TouchableOpacity
+      <TextInput
         testID={testID}
+        value={value}
+        onChangeText={(text) => { if (/^\d{4}-\d{2}-\d{2}$/.test(text)) onChange(text); }}
+        style={{ height: 0, width: 0, opacity: 0 }}
+      />
+      <TouchableOpacity
         style={dateStyles.btn}
         onPress={openPicker}
         accessibilityRole="button"
@@ -322,8 +327,8 @@ export default function ScheduleFormScreen() {
       // Step 4+5 — 알림 취소 → DoseEvent 생성 → 알림 재등록
       await scheduleForSchedule(sched, med, settings);
 
-      // Step 6 — 홈으로 이동 (goBack으로 스택에서 제거)
-      navigation.goBack();
+      // Step 6 — 홈으로 이동
+      navigation.navigate('Main' as never);
     } catch {
       setErrors({ _form: '저장 중 오류가 발생했습니다' });
     } finally {

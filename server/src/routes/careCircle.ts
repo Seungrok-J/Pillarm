@@ -43,20 +43,20 @@ router.get('/', async (req, res, next) => {
       },
     });
 
-    const result = circles.map((c) => ({
+    const result = circles.map((c: any) => ({
       id:             c.id,
       ownerUserId:    c.ownerUserId,
-      ownerUserName:  c.owner.name,
-      ownerUserEmail: c.owner.email,
+      ownerUserName:  c.owner?.name ?? null,
+      ownerUserEmail: c.owner?.email ?? null,
       name:           c.name,
       createdAt:      c.createdAt,
       updatedAt:      c.updatedAt,
-      members: c.members.map((m) => ({
+      members: (c.members ?? []).map((m: any) => ({
         id:              m.id,
         careCircleId:    m.careCircleId,
         memberUserId:    m.memberUserId,
-        memberUserName:  m.member.name,
-        memberUserEmail: m.member.email,
+        memberUserName:  m.member?.name ?? null,
+        memberUserEmail: m.member?.email ?? null,
         role:            m.role,
         nickname:        m.nickname,
         createdAt:       m.createdAt,

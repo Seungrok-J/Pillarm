@@ -28,22 +28,22 @@ const ONLINE  = { isConnected: true,  isInternetReachable: true  } as any;
 const OFFLINE = { isConnected: false, isInternetReachable: false } as any;
 
 interface RawItem {
-  ITEM_SEQ:           string;
-  ITEM_NAME:          string;
-  ENTP_NAME:          string;
-  EFCY_QESITM?:       string;
-  USE_METHOD_QESITM?: string;
-  ATPN_QESITM?:      string;
+  itemSeq:           string;
+  itemName:          string;
+  entpName:          string;
+  efcyQesitm?:       string;
+  useMethodQesitm?:  string;
+  atpnQesitm?:       string;
 }
 
 function makeItem(overrides: Partial<RawItem> = {}): RawItem {
   return {
-    ITEM_SEQ:          '200911634',
-    ITEM_NAME:         '이부프로펜정400mg',
-    ENTP_NAME:         '한국파마',
-    EFCY_QESITM:       '해열, 진통, 소염',
-    USE_METHOD_QESITM: '1회 1정, 1일 3회 식후 복용',
-    ATPN_QESITM:       '위장 장애가 있을 수 있음',
+    itemSeq:          '200911634',
+    itemName:         '이부프로펜정400mg',
+    entpName:         '한국파마',
+    efcyQesitm:       '해열, 진통, 소염',
+    useMethodQesitm:  '1회 1정, 1일 3회 식후 복용',
+    atpnQesitm:       '위장 장애가 있을 수 있음',
     ...overrides,
   };
 }
@@ -138,7 +138,7 @@ describe('searchMedications', () => {
 
     it('이름에서 mg 용량을 파싱한다', async () => {
       mockGet.mockResolvedValue(
-        apiResponse([makeItem({ ITEM_NAME: '아목시실린캡슐250mg' })]),
+        apiResponse([makeItem({ itemName: '아목시실린캡슐250mg' })]),
       );
       const [r] = await searchMedications('아목');
       expect(r.dosageValue).toBe(250);
@@ -147,7 +147,7 @@ describe('searchMedications', () => {
 
     it('한글 단위 "밀리그람"을 "mg"로 정규화한다', async () => {
       mockGet.mockResolvedValue(
-        apiResponse([makeItem({ ITEM_NAME: '아스피린정100밀리그람' })]),
+        apiResponse([makeItem({ itemName: '아스피린정100밀리그람' })]),
       );
       const [r] = await searchMedications('아스');
       expect(r.dosageValue).toBe(100);
@@ -156,7 +156,7 @@ describe('searchMedications', () => {
 
     it('mL 단위를 파싱한다', async () => {
       mockGet.mockResolvedValue(
-        apiResponse([makeItem({ ITEM_NAME: '시럽제5mL' })]),
+        apiResponse([makeItem({ itemName: '시럽제5mL' })]),
       );
       const [r] = await searchMedications('시럽');
       expect(r.dosageValue).toBe(5);
@@ -165,7 +165,7 @@ describe('searchMedications', () => {
 
     it('이름에 용량 정보가 없으면 dosageValue/dosageUnit 이 undefined', async () => {
       mockGet.mockResolvedValue(
-        apiResponse([makeItem({ ITEM_NAME: '혈압약정' })]),
+        apiResponse([makeItem({ itemName: '혈압약정' })]),
       );
       const [r] = await searchMedications('혈압');
       expect(r.dosageValue).toBeUndefined();
@@ -175,9 +175,9 @@ describe('searchMedications', () => {
     it('여러 항목을 순서대로 반환한다', async () => {
       mockGet.mockResolvedValue(
         apiResponse([
-          makeItem({ ITEM_SEQ: '1', ITEM_NAME: '약A100mg' }),
-          makeItem({ ITEM_SEQ: '2', ITEM_NAME: '약B200mg' }),
-          makeItem({ ITEM_SEQ: '3', ITEM_NAME: '약C' }),
+          makeItem({ itemSeq: '1', itemName: '약A100mg' }),
+          makeItem({ itemSeq: '2', itemName: '약B200mg' }),
+          makeItem({ itemSeq: '3', itemName: '약C' }),
         ]),
       );
       const results: MedicationSearchResult[] = await searchMedications('약');

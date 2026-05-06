@@ -82,6 +82,7 @@ describe('awardDoseTaken', () => {
   it('신뢰 범위 내 복용 → +10 적립, refId = doseEvent.id', async () => {
     mockDb.getFirstAsync
       .mockResolvedValueOnce(null)              // dup check: 없음
+      .mockResolvedValueOnce({ cnt: 0 })        // daily 횟수 check
       .mockResolvedValueOnce({ balance: 50 });  // 잔액
 
     const result = await awardDoseTaken(makeEvent(), 120);
@@ -130,8 +131,9 @@ describe('awardDoseTaken', () => {
 
   it('잔액 0에서 첫 복용 → balance = 10', async () => {
     mockDb.getFirstAsync
-      .mockResolvedValueOnce(null)  // dup: 없음
-      .mockResolvedValueOnce(null); // balance: 없음(null) → 0
+      .mockResolvedValueOnce(null)         // dup: 없음
+      .mockResolvedValueOnce({ cnt: 0 })   // daily 횟수 check
+      .mockResolvedValueOnce(null);        // balance: 없음(null) → 0
 
     const result = await awardDoseTaken(makeEvent(), 120);
 
@@ -142,6 +144,7 @@ describe('awardDoseTaken', () => {
     // plannedAt 08:00, takenAt 07:30 (정확히 -30분)
     mockDb.getFirstAsync
       .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ cnt: 0 })
       .mockResolvedValueOnce({ balance: 0 });
 
     const result = await awardDoseTaken(

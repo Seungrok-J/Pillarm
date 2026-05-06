@@ -19,9 +19,13 @@ import { AppState } from 'react-native';
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 
-jest.mock('@react-navigation/native', () => ({
-  useNavigation: jest.fn(),
-}));
+jest.mock('@react-navigation/native', () => {
+  const React = require('react');
+  return {
+    useNavigation: jest.fn(),
+    useFocusEffect: (cb: () => void) => { React.useEffect(cb, [cb]); },
+  };
+});
 
 jest.mock('../../../src/db', () => ({
   getDoseEventsByDate: jest.fn(),
@@ -32,10 +36,17 @@ jest.mock('../../../src/db', () => ({
   upsertMedication: jest.fn().mockResolvedValue(undefined),
   deleteMedication: jest.fn().mockResolvedValue(undefined),
   markOverdueEventsMissed: jest.fn().mockResolvedValue(undefined),
+  markScheduledEventsLate: jest.fn().mockResolvedValue(undefined),
   updateDoseEventMemo: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('../../../src/notifications', () => ({
+  checkAndMarkMissed: jest.fn().mockResolvedValue(undefined),
+  rescheduleSnooze: jest.fn().mockResolvedValue(undefined),
+}));
+
+jest.mock('../../../src/notifications/scheduler', () => ({
+  cancelNotificationForDoseEvent: jest.fn().mockResolvedValue(undefined),
   checkAndMarkMissed: jest.fn().mockResolvedValue(undefined),
   rescheduleSnooze: jest.fn().mockResolvedValue(undefined),
 }));
@@ -189,7 +200,7 @@ describe('AC1 — DoseEvent 시간순 표시', () => {
   it('오늘 날짜(2026-04-22)로 fetchTodayEvents 가 호출된다', async () => {
     render(<HomeScreen />);
     await waitFor(() =>
-      expect(mockGetDoseEventsByDate).toHaveBeenCalledWith('2026-04-22'),
+      expect(mockGetDoseEventsByDate).toHaveBeenCalledWith('2026-04-22', expect.any(String)),
     );
   });
 });
@@ -250,6 +261,7 @@ describe('AC2 — 복용 버튼 낙관적 업데이트', () => {
 
 describe('AC3 — 미루기 후 알림 재발송', () => {
   it('미루기 버튼 탭 시 rescheduleSnooze 가 호출된다', async () => {
+    mockGetDoseEventsByDate.mockResolvedValue([makeEvent({ status: 'late' })]);
     const { getByTestId } = render(<HomeScreen />);
     await waitForEvent(getByTestId);
 
@@ -259,23 +271,25 @@ describe('AC3 — 미루기 후 알림 재발송', () => {
       expect(mockRescheduleSnooze).toHaveBeenCalledWith(
         'evt-1',
         SETTINGS.defaultSnoozeMinutes,
+        expect.any(String),
       ),
     );
   });
 
   it('rescheduleSnooze 에 defaultSnoozeMinutes(15) 가 전달된다', async () => {
+    mockGetDoseEventsByDate.mockResolvedValue([makeEvent({ status: 'late' })]);
     const { getByTestId } = render(<HomeScreen />);
     await waitForEvent(getByTestId);
 
     fireEvent.press(getByTestId('btn-snooze-evt-1'));
 
     await waitFor(() =>
-      expect(mockRescheduleSnooze).toHaveBeenCalledWith(expect.any(String), 15),
+      expect(mockRescheduleSnooze).toHaveBeenCalledWith(expect.any(String), 15, expect.any(String)),
     );
   });
 
   it('snoozeCount 가 maxSnoozeCount 이상이면 미루기 버튼이 없다', async () => {
-    mockGetDoseEventsByDate.mockResolvedValue([makeEvent({ snoozeCount: 3 })]);
+    mockGetDoseEventsByDate.mockResolvedValue([makeEvent({ status: 'late', snoozeCount: 3 })]);
 
     const { queryByTestId } = render(<HomeScreen />);
 
@@ -284,13 +298,14 @@ describe('AC3 — 미루기 후 알림 재발송', () => {
   });
 
   it('미루기 후 updateDoseEventSnooze 가 호출된다', async () => {
+    mockGetDoseEventsByDate.mockResolvedValue([makeEvent({ status: 'late' })]);
     const { getByTestId } = render(<HomeScreen />);
     await waitForEvent(getByTestId);
 
     fireEvent.press(getByTestId('btn-snooze-evt-1'));
 
     await waitFor(() =>
-      expect(mockUpdateDoseEventSnooze).toHaveBeenCalledWith('evt-1', 1),
+      expect(mockUpdateDoseEventSnooze).toHaveBeenCalledWith('evt-1', 1, expect.any(String)),
     );
   });
 });

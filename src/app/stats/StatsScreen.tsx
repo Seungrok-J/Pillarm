@@ -14,7 +14,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 import { useFocusEffect } from '@react-navigation/native';
 import { useDoseEventStore, usePointStore } from '../../store';
-import { useAuthStore } from '../../store/authStore';
 import {
   calculateWeeklyStats,
   calculateMissedPatterns,
@@ -43,12 +42,15 @@ function getWeekRange(): { start: string; end: string; label: string } {
   };
 }
 
-function getAllTimeRange(): { start: string; end: string; label: string } {
+function getMonthRange(): { start: string; end: string; label: string } {
   const today = new Date();
+  const y = today.getFullYear();
+  const m = today.getMonth() + 1;
+  const lastDay = new Date(y, m, 0).getDate();
   return {
-    start: '2020-01-01T00:00:00',
-    end:   `${fmt(today)}T23:59:59`,
-    label: '전체 기간',
+    start: `${y}-${pad(m)}-01T00:00:00`,
+    end:   `${y}-${pad(m)}-${pad(lastDay)}T23:59:59`,
+    label: `${m}월`,
   };
 }
 
@@ -114,7 +116,7 @@ function CompletionRing({ rate }: { rate: number }) {
         />
       </Svg>
       <View style={{ position: 'absolute', alignItems: 'center' }}>
-        <Text style={[st.ringPct, { color }]}>{pct}</Text>
+        <Text testID="gauge-percentage" style={[st.ringPct, { color }]}>{pct}</Text>
         <Text style={st.ringLabel}>완료율</Text>
       </View>
     </View>
@@ -202,8 +204,8 @@ function MissedList({ patterns }: { patterns: MissedPattern[] }) {
           <View style={[st.patternRankBadge, { backgroundColor: i === 0 ? '#fef3c7' : '#f3f4f6' }]}>
             <Text style={[st.patternRankTxt, { color: i === 0 ? '#d97706' : '#6b7280' }]}>{i + 1}</Text>
           </View>
-          <Text style={st.patternSlot}>{p.timeSlot} 시간대</Text>
-          <Text style={st.patternCount}>{p.count}회 누락</Text>
+          <Text testID={`missed-slot-${i}`} style={st.patternSlot}>{p.timeSlot}</Text>
+          <Text testID={`missed-count-${i}`} style={st.patternCount}>{`${p.count}회`}</Text>
         </View>
       ))}
     </View>
@@ -212,7 +214,7 @@ function MissedList({ patterns }: { patterns: MissedPattern[] }) {
 
 // ── 화면 ──────────────────────────────────────────────────────────────────────
 
-type Tab = 'week' | 'all';
+type Tab = 'week' | 'month';
 
 export default function StatsScreen() {
   const [tab,       setTab]       = useState<Tab>('week');
@@ -221,29 +223,27 @@ export default function StatsScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const { fetchByDateRange }     = useDoseEventStore();
-  const { streak, fetchBalance } = usePointStore();
-  const { userId }               = useAuthStore();
+  const { streak } = usePointStore();
 
-  const range = tab === 'week' ? getWeekRange() : getAllTimeRange();
+  const range = tab === 'week' ? getWeekRange() : getMonthRange();
 
-  // 탭 포커스 시마다 재조회 (탭 이동·로그인 전환·복용 처리 후 돌아올 때 즉시 반영)
+  // 탭 포커스 시마다 재조회
   useFocusEffect(
     useCallback(() => {
-      const r = tab === 'week' ? getWeekRange() : getAllTimeRange();
+      const r = tab === 'week' ? getWeekRange() : getMonthRange();
       setIsLoading(true);
       fetchByDateRange(r.start, r.end).then((result) => {
         setEvents(result);
         setIsLoading(false);
       });
-      fetchBalance();
-    }, [tab, userId]),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [tab]),
   );
 
   async function handleRefresh() {
     setRefreshing(true);
     const result = await fetchByDateRange(range.start, range.end);
     setEvents(result);
-    await fetchBalance();
     setRefreshing(false);
   }
 
@@ -262,7 +262,7 @@ export default function StatsScreen() {
         <Text style={st.headerTitle}>복용 통계</Text>
         {/* 세그먼트 컨트롤 */}
         <View style={st.segment}>
-          {(['week', 'all'] as Tab[]).map((t) => (
+          {(['week', 'month'] as Tab[]).map((t) => (
             <TouchableOpacity
               key={t}
               testID={`tab-${t}`}
@@ -270,7 +270,7 @@ export default function StatsScreen() {
               onPress={() => setTab(t)}
             >
               <Text style={[st.segTxt, tab === t && st.segTxtActive]}>
-                {t === 'week' ? '이번 주' : '전체'}
+                {t === 'week' ? '이번 주' : '이번 달'}
               </Text>
             </TouchableOpacity>
           ))}
@@ -299,11 +299,14 @@ export default function StatsScreen() {
               <Text style={st.ringInfoTitle}>
                 {stats.total === 0 ? '기록 없음' : stats.completionRate >= 0.9 ? '훌륭해요! 🏆' : stats.completionRate >= 0.6 ? '잘 하고 있어요' : '더 노력해 봐요'}
               </Text>
-              <Text style={st.ringInfoSub}>
-                {stats.total > 0 ? `완료 ${stats.taken}회 / 전체 ${stats.total}회` : '이 기간에 데이터가 없습니다'}
+              <Text testID="txt-count-summary" style={st.ringInfoSub}>
+                완료 {stats.taken}건 / 전체 {stats.total}건
               </Text>
               {stats.late > 0 && (
                 <Text style={st.ringInfoLate}>늦은 복용 {stats.late}회 포함</Text>
+              )}
+              {tab === 'week' && stats.total > 0 && stats.missed === 0 && (
+                <Text testID="txt-perfect-week" style={st.perfectWeekTxt}>이번 주 완벽해요! 🏆</Text>
               )}
             </View>
           </View>
@@ -387,6 +390,7 @@ const st = StyleSheet.create({
   ringInfo:  { flex: 1 },
   ringInfoTitle: { fontSize: 17, fontWeight: '700', color: '#111827', marginBottom: 4 },
   ringInfoSub:   { fontSize: 13, color: '#6b7280' },
+  perfectWeekTxt: { fontSize: 13, color: '#16a34a', fontWeight: '600', marginTop: 4 },
   ringInfoLate:  { fontSize: 12, color: '#f97316', marginTop: 4 },
 
   // 지표 카드 행

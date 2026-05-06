@@ -216,11 +216,16 @@ export default function SettingsScreen() {
         </View>
         <View style={styles.divider} />
         <View style={styles.row}>
-          <View style={styles.labelBlock}>
-            <Text style={styles.label}>최대 미루기 횟수</Text>
-            <Text style={styles.hint}>앱 정책에 따라 3회로 고정되어 있습니다</Text>
-          </View>
-          <Text style={styles.fixedValue}>3회</Text>
+          <Text style={styles.label}>최대 미루기 횟수</Text>
+          <Stepper
+            testID="stepper-snooze-count"
+            value={settings.maxSnoozeCount}
+            step={1}
+            min={1}
+            max={5}
+            format={(v) => `${v}회`}
+            onChange={(v) => saveSetting({ maxSnoozeCount: v })}
+          />
         </View>
       </View>
 

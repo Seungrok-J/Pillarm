@@ -37,7 +37,7 @@ router.post('/signup', async (req, res, next) => {
     const { email, password, name } = parsed.data;
 
     const existing = await prisma.user.findUnique({ where: { email } });
-    if (existing) throw new AppError('이미 사용 중인 이메일입니다', 409);
+    if (existing) throw new AppError('Email already in use', 409);
 
     const passwordHash = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({ data: { email, passwordHash, name } });
@@ -66,10 +66,10 @@ router.post('/login', async (req, res, next) => {
     const { email, password } = parsed.data;
 
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user || !user.passwordHash) throw new AppError('이메일 또는 비밀번호가 올바르지 않습니다', 401);
+    if (!user || !user.passwordHash) throw new AppError('Invalid credentials', 401);
 
     const valid = await bcrypt.compare(password, user.passwordHash);
-    if (!valid) throw new AppError('이메일 또는 비밀번호가 올바르지 않습니다', 401);
+    if (!valid) throw new AppError('Invalid credentials', 401);
 
     const payload = { userId: user.id, email: user.email };
     const accessToken = signAccess(payload);

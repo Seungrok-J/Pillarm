@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ScheduleFormScreen 통합 테스트
  *
  * AC1 — 저장 시 조용한 시간대 알림은 자동으로 quietHoursEnd 시점으로 이동된다
@@ -11,10 +11,14 @@ import { render, fireEvent, waitFor } from '@testing-library/react-native';
 
 // ── Mocks ────────────────────────────────────────────────────────────────────
 
-jest.mock('@react-navigation/native', () => ({
-  useNavigation: jest.fn(),
-  useRoute: jest.fn(),
-}));
+jest.mock('@react-navigation/native', () => {
+  const React = require('react');
+  return {
+    useFocusEffect: (cb: () => void) => { React.useEffect(cb, [cb]); },
+    useNavigation: jest.fn(),
+    useRoute: jest.fn(),
+  };
+});
 
 jest.mock('../../../src/db', () => ({
   upsertMedication: jest.fn().mockResolvedValue(undefined),
@@ -339,3 +343,4 @@ describe('신규 모드 — 저장 흐름', () => {
     expect(queryByTestId('error-form')).toBeNull();
   });
 });
+
