@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   View, Text, TouchableOpacity, Modal,
   ActivityIndicator, Alert, StyleSheet,
-  ScrollView, TextInput, Share,
+  ScrollView, TextInput, Share, RefreshControl,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
@@ -162,6 +162,7 @@ export default function CareCircleScreen() {
 
   const [circles,        setCircles]        = useState<ApiCareCircle[]>([]);
   const [loading,        setLoading]        = useState(true);
+  const [refreshing,     setRefreshing]     = useState(false);
   const [inviteCode,     setInviteCode]     = useState<string | null>(null);
   const [inviteVisible,  setInviteVisible]  = useState(false);
   const [inviteLoading,  setInviteLoading]  = useState(false);
@@ -182,6 +183,18 @@ export default function CareCircleScreen() {
       setLoading(false);
     }
   }, []);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    try {
+      const data = await listCircles();
+      setCircles(data);
+    } catch {
+      Alert.alert('오류', '보호 그룹 목록을 불러오지 못했습니다');
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   useEffect(() => { loadCircles(); }, [loadCircles]);
 
@@ -414,7 +427,14 @@ export default function CareCircleScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content} testID="screen-care-circle">
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      testID="screen-care-circle"
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#3b82f6" colors={['#3b82f6']} />
+      }
+    >
       {/* ── 나의 보호 그룹 (환자 뷰) ──── */}
       <Text style={styles.sectionTitle}>나의 보호 그룹</Text>
 

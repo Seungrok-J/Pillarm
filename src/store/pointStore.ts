@@ -4,6 +4,7 @@ import { getBalance, getHistory } from '../features/points/pointEngine';
 import { getCurrentStreak } from '../features/points/streakCalculator';
 import { getDoseEventsByDateRange } from '../db';
 import { useAuthStore } from './authStore';
+import { toLocalISOString } from '../utils';
 
 function currentUserId() {
   return useAuthStore.getState().userId ?? 'local';
@@ -33,16 +34,20 @@ export const usePointStore = create<PointState>((set) => ({
       from.setDate(from.getDate() - 90);
       const [balance, events] = await Promise.all([
         getBalance(uid),
-        getDoseEventsByDateRange(from.toISOString(), new Date().toISOString(), uid),
+        getDoseEventsByDateRange(toLocalISOString(from), toLocalISOString(new Date()), uid),
       ]);
       set({ balance, streak: getCurrentStreak(events) });
-    } catch {}
+    } catch (e) {
+      console.error('[pointStore.fetchBalance]', e);
+    }
   },
 
   fetchHistory: async () => {
     try {
       const history = await getHistory(currentUserId());
       set({ history });
-    } catch {}
+    } catch (e) {
+      console.error('[pointStore.fetchHistory]', e);
+    }
   },
 }));

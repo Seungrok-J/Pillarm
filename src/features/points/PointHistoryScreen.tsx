@@ -1,10 +1,11 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
   FlatList,
   TouchableOpacity,
   StyleSheet,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -47,6 +48,7 @@ function fmtDate(iso: string): string {
 export default function PointHistoryScreen() {
   const navigation = useNavigation<Nav>();
   const { balance, history, fetchBalance, fetchHistory } = usePointStore();
+  const [refreshing, setRefreshing] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -54,6 +56,12 @@ export default function PointHistoryScreen() {
       fetchHistory();
     }, []),
   );
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    await Promise.all([fetchBalance(), fetchHistory()]);
+    setRefreshing(false);
+  }
 
   function renderItem({ item }: { item: PointLedger }) {
     const gain = item.delta > 0;
@@ -106,6 +114,9 @@ export default function PointHistoryScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         renderItem={renderItem}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#3b82f6" colors={['#3b82f6']} />
+        }
         ListHeaderComponent={
           history.length > 0
             ? <Text style={styles.sectionTitle}>포인트 내역</Text>

@@ -10,6 +10,7 @@ import {
   markScheduledEventsLate,
   getAllSchedules,
   getMedicationById,
+  getDatabase,
 } from '../db';
 import { useAuthStore } from '../store/authStore';
 
@@ -40,6 +41,8 @@ export async function scheduleForSchedule(
     ? new Date(Math.min(new Date(schedule.endDate).getTime(), thirtyDaysLater.getTime()))
     : thirtyDaysLater;
 
+  const db = await getDatabase();
+
   for (let d = new Date(todayMidnight); d <= limitDate; d = addMinutes(d, 24 * 60)) {
     if (schedule.daysOfWeek && !schedule.daysOfWeek.includes(d.getDay())) continue;
 
@@ -51,6 +54,15 @@ export async function scheduleForSchedule(
 
       // 이미 지난 시간은 등록하지 않습니다.
       if (plannedAt <= now) continue;
+
+      // 동일한 일정·시각에 이미 이벤트가 존재하면(taken/skipped 등) 중복 생성하지 않습니다.
+      const plannedAtStr = toLocalISOString(plannedAt);
+      const existing = await db.getFirstAsync<{ id: string }>(
+        'SELECT id FROM dose_events WHERE schedule_id = ? AND planned_at = ?',
+        schedule.id,
+        plannedAtStr,
+      );
+      if (existing) continue;
 
       const triggerAt = adjustForQuietHours(plannedAt, settings);
       const doseEventId = generateId();

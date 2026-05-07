@@ -66,27 +66,30 @@ router.post('/push', async (req, res, next) => {
     };
 
     await Promise.all([
-      ...medications.map((m) =>
-        prisma.medication.upsert({
-          where:  { id: m['id'] as string },
-          update: { ...(m as any), userId },
-          create: { ...(m as any), userId },
-        }),
-      ),
-      ...schedules.map((s) =>
-        prisma.schedule.upsert({
-          where:  { id: s['id'] as string },
-          update: { ...(s as any), userId },
-          create: { ...(s as any), userId },
-        }),
-      ),
-      ...doseEvents.map((e) =>
-        prisma.doseEvent.upsert({
-          where:  { id: e['id'] as string },
-          update: { ...(e as any), userId },
-          create: { ...(e as any), userId },
-        }),
-      ),
+      ...medications.map((m) => {
+        const { id, ...data } = m as any;
+        return prisma.medication.upsert({
+          where:  { id },
+          update: { ...data, userId },
+          create: { ...data, id, userId },
+        });
+      }),
+      ...schedules.map((s) => {
+        const { id, ...data } = s as any;
+        return prisma.schedule.upsert({
+          where:  { id },
+          update: { ...data, userId, daysOfWeek: data.daysOfWeek ?? [] },
+          create: { ...data, id, userId, daysOfWeek: data.daysOfWeek ?? [] },
+        });
+      }),
+      ...doseEvents.map((e) => {
+        const { id, ...data } = e as any;
+        return prisma.doseEvent.upsert({
+          where:  { id },
+          update: { ...data, userId },
+          create: { ...data, id, userId },
+        });
+      }),
     ]);
 
     res.json({
@@ -112,10 +115,11 @@ router.put('/medications/:id', async (req, res, next) => {
 
     if (!data['name']) throw new AppError('name is required', 400);
 
+    const { id: _mId, ...mData } = data as any;
     const med = await prisma.medication.upsert({
       where:  { id },
-      update: { ...(data as any), id, userId },
-      create: { ...(data as any), id, userId },
+      update: { ...mData, userId },
+      create: { ...mData, id, userId },
     });
     res.json(med);
   } catch (err) {
@@ -133,10 +137,11 @@ router.put('/schedules/:id', async (req, res, next) => {
 
     if (!data['medicationId']) throw new AppError('medicationId is required', 400);
 
+    const { id: _sId, ...sData } = data as any;
     const sched = await prisma.schedule.upsert({
       where:  { id },
-      update: { ...(data as any), id, userId },
-      create: { ...(data as any), id, userId },
+      update: { ...sData, userId, daysOfWeek: sData.daysOfWeek ?? [] },
+      create: { ...sData, id, userId, daysOfWeek: sData.daysOfWeek ?? [] },
     });
     res.json(sched);
   } catch (err) {
@@ -154,10 +159,11 @@ router.put('/dose-events/:id', async (req, res, next) => {
 
     if (!data['scheduleId']) throw new AppError('scheduleId is required', 400);
 
+    const { id: _eId, ...eData } = data as any;
     const event = await prisma.doseEvent.upsert({
       where:  { id },
-      update: { ...(data as any), id, userId },
-      create: { ...(data as any), id, userId },
+      update: { ...eData, userId },
+      create: { ...eData, id, userId },
     });
     res.json(event);
   } catch (err) {

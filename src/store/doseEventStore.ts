@@ -11,6 +11,8 @@ import { useAuthStore } from './authStore';
 import { awardDoseTaken, awardStreakBonus } from '../features/points/pointEngine';
 import { cancelNotificationForDoseEvent, checkAndMarkMissed } from '../notifications/scheduler';
 import { isSyncEnabled, pushDoseEvent, uploadTodaySnapshot } from '../sync/syncService';
+import { usePointStore } from './pointStore';
+import { toLocalISOString } from '../utils';
 
 function currentUserId() {
   return useAuthStore.getState().userId ?? 'local';
@@ -55,7 +57,9 @@ export const useDoseEventStore = create<DoseEventState>((set, get) => ({
   },
 
   markTaken: async (id) => {
-    const now   = new Date().toISOString();
+    // plannedAt 은 로컬 ISO(타임존 없음)이므로 takenAt 도 같은 형식으로 맞춰야
+    // awardDoseTaken 의 시간 창 비교가 정확하게 동작한다.
+    const now   = toLocalISOString(new Date());
     const event = get().todayEvents.find((e) => e.id === id);
     const prev  = get().todayEvents;
     // Optimistic update — PRD: "탭 시 즉시 카드가 '완료' 상태로 변한다"
@@ -74,10 +78,13 @@ export const useDoseEventStore = create<DoseEventState>((set, get) => ({
         const graceMinutes = useSettingsStore.getState().settings?.missedToLateMinutes ?? 120;
         const takenEvent: DoseEvent = { ...event, status: 'taken', takenAt: now };
         const uid = currentUserId();
+        console.log('[markTaken] awarding points', { eventId: id, uid, plannedAt: event.plannedAt, takenAt: now, graceMinutes });
         await Promise.all([
-          awardDoseTaken(takenEvent, graceMinutes, uid).catch(() => {}),
-          awardStreakBonus(uid).catch(() => {}),
+          awardDoseTaken(takenEvent, graceMinutes, uid).catch((e) => console.error('[awardDoseTaken]', e)),
+          awardStreakBonus(uid).catch((e) => console.error('[awardStreakBonus]', e)),
         ]);
+        // 포인트 적립 후 잔액 UI 즉시 갱신
+        await usePointStore.getState().fetchBalance();
       }
       if (isSyncEnabled()) {
         const allEvents = get().todayEvents;

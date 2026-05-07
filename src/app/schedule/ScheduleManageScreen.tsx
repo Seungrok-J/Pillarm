@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -48,32 +49,39 @@ export default function ScheduleManageScreen() {
   const { userId } = useAuthStore();
   const uid = userId ?? 'local';
 
-  const [items, setItems] = useState<ScheduleItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [items,      setItems]      = useState<ScheduleItem[]>([]);
+  const [isLoading,  setIsLoading]  = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadData = useCallback(async () => {
+    const [schedules, meds] = await Promise.all([
+      getAllSchedules(uid),
+      getAllMedications(uid),
+    ]);
+    const medMap = new Map(meds.map((m) => [m.id, m]));
+    const result: ScheduleItem[] = schedules
+      .map((s) => ({ schedule: s, medication: medMap.get(s.medicationId)! }))
+      .filter((item) => item.medication != null);
+    setItems(result);
+  }, [uid]);
 
   useFocusEffect(
     useCallback(() => {
       let active = true;
       (async () => {
         setIsLoading(true);
-        const [schedules, meds] = await Promise.all([
-          getAllSchedules(uid),
-          getAllMedications(uid),
-        ]);
-        const medMap = new Map(meds.map((m) => [m.id, m]));
-        const result: ScheduleItem[] = schedules
-          .map((s) => ({ schedule: s, medication: medMap.get(s.medicationId)! }))
-          .filter((item) => item.medication != null);
-        if (active) {
-          setItems(result);
-          setIsLoading(false);
-        }
+        await loadData();
+        if (active) setIsLoading(false);
       })();
-      return () => {
-        active = false;
-      };
-    }, [uid]),
+      return () => { active = false; };
+    }, [loadData]),
   );
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+  }
 
   async function confirmDelete(item: ScheduleItem) {
     Alert.alert(
@@ -109,6 +117,9 @@ export default function ScheduleManageScreen() {
         data={items}
         keyExtractor={(item) => item.schedule.id}
         contentContainerStyle={styles.list}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#3b82f6" colors={['#3b82f6']} />
+        }
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={styles.emptyIcon}>💊</Text>

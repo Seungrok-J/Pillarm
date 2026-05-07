@@ -134,11 +134,30 @@ interface PointLedger {
 - 포인트 탭 → 획득/소비 내역 리스트
 - 테마샵 화면 (기본 테마 5종)
 
+**복용 버튼 활성화 창**
+
+| 상태 | 조건 | 버튼 |
+|------|------|------|
+| `waiting` | plannedAt - 2시간 이전 | 숨김 (복용 불가) |
+| `active` | plannedAt - 2시간 ~ plannedAt | 복용/건너뜀 활성 |
+| `late` | plannedAt ~ plannedAt + graceMinutes | 복용/건너뜀 활성 (늦은 복용) |
+| `missed` | plannedAt + graceMinutes 초과 | 숨김 (누락 처리) |
+| `taken` | 복용 완료 | 비활성 표시 |
+| `skipped` | 건너뜀 | 비활성 표시 |
+
+DoseCard 에는 복용 가능 시각 힌트를 항상 표시한다:
+- `waiting` → "{start}부터 복용 가능" (회색)
+- `active` → "{end}까지 늦은 복용 가능" (회색)
+- `late` → "{end}까지 복용 가능" (주황)
+
 **신뢰도 정책**
-- 복용 완료 인정 = `plannedAt - 30분` ~ `plannedAt + graceMinutes`
+- 복용 완료 인정 = `plannedAt - 2시간` ~ `plannedAt + graceMinutes`
 - 이 범위 밖의 manual 완료는 포인트 미적립 (단, 기록은 남김)
+- `DoseDisplayState` 와 `computeDisplayState` 는 `src/utils/doseDisplay.ts` 에 정의하여 DoseCard·HistoryScreen 이 동일 로직을 공유한다
 
 **AC**
+- [x] 복용 버튼이 `plannedAt - 2시간` ~ `plannedAt + graceMinutes` 창 안에서만 표시된다
+- [x] 홈 화면과 기록 화면이 동일한 `computeDisplayState` 로 상태를 계산하여 일관되게 표시된다
 - [ ] 복용 완료 시 홈 화면에 "+10 포인트!" 토스트 표시
 - [ ] 7일 연속 달성 시 축하 모달 표시
 - [ ] 포인트로 테마 구매 후 앱 색상 변경 적용
@@ -172,7 +191,10 @@ interface PointLedger {
 | 실시간 알림 | Firebase Cloud Messaging |
 
 **AC**
-- [ ] 보호자는 보호 대상자의 오늘 복용 현황을 실시간으로 확인할 수 있다
+- [x] 회원가입/로그인 (JWT Access+Refresh token, rotation 지원) 구현
+- [x] 초대 링크/코드 생성 및 수락 API 구현 (`POST /care-circles/:id/invite`, `POST /care-circles/join`)
+- [x] 복용 현황 조회 API 구현 (`GET /care-circles/:id/members/:userId/today`)
+- [ ] 보호자는 보호 대상자의 오늘 복용 현황을 실시간으로 확인할 수 있다 (클라이언트 UI)
 - [ ] 누락 발생 30분 후 보호자에게 푸시 알림 발송
 - [ ] 보호 대상자가 공유를 해제하면 보호자 접근이 즉시 차단된다
 
@@ -229,8 +251,13 @@ interface PointLedger {
 
 ## 3. Phase 2 완료 기준
 
-- [ ] 포인트 획득/소비/잔액이 정확하게 동작한다
-- [ ] 보호자가 피보호자의 오늘 복용 현황을 앱에서 확인할 수 있다
+- [x] 복용 버튼이 plannedAt ± 2시간 / graceMinutes 창 내에서만 활성화된다
+- [x] 홈·기록 화면이 동일한 상태 계산 로직을 공유하여 일관된 상태를 표시한다
+- [x] 일정 수정 시 동일 시각의 dose_event 중복 생성이 방지된다
+- [x] 포인트 적립이 로컬 시간 기준으로 정확하게 동작한다 (UTC·KST 혼용 버그 수정)
+- [x] 회원가입/로그인 및 보호자 초대 백엔드 API 구현
+- [ ] 보호자가 피보호자의 오늘 복용 현황을 앱에서 확인할 수 있다 (클라이언트 UI)
+- [ ] 포인트로 테마 구매 후 앱 색상 변경 적용
 - [ ] 약 이름 자동완성이 온라인 상태에서 동작한다
 - [ ] AI 코칭 메시지가 실제 누락 패턴에 근거하여 표시된다
 - [ ] 서버 연동 후 기기 교체 시 데이터 복원이 가능하다

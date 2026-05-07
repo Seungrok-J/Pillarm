@@ -16,43 +16,41 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
-import type { DoseEvent, DoseStatus } from '../domain';
+import type { DoseEvent } from '../domain';
+import {
+  DOSE_EARLY_WINDOW_MS,
+  DoseDisplayState,
+  computeDisplayState,
+} from '../utils/doseDisplay';
 
-// ── 상수 ─────────────────────────────────────────────────────────────────────
+// ── 상수 & 헬퍼 ──────────────────────────────────────────────────────────────
 
 const SWIPE_THRESHOLD = 72;
+/** 로컬 alias — 공유 유틸에서 import */
+type DisplayState = DoseDisplayState;
 
-const STATUS_LABEL: Record<DoseStatus, string> = {
-  scheduled: '복용',
-  taken: '완료 ✓',
-  late: '늦은 복용',
-  missed: '누락',
-  skipped: '건너뜀',
+const CARD_BG: Record<DisplayState, string> = {
+  waiting:  '#ffffff',
+  active:   '#ffffff',
+  late:     '#fff7ed',
+  missed:   '#fef2f2',
+  taken:    '#f0fdf4',
+  skipped:  '#f3f4f6',
 };
 
-const CARD_BG: Record<DoseStatus, string> = {
-  scheduled: '#ffffff',
-  taken: '#f0fdf4',
-  late: '#fff7ed',
-  missed: '#fef2f2',
-  skipped: '#f3f4f6',
-};
+function fmtHHMM(ms: number): string {
+  const d = new Date(ms);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
 
-const BTN_BG: Record<DoseStatus, string> = {
-  scheduled: '#3b82f6',
-  taken: '#e5e7eb',
-  late: '#f97316',
-  missed: 'transparent',
-  skipped: '#e5e7eb',
-};
-
-const BTN_TXT: Record<DoseStatus, string> = {
-  scheduled: '#ffffff',
-  taken: '#6b7280',
-  late: '#ffffff',
-  missed: '#ef4444',
-  skipped: '#6b7280',
-};
+/** 복용 가능 창의 시작·종료 시각(HH:MM)을 반환한다. */
+function windowHint(plannedAt: string, graceMinutes: number): { start: string; end: string } {
+  const plannedMs = new Date(plannedAt).getTime();
+  return {
+    start: fmtHHMM(plannedMs - DOSE_EARLY_WINDOW_MS),
+    end:   fmtHHMM(plannedMs + graceMinutes * 60_000),
+  };
+}
 
 // ── 컴포넌트 ──────────────────────────────────────────────────────────────────
 
@@ -64,6 +62,10 @@ export interface DoseCardProps {
   onSnooze?: (id: string) => void;
   onSkip?: (id: string) => void;
   onAfterTake?: (id: string, note: string, photoPath: string | undefined) => void;
+  /** 현재 시각 — HomeScreen 에서 1분마다 갱신해 전달. 없으면 렌더 시점 기준. */
+  now?: Date;
+  /** 늦은 복용 허용 범위(분). 기본 120(2시간). */
+  graceMinutes?: number;
 }
 
 function snoozeStyle(count: number): { color: string; borderColor: string } {
@@ -80,12 +82,19 @@ export default function DoseCard({
   onSnooze,
   onSkip,
   onAfterTake,
+  now,
+  graceMinutes = 120,
 }: DoseCardProps) {
-  const isTakeable = event.status === 'scheduled' || event.status === 'late';
-  const isSnoozeable = event.status === 'late' && onSnooze != null && event.snoozeCount < 3;
-  const isSkippable = isTakeable && onSkip != null;
+  const nowMs = (now ?? new Date()).getTime();
+  const graceMs = graceMinutes * 60_000;
+  const displayState = computeDisplayState(event, nowMs, graceMs);
+
+  const isTakeable   = displayState === 'active' || displayState === 'late';
+  const isSnoozeable = displayState === 'late' && onSnooze != null && event.snoozeCount < 3;
+  const isSkippable  = isTakeable && onSkip != null;
 
   const time = event.plannedAt.slice(11, 16);
+  const { start, end } = windowHint(event.plannedAt, graceMinutes ?? 120);
 
   // ── 메모 바텀시트 상태 ─────────────────────────────────────────────────────
   const [showMemoSheet, setShowMemoSheet] = useState(false);
@@ -188,10 +197,10 @@ export default function DoseCard({
       <Animated.View
         style={[
           styles.card,
-          { backgroundColor: CARD_BG[event.status], transform: [{ translateX }] },
+          { backgroundColor: CARD_BG[displayState], transform: [{ translateX }] },
         ]}
         {...panResponder.panHandlers}
-        accessibilityLabel={`${medicationName} ${time} ${STATUS_LABEL[event.status]}`}
+        accessibilityLabel={`${medicationName} ${time}`}
         testID={`card-${event.id}`}
       >
         {/* 약 색상 바 */}
@@ -199,12 +208,23 @@ export default function DoseCard({
           <View style={[styles.colorBar, { backgroundColor: medicationColor }]} />
         )}
 
-        {/* 상단: 시간 + 약 이름 */}
+        {/* 상단: 시간 + 약 이름 + 힌트 */}
         <View style={styles.topRow}>
           <Text testID={`card-time-${event.id}`} style={styles.time}>{time}</Text>
-          <Text testID={`card-name-${event.id}`} style={styles.name} numberOfLines={1}>
-            {medicationName}
-          </Text>
+          <View style={styles.nameCol}>
+            <Text testID={`card-name-${event.id}`} style={styles.name} numberOfLines={1}>
+              {medicationName}
+            </Text>
+            {displayState === 'waiting' && (
+              <Text style={styles.hintGray}>{start}부터 복용 가능</Text>
+            )}
+            {displayState === 'active' && (
+              <Text style={styles.hintGray}>{end}까지 늦은 복용 가능</Text>
+            )}
+            {displayState === 'late' && (
+              <Text style={styles.hintOrange}>{end}까지 복용 가능</Text>
+            )}
+          </View>
         </View>
 
         {/* 하단: 액션 버튼 */}
@@ -231,22 +251,46 @@ export default function DoseCard({
               </Text>
             </TouchableOpacity>
           )}
-          <TouchableOpacity
-            testID={`btn-take-${event.id}`}
-            onPress={handleTakePress}
-            disabled={!isTakeable}
-            accessibilityRole="button"
-            accessibilityLabel={`${medicationName} ${STATUS_LABEL[event.status]}`}
-            style={[
-              styles.actionBtn,
-              { backgroundColor: BTN_BG[event.status] },
-              event.status === 'missed' && styles.missedBtn,
-            ]}
-          >
-            <Text style={[styles.actionTxt, { color: BTN_TXT[event.status] }]}>
-              {STATUS_LABEL[event.status]}
-            </Text>
-          </TouchableOpacity>
+
+          {/* 복용 / 늦은복용 버튼 — active·late 상태에서만 표시 */}
+          {isTakeable && (
+            <TouchableOpacity
+              testID={`btn-take-${event.id}`}
+              onPress={handleTakePress}
+              accessibilityRole="button"
+              accessibilityLabel={displayState === 'late' ? `${medicationName} 늦은 복용` : `${medicationName} 복용`}
+              style={[
+                styles.actionBtn,
+                { backgroundColor: displayState === 'late' ? '#f97316' : '#3b82f6' },
+              ]}
+            >
+              <Text style={[styles.actionTxt, { color: '#ffffff' }]}>
+                {displayState === 'late' ? '늦은 복용' : '복용'}
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {/* 완료 / 건너뜀 — 처리된 상태 표시 (비활성) */}
+          {(displayState === 'taken' || displayState === 'skipped') && (
+            <View
+              testID={`btn-take-${event.id}`}
+              style={[styles.actionBtn, { backgroundColor: '#e5e7eb' }]}
+            >
+              <Text style={[styles.actionTxt, { color: '#6b7280' }]}>
+                {displayState === 'taken' ? '완료 ✓' : '건너뜀'}
+              </Text>
+            </View>
+          )}
+
+          {/* 누락 — 창 지남 (버튼 없음, 텍스트만) */}
+          {displayState === 'missed' && (
+            <Text testID={`btn-take-${event.id}`} style={styles.missedText}>누락</Text>
+          )}
+
+          {/* 예정 — 아직 창 열리기 전 (버튼 없음, 텍스트만) */}
+          {displayState === 'waiting' && (
+            <Text style={styles.waitingText}>예정</Text>
+          )}
         </View>
       </Animated.View>
 
@@ -377,8 +421,11 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 12,
     borderBottomLeftRadius: 12,
   },
-  time: { fontSize: 16, fontWeight: '600', color: '#374151', width: 44 },
-  name: { flex: 1, marginLeft: 10, fontSize: 16, color: '#111827' },
+  time:    { fontSize: 16, fontWeight: '600', color: '#374151', width: 44 },
+  nameCol: { flex: 1, marginLeft: 10, justifyContent: 'center' },
+  name:    { fontSize: 16, color: '#111827' },
+  hintGray:   { fontSize: 11, color: '#9ca3af', marginTop: 2 },
+  hintOrange: { fontSize: 11, color: '#f97316', marginTop: 2, fontWeight: '500' },
   skipActionBtn: {
     marginRight: 8,
     paddingVertical: 8,
@@ -410,8 +457,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  missedBtn: { backgroundColor: 'transparent' },
-  actionTxt: { fontSize: 14, fontWeight: '600' },
+  actionTxt:   { fontSize: 14, fontWeight: '600' },
+  missedText:  { fontSize: 14, fontWeight: '500', color: '#ef4444', paddingHorizontal: 4, paddingVertical: 10 },
+  waitingText: { fontSize: 14, fontWeight: '500', color: '#9ca3af', paddingHorizontal: 4, paddingVertical: 10 },
 
   // ── 바텀시트 ─────────────────────────────────────────────────────────────
   backdrop: {

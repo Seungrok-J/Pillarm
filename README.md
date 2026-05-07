@@ -141,6 +141,8 @@ Phase 1 앱이 설치된 기기에 Phase 2 앱을 업데이트하면 앱 시작 
 | v1 | 기본 테이블: `medications`, `schedules`, `dose_events`, `user_settings` |
 | v2 | Phase 2 테이블: `medication_courses`, `medication_course_items`, `reminder_rules`, `point_ledger` |
 | v3 | `dose_events` 에 `photo_path TEXT` 컬럼 추가 (사진 첨부 기능) |
+| v4 | `medications`, `schedules`, `dose_events` 에 `user_id TEXT` 컬럼 추가 (멀티 계정 지원) |
+| v5 | `user_settings` 에 `breakfast_time`, `lunch_time`, `dinner_time` 컬럼 추가 (식사 시간 기반 알림) |
 
 마이그레이션은 `src/db/migrations.ts` 의 `runMigrations()` 가 멱등적으로 실행합니다.
 이미 적용된 버전은 `schema_migrations` 테이블로 추적하며 재실행되지 않습니다.
@@ -173,9 +175,13 @@ pillarm/
 │   ├── notifications/ # 알림 스케줄링
 │   ├── store/         # Zustand 스토어
 │   └── utils/
+│       ├── date.ts        # toLocalISOString, todayString 등 날짜 유틸
+│       ├── doseDisplay.ts # DoseDisplayState·computeDisplayState (DoseCard·History 공유)
+│       ├── statsCalculator.ts
+│       └── uuid.ts
 ├── server/            # Phase 2 백엔드 (Express + Prisma)
 │   ├── src/
-│   │   ├── routes/    # auth, careCircle, doseSync
+│   │   ├── routes/    # auth, careCircle, doseSync, sync
 │   │   ├── services/  # inviteService, fcmService
 │   │   ├── middleware/ # requireAuth, errorHandler
 │   │   └── lib/       # prisma, jwt

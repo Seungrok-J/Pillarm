@@ -1,10 +1,10 @@
 import { getDatabase, getDoseEventsByDateRange } from '../../db';
-import { generateId } from '../../utils';
+import { generateId, toLocalISOString } from '../../utils';
 import { getCurrentStreak, isPerfectWeek } from './streakCalculator';
 import type { DoseEvent, PointLedger, PointReason } from '../../domain';
 
-/** plannedAt 기준 앞쪽 허용 범위: 30분 */
-const EARLY_WINDOW_MS = 30 * 60 * 1000;
+/** plannedAt 기준 앞쪽 허용 범위: 2시간 */
+const EARLY_WINDOW_MS = 120 * 60 * 1000;
 
 const DELTA = {
   dose_taken:   10,
@@ -51,14 +51,24 @@ export async function awardDoseTaken(
   graceMinutes: number,
   userId: string,
 ): Promise<PointLedger | null> {
-  if (!doseEvent.takenAt) return null;
+  console.log('[awardDoseTaken] start', { id: doseEvent.id, plannedAt: doseEvent.plannedAt, takenAt: doseEvent.takenAt, graceMinutes, userId });
+
+  if (!doseEvent.takenAt) {
+    console.log('[awardDoseTaken] SKIP: no takenAt');
+    return null;
+  }
 
   const plannedMs = new Date(doseEvent.plannedAt).getTime();
   const takenMs   = new Date(doseEvent.takenAt).getTime();
+  const diffMin   = (takenMs - plannedMs) / 60_000;
   const inWindow  =
     takenMs >= plannedMs - EARLY_WINDOW_MS &&
     takenMs <= plannedMs + graceMinutes * 60_000;
-  if (!inWindow) return null;
+  console.log('[awardDoseTaken] window check', { plannedMs, takenMs, diffMin, earlyLimitMin: -30, lateLimitMin: graceMinutes, inWindow });
+  if (!inWindow) {
+    console.log('[awardDoseTaken] SKIP: outside window');
+    return null;
+  }
 
   const db  = await getDatabase();
   const dup = await db.getFirstAsync<{ id: string }>(
@@ -67,7 +77,10 @@ export async function awardDoseTaken(
     userId,
     doseEvent.id,
   );
-  if (dup) return null;
+  if (dup) {
+    console.log('[awardDoseTaken] SKIP: duplicate', dup.id);
+    return null;
+  }
 
   const today = new Date().toISOString().slice(0, 10);
   const daily = await db.getFirstAsync<{ cnt: number }>(
@@ -75,7 +88,12 @@ export async function awardDoseTaken(
     userId,
     today,
   );
-  if ((daily?.cnt ?? 0) >= 5) return null;
+  const dailyCnt = daily?.cnt ?? 0;
+  console.log('[awardDoseTaken] daily count', { dailyCnt, today });
+  if (dailyCnt >= 5) {
+    console.log('[awardDoseTaken] SKIP: daily limit reached');
+    return null;
+  }
 
   const prev  = await latestBalance(userId);
   const entry: PointLedger = {
@@ -88,6 +106,7 @@ export async function awardDoseTaken(
     createdAt: new Date().toISOString(),
   };
   await insertEntry(entry);
+  console.log('[awardDoseTaken] SUCCESS', { newBalance: entry.balance });
   return entry;
 }
 
@@ -98,7 +117,7 @@ export async function awardDoseTaken(
 export async function awardStreakBonus(userId: string): Promise<PointLedger | null> {
   const from = new Date();
   from.setDate(from.getDate() - 90);
-  const events = await getDoseEventsByDateRange(from.toISOString(), new Date().toISOString(), userId);
+  const events = await getDoseEventsByDateRange(toLocalISOString(from), toLocalISOString(new Date()), userId);
 
   const streak = getCurrentStreak(events);
   if (streak === 0 || streak % 7 !== 0) return null;
@@ -139,8 +158,8 @@ export async function awardPerfectWeek(userId: string): Promise<PointLedger | nu
   monday.setHours(0, 0, 0, 0);
 
   const events = await getDoseEventsByDateRange(
-    monday.toISOString(),
-    new Date().toISOString(),
+    toLocalISOString(monday),
+    toLocalISOString(new Date()),
     userId,
   );
   if (!isPerfectWeek(events)) return null;

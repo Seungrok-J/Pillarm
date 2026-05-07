@@ -60,6 +60,13 @@ export default function HomeScreen() {
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const [showPointsInfo, setShowPointsInfo] = useState(false);
   const [refreshing,     setRefreshing]     = useState(false);
+  const [now,            setNow]            = useState(() => new Date());
+
+  // 버튼 활성/비활성 상태가 분 단위로 바뀌므로 1분마다 갱신
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -269,6 +276,8 @@ export default function HomeScreen() {
               onSnooze={handleSnooze}
               onSkip={handleSkip}
               onAfterTake={handleAfterTake}
+              now={now}
+              graceMinutes={settings.missedToLateMinutes}
             />
           )}
           ListEmptyComponent={

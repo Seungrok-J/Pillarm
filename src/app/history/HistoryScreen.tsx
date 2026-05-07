@@ -19,30 +19,20 @@ const SW = Dimensions.get('window').width;
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Calendar } from 'react-native-calendars';
 import { useFocusEffect } from '@react-navigation/native';
-import { useDoseEventStore, useMedicationStore } from '../../store';
+import { useDoseEventStore, useMedicationStore, useSettingsStore } from '../../store';
 import { useAuthStore } from '../../store/authStore';
 import { getDotColor } from '../../components/DayDot';
 import { todayString } from '../../utils';
-import { updateDoseEventStatus } from '../../db';
-import type { DoseEvent, DoseStatus } from '../../domain';
+import {
+  computeDisplayState,
+  DOSE_DISPLAY_LABEL,
+  DOSE_DISPLAY_COLOR,
+} from '../../utils/doseDisplay';
+import type { DoseEvent } from '../../domain';
 
 // ── 상수 ─────────────────────────────────────────────────────────────────────
 
-const STATUS_LABEL: Record<DoseStatus, string> = {
-  scheduled: '예정',
-  taken: '완료',
-  late: '늦은 복용',
-  missed: '누락',
-  skipped: '건너뜀',
-};
-
-const STATUS_COLOR: Record<DoseStatus, string> = {
-  scheduled: '#6b7280',
-  taken: '#16a34a',
-  late: '#f97316',
-  missed: '#ef4444',
-  skipped: '#9ca3af',
-};
+// DoseStatus → DOSE_DISPLAY_LABEL/COLOR 를 통해 처리하므로 별도 상수 불필요
 
 const MONTHS_KO = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
 
@@ -175,6 +165,7 @@ export default function HistoryScreen() {
   const { userId } = useAuthStore();
   const { fetchByDateRange } = useDoseEventStore();
   const { medications, fetchMedications } = useMedicationStore();
+  const graceMinutes = useSettingsStore((s) => s.settings?.missedToLateMinutes ?? 120);
 
   const medicationNames = useMemo<Record<string, string>>(
     () => Object.fromEntries(medications.map((m) => [m.id, m.name])),
@@ -209,20 +200,6 @@ export default function HistoryScreen() {
     setRefreshing(true);
     await Promise.all([loadMonth(currentMonth), fetchMedications()]);
     setRefreshing(false);
-  }
-
-  async function handleLateTake(eventId: string) {
-    const takenAt = new Date().toISOString();
-    setMonthEvents((prev) =>
-      prev.map((e) => e.id === eventId ? { ...e, status: 'taken' as DoseStatus, takenAt } : e),
-    );
-    try {
-      await updateDoseEventStatus(eventId, 'taken', takenAt);
-    } catch {
-      setMonthEvents((prev) =>
-        prev.map((e) => e.id === eventId ? { ...e, status: 'scheduled' as DoseStatus } : e),
-      );
-    }
   }
 
   // ── 달력 markedDates ────────────────────────────────────────────────────────
@@ -319,9 +296,7 @@ export default function HistoryScreen() {
   function renderItem({ item: event }: { item: DoseEvent }) {
     const plannedTime = fmtLocalTime(event.plannedAt);
     const name = medicationNames[event.medicationId] ?? event.medicationId;
-    const showLateBtn =
-      selectedDate === today &&
-      (event.status === 'scheduled' || event.status === 'late');
+    const displayState = computeDisplayState(event, Date.now(), graceMinutes * 60_000);
 
     return (
       <TouchableOpacity
@@ -337,21 +312,12 @@ export default function HistoryScreen() {
           <Text testID={`history-name-${event.id}`} style={styles.name}>{name}</Text>
           <Text
             testID={`history-status-${event.id}`}
-            style={[styles.status, { color: STATUS_COLOR[event.status] }]}
+            style={[styles.status, { color: DOSE_DISPLAY_COLOR[displayState] }]}
           >
-            {STATUS_LABEL[event.status]}
+            {DOSE_DISPLAY_LABEL[displayState]}
             {event.takenAt ? `  복용 ${fmtLocalTime(event.takenAt)}` : ''}
           </Text>
         </View>
-        {showLateBtn && (
-          <TouchableOpacity
-            testID={`btn-late-take-${event.id}`}
-            onPress={() => handleLateTake(event.id)}
-            style={styles.lateTakeBtn}
-          >
-            <Text style={styles.lateTakeTxt}>늦은 복용 처리</Text>
-          </TouchableOpacity>
-        )}
       </TouchableOpacity>
     );
   }
@@ -471,9 +437,14 @@ export default function HistoryScreen() {
                 </View>
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>상태</Text>
-                  <Text testID="detail-status" style={[styles.detailValue, { color: STATUS_COLOR[modalEvent.status] }]}>
-                    {STATUS_LABEL[modalEvent.status]}
-                  </Text>
+                  {(() => {
+                    const ds = computeDisplayState(modalEvent, Date.now(), graceMinutes * 60_000);
+                    return (
+                      <Text testID="detail-status" style={[styles.detailValue, { color: DOSE_DISPLAY_COLOR[ds] }]}>
+                        {DOSE_DISPLAY_LABEL[ds]}
+                      </Text>
+                    );
+                  })()}
                 </View>
                 {modalEvent.takenAt && (
                   <View style={styles.detailRow}>
@@ -543,11 +514,6 @@ const styles = StyleSheet.create({
   cardBody: { flex: 1, marginHorizontal: 10 },
   name:     { fontSize: 14, color: '#111827' },
   status:   { fontSize: 12, marginTop: 2 },
-  lateTakeBtn: {
-    marginLeft: 8, paddingHorizontal: 10, paddingVertical: 6,
-    borderRadius: 8, backgroundColor: '#f97316',
-  },
-  lateTakeTxt: { fontSize: 12, color: '#fff', fontWeight: '600' },
   detailOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
   detailCard:    { width: '85%', maxHeight: '80%', backgroundColor: '#fff', borderRadius: 16, padding: 20 },
   detailHeader:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
