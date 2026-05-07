@@ -28,11 +28,12 @@ export const usePointStore = create<PointState>((set) => ({
 
   fetchBalance: async () => {
     try {
+      const uid = currentUserId();
       const from = new Date();
       from.setDate(from.getDate() - 90);
       const [balance, events] = await Promise.all([
-        getBalance('local'),
-        getDoseEventsByDateRange(from.toISOString(), new Date().toISOString(), currentUserId()),
+        getBalance(uid),
+        getDoseEventsByDateRange(from.toISOString(), new Date().toISOString(), uid),
       ]);
       set({ balance, streak: getCurrentStreak(events) });
     } catch {}
@@ -40,7 +41,7 @@ export const usePointStore = create<PointState>((set) => ({
 
   fetchHistory: async () => {
     try {
-      const history = await getHistory('local');
+      const history = await getHistory(currentUserId());
       set({ history });
     } catch {}
   },

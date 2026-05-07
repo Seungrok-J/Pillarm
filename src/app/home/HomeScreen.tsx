@@ -23,6 +23,7 @@ import {
   usePointStore,
 } from '../../store';
 import { useAuthStore } from '../../store/authStore';
+import { isSyncEnabled, uploadTodaySnapshot } from '../../sync/syncService';
 import { rescheduleSnooze } from '../../notifications';
 import { updateDoseEventMemo } from '../../db';
 import { todayString } from '../../utils';
@@ -100,17 +101,21 @@ export default function HomeScreen() {
     }, [userId]),
   );
 
-  // ── AppState: active 전환 시 오늘 이벤트 새로고침 ───────────────────────
+  // ── AppState: active 전환 시 오늘 이벤트 새로고침 + 스냅샷 업로드 ────────
   useEffect(() => {
     const sub = AppState.addEventListener('change', async (nextState: AppStateStatus) => {
       if (appStateRef.current !== 'active' && nextState === 'active') {
         await fetchTodayEvents(todayString());
         await fetchBalance();
+        if (isSyncEnabled() && userId) {
+          const events = useDoseEventStore.getState().todayEvents;
+          uploadTodaySnapshot(userId, events).catch(() => {});
+        }
       }
       appStateRef.current = nextState;
     });
     return () => sub.remove();
-  }, []);
+  }, [userId]);
 
   // ── 파생 값 ────────────────────────────────────────────────────────────
   const medicationNames = useMemo<Record<string, string>>(
@@ -193,23 +198,35 @@ export default function HomeScreen() {
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <Text testID="header-date" style={styles.dateText}>{dateHeader}</Text>
-          {/* 포인트 배지 */}
-          <TouchableOpacity
-            testID="badge-points"
-            style={styles.pointBadgeRow}
-            onPress={() => setShowPointsInfo(true)}
-            accessibilityLabel={`포인트 ${balance}, 연속 ${streak}일`}
-            accessibilityRole="button"
-          >
-            {streak > 0 && (
-              <View style={styles.streakBadge}>
-                <Text style={styles.badgeText}>🔥 {streak}일</Text>
+          <View style={styles.headerRight}>
+            {/* 복용 일정 관리 바로가기 */}
+            <TouchableOpacity
+              testID="btn-home-schedule-manage"
+              onPress={() => navigation.navigate('ScheduleManage')}
+              style={styles.scheduleChip}
+              accessibilityLabel="복용 일정 관리"
+              accessibilityRole="button"
+            >
+              <Text style={styles.scheduleChipText}>일정 관리</Text>
+            </TouchableOpacity>
+            {/* 포인트 배지 */}
+            <TouchableOpacity
+              testID="badge-points"
+              style={styles.pointBadgeRow}
+              onPress={() => setShowPointsInfo(true)}
+              accessibilityLabel={`포인트 ${balance}, 연속 ${streak}일`}
+              accessibilityRole="button"
+            >
+              {streak > 0 && (
+                <View style={styles.streakBadge}>
+                  <Text style={styles.badgeText}>🔥 {streak}일</Text>
+                </View>
+              )}
+              <View style={styles.balanceBadge}>
+                <Text style={styles.badgeText}>⭐ {balance.toLocaleString()}P</Text>
               </View>
-            )}
-            <View style={styles.balanceBadge}>
-              <Text style={styles.badgeText}>⭐ {balance.toLocaleString()}P</Text>
-            </View>
-          </TouchableOpacity>
+            </TouchableOpacity>
+          </View>
         </View>
         {pendingCount > 0 && (
           <Text testID="header-remaining" style={styles.remainingText}>
@@ -361,6 +378,16 @@ const styles = StyleSheet.create({
   dateText: { fontSize: 18, fontWeight: '700', color: '#111827' },
   remainingText: { fontSize: 13, color: '#6b7280', marginTop: 2 },
 
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  scheduleChip: {
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    backgroundColor: '#f3f4f6',
+  },
+  scheduleChipText: { fontSize: 12, fontWeight: '500', color: '#6b7280' },
   pointBadgeRow: { flexDirection: 'row', gap: 6 },
   streakBadge: {
     backgroundColor: '#fff7ed',

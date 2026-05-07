@@ -9,6 +9,8 @@ import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RootStackParamList } from '../../navigation';
 import { useAuthStore } from '../../store/authStore';
 import { authLogin } from '../../features/careCircle/careCircleApi';
+import { getExpoPushToken } from '../../notifications/pushToken';
+import { initialPush } from '../../sync/syncService';
 
 type Nav = StackNavigationProp<RootStackParamList, 'Login'>;
 
@@ -24,7 +26,8 @@ export default function LoginScreen() {
     if (!email.trim() || !password) return;
     setLoading(true);
     try {
-      const data = await authLogin(email.trim().toLowerCase(), password);
+      const fcmToken = await getExpoPushToken();
+      const data = await authLogin(email.trim().toLowerCase(), password, fcmToken ?? undefined);
       await saveSession({
         accessToken:  data.accessToken,
         refreshToken: data.refreshToken,
@@ -32,6 +35,7 @@ export default function LoginScreen() {
         userEmail:    email.trim().toLowerCase(),
         userName:     data.name ?? null,
       });
+      initialPush(data.userId).catch(() => {});
       navigation.goBack();
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { error?: string } } })

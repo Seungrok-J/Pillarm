@@ -10,6 +10,7 @@ import { useSettingsStore } from './settingsStore';
 import { useAuthStore } from './authStore';
 import { awardDoseTaken, awardStreakBonus } from '../features/points/pointEngine';
 import { cancelNotificationForDoseEvent, checkAndMarkMissed } from '../notifications/scheduler';
+import { isSyncEnabled, pushDoseEvent, uploadTodaySnapshot } from '../sync/syncService';
 
 function currentUserId() {
   return useAuthStore.getState().userId ?? 'local';
@@ -72,10 +73,17 @@ export const useDoseEventStore = create<DoseEventState>((set, get) => ({
       if (event) {
         const graceMinutes = useSettingsStore.getState().settings?.missedToLateMinutes ?? 120;
         const takenEvent: DoseEvent = { ...event, status: 'taken', takenAt: now };
+        const uid = currentUserId();
         await Promise.all([
-          awardDoseTaken(takenEvent, graceMinutes).catch(() => {}),
-          awardStreakBonus('local').catch(() => {}),
+          awardDoseTaken(takenEvent, graceMinutes, uid).catch(() => {}),
+          awardStreakBonus(uid).catch(() => {}),
         ]);
+      }
+      if (isSyncEnabled()) {
+        const allEvents = get().todayEvents;
+        const updated = allEvents.find((e) => e.id === id);
+        if (updated) pushDoseEvent(updated).catch(() => {});
+        uploadTodaySnapshot(currentUserId(), allEvents).catch(() => {});
       }
     } catch (e) {
       set({ todayEvents: prev, error: (e as Error).message });
@@ -94,6 +102,12 @@ export const useDoseEventStore = create<DoseEventState>((set, get) => ({
     }));
     try {
       await updateDoseEventStatus(id, 'skipped');
+      if (isSyncEnabled()) {
+        const allEvents = get().todayEvents;
+        const updated = allEvents.find((e) => e.id === id);
+        if (updated) pushDoseEvent(updated).catch(() => {});
+        uploadTodaySnapshot(currentUserId(), allEvents).catch(() => {});
+      }
     } catch (e) {
       set({ todayEvents: prev, error: (e as Error).message });
       throw e;
@@ -123,6 +137,12 @@ export const useDoseEventStore = create<DoseEventState>((set, get) => ({
     }));
     try {
       await updateDoseEventSnooze(id, newCount, newPlannedAt);
+      if (isSyncEnabled()) {
+        const allEvents = get().todayEvents;
+        const updated = allEvents.find((e) => e.id === id);
+        if (updated) pushDoseEvent(updated).catch(() => {});
+        uploadTodaySnapshot(currentUserId(), allEvents).catch(() => {});
+      }
       return true;
     } catch (e) {
       set({ todayEvents: prev, error: (e as Error).message });

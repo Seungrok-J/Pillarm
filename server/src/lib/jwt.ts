@@ -14,7 +14,7 @@ function refreshSecret(): string {
 }
 
 export function signAccess(payload: TokenPayload): string {
-  return jwt.sign(payload, accessSecret(), { expiresIn: '1h' });
+  return jwt.sign(payload, accessSecret(), { expiresIn: '15m' });
 }
 
 export function signRefresh(payload: TokenPayload): string {

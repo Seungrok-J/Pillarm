@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { Medication } from '../domain';
 import { getAllMedications, upsertMedication, deleteMedication } from '../db';
 import { useAuthStore } from './authStore';
+import { isSyncEnabled, pushMedication } from '../sync/syncService';
 
 function currentUserId() {
   return useAuthStore.getState().userId ?? 'local';
@@ -45,6 +46,7 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
     try {
       await upsertMedication(medication, currentUserId());
       set((state) => ({ medications: [...state.medications, medication] }));
+      if (isSyncEnabled()) pushMedication(medication).catch(() => {});
     } catch (e) {
       set({ error: (e as Error).message });
       throw e;
@@ -62,6 +64,7 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
     }));
     try {
       await upsertMedication(medication, currentUserId());
+      if (isSyncEnabled()) pushMedication(medication).catch(() => {});
     } catch (e) {
       set({ medications: prev, error: (e as Error).message });
       throw e;
@@ -71,11 +74,15 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
   deleteMedication: async (id) => {
     set({ error: null });
     const prev = get().medications;
+    const target = prev.find((m) => m.id === id);
     set((state) => ({
       medications: state.medications.filter((m) => m.id !== id),
     }));
     try {
       await deleteMedication(id);
+      if (isSyncEnabled() && target) {
+        pushMedication({ ...target, isActive: false, updatedAt: new Date().toISOString() }).catch(() => {});
+      }
     } catch (e) {
       set({ medications: prev, error: (e as Error).message });
       throw e;

@@ -1,6 +1,6 @@
-import type { app as AdminApp } from 'firebase-admin';
+import type { messaging } from 'firebase-admin';
 
-let adminMessaging: ReturnType<AdminApp['messaging']> | null = null;
+let adminMessaging: messaging.Messaging | null = null;
 
 export function initFcm(): void {
   const projectId = process.env.FIREBASE_PROJECT_ID;
@@ -31,12 +31,40 @@ export function initFcm(): void {
   }
 }
 
+function isExpoToken(token: string): boolean {
+  return token.startsWith('ExponentPushToken[');
+}
+
+async function sendExpoPush(
+  token: string,
+  title: string,
+  body: string,
+  data?: Record<string, string>,
+): Promise<void> {
+  const res = await fetch('https://exp.host/--/api/v2/push/send', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify({ to: token, title, body, data, sound: 'default' }),
+  });
+  if (!res.ok) {
+    console.warn('[FCM] Expo push failed:', await res.text());
+  }
+}
+
 export async function sendPush(
   fcmToken: string,
   title: string,
   body: string,
   data?: Record<string, string>,
 ): Promise<void> {
+  if (isExpoToken(fcmToken)) {
+    await sendExpoPush(fcmToken, title, body, data);
+    return;
+  }
+
   if (!adminMessaging) return;
 
   await adminMessaging.send({

@@ -49,6 +49,7 @@ async function insertEntry(entry: PointLedger): Promise<void> {
 export async function awardDoseTaken(
   doseEvent: DoseEvent,
   graceMinutes: number,
+  userId: string,
 ): Promise<PointLedger | null> {
   if (!doseEvent.takenAt) return null;
 
@@ -62,22 +63,24 @@ export async function awardDoseTaken(
   const db  = await getDatabase();
   const dup = await db.getFirstAsync<{ id: string }>(
     `SELECT id FROM point_ledger
-       WHERE user_id = 'local' AND reason = 'dose_taken' AND ref_id = ?`,
+       WHERE user_id = ? AND reason = 'dose_taken' AND ref_id = ?`,
+    userId,
     doseEvent.id,
   );
   if (dup) return null;
 
   const today = new Date().toISOString().slice(0, 10);
   const daily = await db.getFirstAsync<{ cnt: number }>(
-    `SELECT COUNT(*) as cnt FROM point_ledger WHERE user_id = 'local' AND reason = 'dose_taken' AND date(created_at) = ?`,
+    `SELECT COUNT(*) as cnt FROM point_ledger WHERE user_id = ? AND reason = 'dose_taken' AND date(created_at) = ?`,
+    userId,
     today,
   );
   if ((daily?.cnt ?? 0) >= 5) return null;
 
-  const prev  = await latestBalance('local');
+  const prev  = await latestBalance(userId);
   const entry: PointLedger = {
     id:        generateId(),
-    userId:    'local',
+    userId,
     reason:    'dose_taken',
     delta:     DELTA.dose_taken,
     balance:   prev + DELTA.dose_taken,

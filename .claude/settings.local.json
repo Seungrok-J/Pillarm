@@ -50,7 +50,13 @@
       "PowerShell(& \"C:\\\\Users\\\\jsl\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" shell find /data/data/host.exp.exponent -name \"pillarm.db\")",
       "Bash(findstr \"●\")",
       "Bash(findstr /V \"console\")",
-      "PowerShell(cd \"C:\\\\Users\\\\jsl\\\\Desktop\\\\필람\\(Pillarm\\)\"; npx jest __tests__/app/home/HomeScreen.test.tsx --no-coverage 2>&1 | Select-String \"●|TypeError|Expected|Received|Cannot\" | Select-Object -First 30 | ForEach-Object { $_.Line })"
+      "PowerShell(cd \"C:\\\\Users\\\\jsl\\\\Desktop\\\\필람\\(Pillarm\\)\"; npx jest __tests__/app/home/HomeScreen.test.tsx --no-coverage 2>&1 | Select-String \"●|TypeError|Expected|Received|Cannot\" | Select-Object -First 30 | ForEach-Object { $_.Line })",
+      "Bash(dir \"C:\\\\Users\\\\jsl\\\\Desktop\\\\필람\\(Pillarm\\)\")",
+      "Bash(grep -E \"\\\\\\\\.env\")",
+      "Bash(docker --version)",
+      "Bash(docker info *)",
+      "Bash(taskkill /F /FI \"WINDOWTITLE eq*prisma*\")",
+      "Bash(taskkill /F /IM \"node.exe\" /FI \"MEMUSAGE gt 100000\")"
     ]
   }
 }

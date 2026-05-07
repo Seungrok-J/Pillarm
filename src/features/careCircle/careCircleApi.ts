@@ -94,13 +94,22 @@ export interface AuthResponse {
   name?:        string;
 }
 
-export async function authSignup(email: string, password: string, name?: string): Promise<AuthResponse> {
-  const res = await api.post<AuthResponse>('/auth/signup', { email, password, name });
+export async function authSignup(
+  email: string,
+  password: string,
+  name?: string,
+  fcmToken?: string,
+): Promise<AuthResponse> {
+  const res = await api.post<AuthResponse>('/auth/signup', { email, password, name, fcmToken });
   return res.data;
 }
 
-export async function authLogin(email: string, password: string): Promise<AuthResponse> {
-  const res = await api.post<AuthResponse>('/auth/login', { email, password });
+export async function authLogin(
+  email: string,
+  password: string,
+  fcmToken?: string,
+): Promise<AuthResponse> {
+  const res = await api.post<AuthResponse>('/auth/login', { email, password, fcmToken });
   return res.data;
 }
 

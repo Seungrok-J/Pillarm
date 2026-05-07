@@ -12,6 +12,7 @@ const signupSchema = z.object({
   email:    z.string().email('유효한 이메일을 입력하세요'),
   password: z.string().min(8, '비밀번호는 8자 이상이어야 합니다'),
   name:     z.string().trim().min(1).max(50).optional(),
+  fcmToken: z.string().optional(),
 });
 
 const loginSchema = z.object({
@@ -40,7 +41,10 @@ router.post('/signup', async (req, res, next) => {
     if (existing) throw new AppError('Email already in use', 409);
 
     const passwordHash = await bcrypt.hash(password, 10);
-    const user = await prisma.user.create({ data: { email, passwordHash, name } });
+    const { fcmToken } = parsed.data as { fcmToken?: string };
+    const user = await prisma.user.create({
+      data: { email, passwordHash, name, ...(fcmToken ? { fcmToken } : {}) },
+    });
 
     const payload = { userId: user.id, email: user.email };
     const accessToken = signAccess(payload);
@@ -160,6 +164,24 @@ router.patch('/me', requireAuth, async (req, res, next) => {
       select: { id: true, email: true, name: true, createdAt: true },
     });
     res.json(user);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── PATCH /auth/fcm-token ─────────────────────────────────────────────────────
+// 앱 시작 시 이미 로그인된 사용자의 FCM 토큰 갱신
+
+router.patch('/fcm-token', requireAuth, async (req, res, next) => {
+  try {
+    const { fcmToken } = req.body as { fcmToken?: string };
+    if (!fcmToken?.trim()) throw new AppError('fcmToken required', 400);
+
+    await prisma.user.update({
+      where: { id: req.user!.userId },
+      data: { fcmToken: fcmToken.trim() },
+    });
+    res.json({ ok: true });
   } catch (err) {
     next(err);
   }

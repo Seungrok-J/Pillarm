@@ -8,6 +8,7 @@ import {
 } from '../db';
 import { cancelForSchedule } from '../notifications';
 import { useAuthStore } from './authStore';
+import { isSyncEnabled, pushSchedule } from '../sync/syncService';
 
 function currentUserId() {
   return useAuthStore.getState().userId ?? 'local';
@@ -43,6 +44,7 @@ export const useScheduleStore = create<ScheduleState>((set, get) => ({
     try {
       await upsertSchedule(schedule, currentUserId());
       set((state) => ({ schedules: [...state.schedules, schedule] }));
+      if (isSyncEnabled()) pushSchedule(schedule).catch(() => {});
     } catch (e) {
       set({ error: (e as Error).message });
       throw e;
@@ -59,6 +61,7 @@ export const useScheduleStore = create<ScheduleState>((set, get) => ({
     }));
     try {
       await upsertSchedule(schedule, currentUserId());
+      if (isSyncEnabled()) pushSchedule(schedule).catch(() => {});
     } catch (e) {
       set({ schedules: prev, error: (e as Error).message });
       throw e;
@@ -68,12 +71,16 @@ export const useScheduleStore = create<ScheduleState>((set, get) => ({
   deleteSchedule: async (id) => {
     set({ error: null });
     const prev = get().schedules;
+    const target = prev.find((s) => s.id === id);
     set((state) => ({
       schedules: state.schedules.filter((s) => s.id !== id),
     }));
     try {
       await cancelForSchedule(id);
       await deleteSchedule(id);
+      if (isSyncEnabled() && target) {
+        pushSchedule({ ...target, isActive: false, updatedAt: new Date().toISOString() }).catch(() => {});
+      }
     } catch (e) {
       set({ schedules: prev, error: (e as Error).message });
       throw e;

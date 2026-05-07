@@ -9,6 +9,8 @@ import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RootStackParamList } from '../../navigation';
 import { useAuthStore } from '../../store/authStore';
 import { authSignup } from '../../features/careCircle/careCircleApi';
+import { getExpoPushToken } from '../../notifications/pushToken';
+import { initialPush } from '../../sync/syncService';
 
 type Nav = StackNavigationProp<RootStackParamList, 'Signup'>;
 
@@ -29,7 +31,8 @@ export default function SignupScreen() {
     if (!canSubmit) return;
     setLoading(true);
     try {
-      const data = await authSignup(email.trim().toLowerCase(), password, name.trim());
+      const fcmToken = await getExpoPushToken();
+      const data = await authSignup(email.trim().toLowerCase(), password, name.trim(), fcmToken ?? undefined);
       await saveSession({
         accessToken:  data.accessToken,
         refreshToken: data.refreshToken,
@@ -37,6 +40,7 @@ export default function SignupScreen() {
         userEmail:    email.trim().toLowerCase(),
         userName:     data.name ?? name.trim(),
       });
+      initialPush(data.userId).catch(() => {});
       navigation.goBack();
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { error?: string } } })

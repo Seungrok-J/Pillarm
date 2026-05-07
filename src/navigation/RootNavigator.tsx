@@ -8,6 +8,7 @@ import OnboardingScreen, { ONBOARDING_KEY } from '../app/onboarding/OnboardingSc
 import ScheduleStackNavigator from './ScheduleStackNavigator';
 import { useAuthStore } from '../store/authStore';
 import type { RootStackParamList } from './types';
+import { syncPushToken } from '../notifications/pushToken';
 
 const linking: LinkingOptions<RootStackParamList> = {
   prefixes: [ExpoLinking.createURL('/'), 'pillarm://'],
@@ -29,6 +30,10 @@ export default function RootNavigator() {
     ]).then(([value]) => {
       setOnboardingDone(value === 'true');
       SplashScreen.hideAsync().catch(() => {});
+      // 이미 로그인된 경우 토큰 갱신 (기기 재시작·토큰 만료 대응)
+      if (useAuthStore.getState().isLoggedIn) {
+        syncPushToken().catch(() => {});
+      }
     });
   }, []);
 

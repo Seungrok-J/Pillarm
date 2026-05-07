@@ -199,57 +199,55 @@ export default function DoseCard({
           <View style={[styles.colorBar, { backgroundColor: medicationColor }]} />
         )}
 
-        {/* 시간 */}
-        <Text testID={`card-time-${event.id}`} style={styles.time}>{time}</Text>
+        {/* 상단: 시간 + 약 이름 */}
+        <View style={styles.topRow}>
+          <Text testID={`card-time-${event.id}`} style={styles.time}>{time}</Text>
+          <Text testID={`card-name-${event.id}`} style={styles.name} numberOfLines={1}>
+            {medicationName}
+          </Text>
+        </View>
 
-        {/* 약 이름 */}
-        <Text testID={`card-name-${event.id}`} style={styles.name} numberOfLines={1}>
-          {medicationName}
-        </Text>
-
-        {/* 건너뜀 버튼 */}
-        {isSkippable && (
+        {/* 하단: 액션 버튼 */}
+        <View style={styles.actionRow}>
+          {isSkippable && (
+            <TouchableOpacity
+              testID={`btn-skip-${event.id}`}
+              onPress={() => onSkip!(event.id)}
+              accessibilityLabel="건너뜀"
+              style={styles.skipActionBtn}
+            >
+              <Text style={styles.skipActionTxt}>건너뜀</Text>
+            </TouchableOpacity>
+          )}
+          {isSnoozeable && (
+            <TouchableOpacity
+              testID={`btn-snooze-${event.id}`}
+              onPress={() => onSnooze!(event.id)}
+              accessibilityLabel={`미루기 ${event.snoozeCount}/3`}
+              style={[styles.snoozeBtn, { borderColor: snoozeStyle(event.snoozeCount).borderColor }]}
+            >
+              <Text style={[styles.snoozeTxt, { color: snoozeStyle(event.snoozeCount).color }]}>
+                미루기 ({event.snoozeCount}/3)
+              </Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
-            testID={`btn-skip-${event.id}`}
-            onPress={() => onSkip!(event.id)}
-            accessibilityLabel="건너뜀"
-            style={styles.skipActionBtn}
+            testID={`btn-take-${event.id}`}
+            onPress={handleTakePress}
+            disabled={!isTakeable}
+            accessibilityRole="button"
+            accessibilityLabel={`${medicationName} ${STATUS_LABEL[event.status]}`}
+            style={[
+              styles.actionBtn,
+              { backgroundColor: BTN_BG[event.status] },
+              event.status === 'missed' && styles.missedBtn,
+            ]}
           >
-            <Text style={styles.skipActionTxt}>건너뜀</Text>
-          </TouchableOpacity>
-        )}
-
-        {/* 미루기 버튼 */}
-        {isSnoozeable && (
-          <TouchableOpacity
-            testID={`btn-snooze-${event.id}`}
-            onPress={() => onSnooze!(event.id)}
-            accessibilityLabel={`미루기 ${event.snoozeCount}/3`}
-            style={[styles.snoozeBtn, { borderColor: snoozeStyle(event.snoozeCount).borderColor }]}
-          >
-            <Text style={[styles.snoozeTxt, { color: snoozeStyle(event.snoozeCount).color }]}>
-              미루기 ({event.snoozeCount}/3)
+            <Text style={[styles.actionTxt, { color: BTN_TXT[event.status] }]}>
+              {STATUS_LABEL[event.status]}
             </Text>
           </TouchableOpacity>
-        )}
-
-        {/* 복용/상태 버튼 */}
-        <TouchableOpacity
-          testID={`btn-take-${event.id}`}
-          onPress={handleTakePress}
-          disabled={!isTakeable}
-          accessibilityRole="button"
-          accessibilityLabel={`${medicationName} ${STATUS_LABEL[event.status]}`}
-          style={[
-            styles.actionBtn,
-            { backgroundColor: BTN_BG[event.status] },
-            event.status === 'missed' && styles.missedBtn,
-          ]}
-        >
-          <Text style={[styles.actionTxt, { color: BTN_TXT[event.status] }]}>
-            {STATUS_LABEL[event.status]}
-          </Text>
-        </TouchableOpacity>
+        </View>
       </Animated.View>
 
       {/* 메모/사진 바텀시트 */}
@@ -340,15 +338,25 @@ export default function DoseCard({
 
 const styles = StyleSheet.create({
   card: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 12,
+    paddingBottom: 10,
     borderRadius: 12,
     shadowColor: '#000',
     shadowOpacity: 0.04,
     shadowRadius: 4,
     elevation: 1,
+  },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
   },
   swipeHint: {
     position: 'absolute',
@@ -370,7 +378,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 12,
   },
   time: { fontSize: 16, fontWeight: '600', color: '#374151', width: 44 },
-  name: { flex: 1, marginHorizontal: 10, fontSize: 16, color: '#111827' },
+  name: { flex: 1, marginLeft: 10, fontSize: 16, color: '#111827' },
   skipActionBtn: {
     marginRight: 8,
     paddingVertical: 8,
