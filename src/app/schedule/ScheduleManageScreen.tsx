@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,7 @@ import {
 } from '../../db';
 import { cancelForSchedule } from '../../notifications';
 import { useAuthStore } from '../../store/authStore';
+import { todayString } from '../../utils';
 import type { Schedule, Medication } from '../../domain';
 
 type Nav = StackNavigationProp<RootStackParamList>;
@@ -52,6 +53,19 @@ export default function ScheduleManageScreen() {
   const [items,      setItems]      = useState<ScheduleItem[]>([]);
   const [isLoading,  setIsLoading]  = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showPast,   setShowPast]   = useState(false);
+
+  const today = todayString();
+  const { activeItems, pastItems } = useMemo(() => {
+    const active: ScheduleItem[] = [];
+    const past:   ScheduleItem[] = [];
+    for (const item of items) {
+      const ended = item.schedule.endDate && item.schedule.endDate < today;
+      if (ended) past.push(item);
+      else       active.push(item);
+    }
+    return { activeItems: active, pastItems: past };
+  }, [items, today]);
 
   const loadData = useCallback(async () => {
     const [schedules, meds] = await Promise.all([
@@ -83,10 +97,13 @@ export default function ScheduleManageScreen() {
     setRefreshing(false);
   }
 
-  async function confirmDelete(item: ScheduleItem) {
+  async function confirmDelete(item: ScheduleItem, isPast = false) {
+    const message = isPast
+      ? `'${item.medication.name}' 종료된 일정을 삭제하시겠어요?\n복용 기록은 유지됩니다.`
+      : `'${item.medication.name}' 복용 일정을 삭제하시겠어요?\n미래 예약된 알림도 함께 취소됩니다.`;
     Alert.alert(
       '일정 삭제',
-      `'${item.medication.name}' 복용 일정을 삭제하시겠어요?\n미래 예약된 알림도 함께 취소됩니다.`,
+      message,
       [
         { text: '취소', style: 'cancel' },
         {
@@ -111,94 +128,130 @@ export default function ScheduleManageScreen() {
     );
   }
 
+  function renderCard(item: ScheduleItem, isPast = false) {
+    return (
+      <View
+        key={item.schedule.id}
+        style={[styles.card, isPast && styles.cardPast]}
+        testID={isPast ? `card-past-${item.schedule.id}` : `card-${item.schedule.id}`}
+      >
+        {/* 약 이름 + 색상 점 */}
+        <View style={styles.cardHeader}>
+          <View style={[styles.colorDot, { backgroundColor: item.medication.color ?? '#d1d5db' }]} />
+          <Text style={[styles.medName, isPast && styles.textMuted]} numberOfLines={1}>
+            {item.medication.name}
+          </Text>
+          {item.medication.dosageValue != null && (
+            <Text style={[styles.dosage, isPast && styles.textMuted]}>
+              {item.medication.dosageValue}{item.medication.dosageUnit ?? ''}
+            </Text>
+          )}
+          {isPast && (
+            <View style={styles.endedBadge}>
+              <Text style={styles.endedBadgeTxt}>종료</Text>
+            </View>
+          )}
+        </View>
+
+        {/* 복용 시간 */}
+        <View style={styles.infoRow}>
+          <Text style={styles.infoIcon}>⏰</Text>
+          <Text style={[styles.infoText, isPast && styles.textMuted]}>
+            {item.schedule.times.join('  ')}
+          </Text>
+        </View>
+
+        {/* 반복 주기 + 기간 */}
+        <View style={styles.infoRow}>
+          <Text style={styles.infoIcon}>📅</Text>
+          <Text style={[styles.infoText, isPast && styles.textMuted]}>
+            {repeatLabel(item.schedule)}　{dateRange(item.schedule)}
+          </Text>
+        </View>
+
+        {/* 식사 관계 */}
+        {item.schedule.withFood !== 'none' && (
+          <View style={styles.infoRow}>
+            <Text style={styles.infoIcon}>🍽️</Text>
+            <Text style={[styles.infoText, isPast && styles.textMuted]}>
+              {item.schedule.withFood === 'before' ? '식전 복용' : '식후 복용'}
+            </Text>
+          </View>
+        )}
+
+        {/* 버튼 */}
+        <View style={styles.btnRow}>
+          {!isPast && (
+            <TouchableOpacity
+              style={styles.editBtn}
+              onPress={() =>
+                navigation.navigate('ScheduleEdit', {
+                  scheduleId: item.schedule.id,
+                  medicationId: item.medication.id,
+                })
+              }
+              accessibilityRole="button"
+              accessibilityLabel={`${item.medication.name} 일정 수정`}
+            >
+              <Text style={styles.editBtnTxt}>수정</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={[styles.deleteBtn, isPast && styles.deleteBtnFull]}
+            onPress={() => confirmDelete(item, isPast)}
+            accessibilityRole="button"
+            accessibilityLabel={`${item.medication.name} 일정 삭제`}
+          >
+            <Text style={styles.deleteBtnTxt}>삭제</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  const pastToggle = pastItems.length > 0 ? (
+    <View>
+      <TouchableOpacity
+        testID="btn-toggle-past"
+        style={styles.pastToggle}
+        onPress={() => setShowPast((v) => !v)}
+        accessibilityRole="button"
+      >
+        <Text style={styles.pastToggleTxt}>
+          {showPast
+            ? `지난 일정 ${pastItems.length}건 숨기기 ▲`
+            : `지난 일정 ${pastItems.length}건 보기 ▼`}
+        </Text>
+      </TouchableOpacity>
+      {showPast && pastItems.map((item) => renderCard(item, true))}
+    </View>
+  ) : null;
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <FlatList
-        data={items}
+        data={activeItems}
         keyExtractor={(item) => item.schedule.id}
         contentContainerStyle={styles.list}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#3b82f6" colors={['#3b82f6']} />
         }
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={styles.emptyIcon}>💊</Text>
-            <Text style={styles.emptyText}>등록된 복용 일정이 없습니다</Text>
-            <TouchableOpacity
-              style={styles.addBtn}
-              onPress={() => navigation.navigate('ScheduleNew')}
-            >
-              <Text style={styles.addBtnTxt}>＋ 일정 추가</Text>
-            </TouchableOpacity>
-          </View>
+          activeItems.length === 0 && pastItems.length === 0 ? (
+            <View style={styles.empty}>
+              <Text style={styles.emptyIcon}>💊</Text>
+              <Text style={styles.emptyText}>등록된 복용 일정이 없습니다</Text>
+              <TouchableOpacity
+                style={styles.addBtn}
+                onPress={() => navigation.navigate('ScheduleNew')}
+              >
+                <Text style={styles.addBtnTxt}>＋ 일정 추가</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null
         }
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            {/* 약 이름 + 색상 점 */}
-            <View style={styles.cardHeader}>
-              {item.medication.color ? (
-                <View style={[styles.colorDot, { backgroundColor: item.medication.color }]} />
-              ) : (
-                <View style={[styles.colorDot, { backgroundColor: '#d1d5db' }]} />
-              )}
-              <Text style={styles.medName} numberOfLines={1}>{item.medication.name}</Text>
-              {item.medication.dosageValue != null && (
-                <Text style={styles.dosage}>
-                  {item.medication.dosageValue}{item.medication.dosageUnit ?? ''}
-                </Text>
-              )}
-            </View>
-
-            {/* 복용 시간 */}
-            <View style={styles.infoRow}>
-              <Text style={styles.infoIcon}>⏰</Text>
-              <Text style={styles.infoText}>{item.schedule.times.join('  ')}</Text>
-            </View>
-
-            {/* 반복 주기 + 기간 */}
-            <View style={styles.infoRow}>
-              <Text style={styles.infoIcon}>📅</Text>
-              <Text style={styles.infoText}>
-                {repeatLabel(item.schedule)}　{dateRange(item.schedule)}
-              </Text>
-            </View>
-
-            {/* 식사 관계 */}
-            {item.schedule.withFood !== 'none' && (
-              <View style={styles.infoRow}>
-                <Text style={styles.infoIcon}>🍽️</Text>
-                <Text style={styles.infoText}>
-                  {item.schedule.withFood === 'before' ? '식전 복용' : '식후 복용'}
-                </Text>
-              </View>
-            )}
-
-            {/* 버튼 */}
-            <View style={styles.btnRow}>
-              <TouchableOpacity
-                style={styles.editBtn}
-                onPress={() =>
-                  navigation.navigate('ScheduleEdit', {
-                    scheduleId: item.schedule.id,
-                    medicationId: item.medication.id,
-                  })
-                }
-                accessibilityRole="button"
-                accessibilityLabel={`${item.medication.name} 일정 수정`}
-              >
-                <Text style={styles.editBtnTxt}>수정</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.deleteBtn}
-                onPress={() => confirmDelete(item)}
-                accessibilityRole="button"
-                accessibilityLabel={`${item.medication.name} 일정 삭제`}
-              >
-                <Text style={styles.deleteBtnTxt}>삭제</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
+        renderItem={({ item }) => renderCard(item)}
+        ListFooterComponent={pastToggle}
       />
     </SafeAreaView>
   );
@@ -263,6 +316,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   deleteBtnTxt: { fontSize: 15, color: '#ef4444', fontWeight: '600' },
+
+  cardPast: { backgroundColor: '#f9fafb', opacity: 0.85 },
+  textMuted: { color: '#9ca3af' },
+
+  endedBadge: {
+    backgroundColor: '#f3f4f6',
+    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    marginLeft: 4,
+  },
+  endedBadgeTxt: { fontSize: 11, color: '#9ca3af', fontWeight: '600' },
+
+  deleteBtnFull: { flex: 1 },
+
+  pastToggle: {
+    alignItems: 'center',
+    paddingVertical: 14,
+    marginBottom: 4,
+  },
+  pastToggleTxt: { fontSize: 14, color: '#6b7280', fontWeight: '500' },
 
   empty: { alignItems: 'center', marginTop: 80 },
   emptyIcon: { fontSize: 48, marginBottom: 12 },

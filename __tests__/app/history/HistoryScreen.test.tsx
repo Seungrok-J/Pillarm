@@ -2,7 +2,7 @@
  * HistoryScreen 통합 테스트
  *
  * AC1 — 날짜 탭 시 해당 날짜 DoseEvent 목록이 표시된다
- * AC2 — 오늘 날짜 한정으로 미처리 DoseEvent에 '늦은 복용 처리' 버튼이 표시된다
+ * (복용 처리 버튼은 홈 화면에서만 제공 — 기록 화면은 읽기 전용)
  *
  * 전략:
  *   - react-native-calendars 를 mock 하여 onDayPress 를 직접 호출
@@ -219,31 +219,20 @@ describe('AC1 — 날짜 탭 시 해당 날짜 DoseEvent 목록 표시', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// AC2 — 오늘 날짜 한정 '늦은 복용 처리' 버튼
+// AC2 — 기록 화면은 읽기 전용 (복용 처리 버튼 없음)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-describe('AC2 — 오늘 날짜 한정 늦은 복용 처리 버튼', () => {
-  it('오늘 날짜의 scheduled 이벤트에 버튼이 표시된다', async () => {
-    const { getByTestId } = await renderAndWait();
+describe('AC2 — 기록 화면 읽기 전용', () => {
+  it('scheduled 이벤트에 복용 처리 버튼이 없다', async () => {
+    const { queryByTestId } = await renderAndWait();
 
     await waitFor(() =>
-      expect(getByTestId('btn-late-take-evt-1')).toBeTruthy(),
+      expect(queryByTestId('history-card-evt-1')).toBeTruthy(),
     );
+    expect(queryByTestId('btn-late-take-evt-1')).toBeNull();
   });
 
-  it('오늘 날짜의 late 이벤트에도 버튼이 표시된다', async () => {
-    mockGetDoseEventsByDateRange.mockResolvedValue([
-      makeEvent({ status: 'late' }),
-    ]);
-
-    const { getByTestId } = await renderAndWait();
-
-    await waitFor(() =>
-      expect(getByTestId('btn-late-take-evt-1')).toBeTruthy(),
-    );
-  });
-
-  it('오늘 날짜의 taken 이벤트에는 버튼이 없다', async () => {
+  it('taken 이벤트에도 복용 처리 버튼이 없다', async () => {
     mockGetDoseEventsByDateRange.mockResolvedValue([
       makeEvent({ status: 'taken' }),
     ]);
@@ -254,61 +243,6 @@ describe('AC2 — 오늘 날짜 한정 늦은 복용 처리 버튼', () => {
       expect(queryByTestId('history-card-evt-1')).toBeTruthy(),
     );
     expect(queryByTestId('btn-late-take-evt-1')).toBeNull();
-  });
-
-  it('과거 날짜로 전환하면 버튼이 사라진다', async () => {
-    const events = [
-      makeEvent({ id: 'evt-today', plannedAt: `${TODAY}T08:00:00`, status: 'scheduled' }),
-      makeEvent({ id: 'evt-past',  plannedAt: `${PAST}T08:00:00`,  status: 'scheduled' }),
-    ];
-    mockGetDoseEventsByDateRange.mockResolvedValue(events);
-
-    const { queryByTestId } = await renderAndWait();
-
-    // 오늘: 버튼 있음
-    await waitFor(() =>
-      expect(queryByTestId('btn-late-take-evt-today')).toBeTruthy(),
-    );
-
-    // 과거 날짜로 이동
-    act(() => {
-      mockCalendarHandlers.onDayPress?.({ dateString: PAST });
-    });
-
-    await waitFor(() =>
-      expect(queryByTestId('history-card-evt-past')).toBeTruthy(),
-    );
-    // 과거 날짜: 버튼 없음
-    expect(queryByTestId('btn-late-take-evt-past')).toBeNull();
-  });
-
-  it('버튼 탭 시 updateDoseEventStatus 가 taken 으로 호출된다', async () => {
-    const { getByTestId } = await renderAndWait();
-
-    await waitFor(() => expect(getByTestId('btn-late-take-evt-1')).toBeTruthy());
-
-    fireEvent.press(getByTestId('btn-late-take-evt-1'));
-
-    await waitFor(() =>
-      expect(mockUpdateDoseEventStatus).toHaveBeenCalledWith(
-        'evt-1',
-        'taken',
-        expect.any(String),
-      ),
-    );
-  });
-
-  it('버튼 탭 후 이벤트 상태가 taken 으로 바뀐다 (낙관적 업데이트)', async () => {
-    const { getByTestId, queryByTestId } = await renderAndWait();
-
-    await waitFor(() => expect(getByTestId('btn-late-take-evt-1')).toBeTruthy());
-
-    fireEvent.press(getByTestId('btn-late-take-evt-1'));
-
-    // 낙관적 업데이트로 버튼이 즉시 사라짐 (taken → showLateBtn = false)
-    await waitFor(() =>
-      expect(queryByTestId('btn-late-take-evt-1')).toBeNull(),
-    );
   });
 });
 

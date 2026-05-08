@@ -10,7 +10,7 @@ import type { RootStackParamList } from '../../navigation';
 import { useAuthStore } from '../../store/authStore';
 import { authLogin } from '../../features/careCircle/careCircleApi';
 import { getExpoPushToken } from '../../notifications/pushToken';
-import { initialPush } from '../../sync/syncService';
+import { initialPush, pullFromServer } from '../../sync/syncService';
 
 type Nav = StackNavigationProp<RootStackParamList, 'Login'>;
 
@@ -35,6 +35,8 @@ export default function LoginScreen() {
         userEmail:    email.trim().toLowerCase(),
         userName:     data.name ?? null,
       });
+      // 기기 교체 복원: 서버 데이터를 로컬 SQLite에 반영 (pull), 로컬 신규 데이터를 서버에 반영 (push)
+      pullFromServer(data.userId).catch(() => {});
       initialPush(data.userId).catch(() => {});
       navigation.goBack();
     } catch (err: unknown) {

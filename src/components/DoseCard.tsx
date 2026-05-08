@@ -17,6 +17,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import type { DoseEvent } from '../domain';
+import { useThemeStore } from '../store/themeStore';
 import {
   DOSE_EARLY_WINDOW_MS,
   DoseDisplayState,
@@ -32,7 +33,7 @@ type DisplayState = DoseDisplayState;
 const CARD_BG: Record<DisplayState, string> = {
   waiting:  '#ffffff',
   active:   '#ffffff',
-  late:     '#fff7ed',
+  late:     '#ffffff',
   missed:   '#fef2f2',
   taken:    '#f0fdf4',
   skipped:  '#f3f4f6',
@@ -64,7 +65,7 @@ export interface DoseCardProps {
   onAfterTake?: (id: string, note: string, photoPath: string | undefined) => void;
   /** 현재 시각 — HomeScreen 에서 1분마다 갱신해 전달. 없으면 렌더 시점 기준. */
   now?: Date;
-  /** 늦은 복용 허용 범위(분). 기본 120(2시간). */
+  /** 복용 허용 범위(분). 기본 120(2시간). */
   graceMinutes?: number;
 }
 
@@ -85,6 +86,7 @@ export default function DoseCard({
   now,
   graceMinutes = 120,
 }: DoseCardProps) {
+  const theme = useThemeStore((s) => s.activeTheme);
   const nowMs = (now ?? new Date()).getTime();
   const graceMs = graceMinutes * 60_000;
   const displayState = computeDisplayState(event, nowMs, graceMs);
@@ -189,7 +191,7 @@ export default function DoseCard({
     <View style={{ position: 'relative', marginBottom: 8 }}>
       {/* 스와이프 뒤에 보이는 미루기 힌트 */}
       {isSnoozeable && (
-        <View style={styles.swipeHint}>
+        <View style={[styles.swipeHint, { backgroundColor: theme.primary }]}>
           <Text style={{ color: '#fff', fontSize: 13 }}>미루기 →</Text>
         </View>
       )}
@@ -218,11 +220,8 @@ export default function DoseCard({
             {displayState === 'waiting' && (
               <Text style={styles.hintGray}>{start}부터 복용 가능</Text>
             )}
-            {displayState === 'active' && (
-              <Text style={styles.hintGray}>{end}까지 늦은 복용 가능</Text>
-            )}
-            {displayState === 'late' && (
-              <Text style={styles.hintOrange}>{end}까지 복용 가능</Text>
+            {(displayState === 'active' || displayState === 'late') && (
+              <Text style={styles.hintGray}>{end}까지 복용 가능</Text>
             )}
           </View>
         </View>
@@ -252,21 +251,15 @@ export default function DoseCard({
             </TouchableOpacity>
           )}
 
-          {/* 복용 / 늦은복용 버튼 — active·late 상태에서만 표시 */}
           {isTakeable && (
             <TouchableOpacity
               testID={`btn-take-${event.id}`}
               onPress={handleTakePress}
               accessibilityRole="button"
-              accessibilityLabel={displayState === 'late' ? `${medicationName} 늦은 복용` : `${medicationName} 복용`}
-              style={[
-                styles.actionBtn,
-                { backgroundColor: displayState === 'late' ? '#f97316' : '#3b82f6' },
-              ]}
+              accessibilityLabel={`${medicationName} 복용`}
+              style={[styles.actionBtn, { backgroundColor: theme.primary }]}
             >
-              <Text style={[styles.actionTxt, { color: '#ffffff' }]}>
-                {displayState === 'late' ? '늦은 복용' : '복용'}
-              </Text>
+              <Text style={[styles.actionTxt, { color: '#ffffff' }]}>복용</Text>
             </TouchableOpacity>
           )}
 
@@ -362,7 +355,7 @@ export default function DoseCard({
                   </TouchableOpacity>
                   <TouchableOpacity
                     testID="btn-save-memo"
-                    style={styles.saveBtn}
+                    style={[styles.saveBtn, { backgroundColor: theme.primary }]}
                     onPress={() => {
                       onAfterTake(event.id, memo.trim(), localPhoto ?? undefined);
                       setShowMemoSheet(false);
@@ -424,8 +417,7 @@ const styles = StyleSheet.create({
   time:    { fontSize: 16, fontWeight: '600', color: '#374151', width: 44 },
   nameCol: { flex: 1, marginLeft: 10, justifyContent: 'center' },
   name:    { fontSize: 16, color: '#111827' },
-  hintGray:   { fontSize: 11, color: '#9ca3af', marginTop: 2 },
-  hintOrange: { fontSize: 11, color: '#f97316', marginTop: 2, fontWeight: '500' },
+  hintGray: { fontSize: 11, color: '#9ca3af', marginTop: 2 },
   skipActionBtn: {
     marginRight: 8,
     paddingVertical: 8,

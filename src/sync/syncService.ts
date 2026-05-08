@@ -1,7 +1,7 @@
 import { Medication, Schedule, DoseEvent } from '../domain';
-import { getAllMedications } from '../db/medications';
-import { getAllSchedules } from '../db/schedules';
-import { getDoseEventsByDateRange } from '../db/doseEvents';
+import { getAllMedications, upsertMedication } from '../db/medications';
+import { getAllSchedules, upsertSchedule } from '../db/schedules';
+import { getDoseEventsByDateRange, upsertDoseEvent } from '../db/doseEvents';
 import { api } from '../features/careCircle/careCircleApi';
 import { useAuthStore } from '../store/authStore';
 import { useMedicationStore } from '../store/medicationStore';
@@ -51,9 +51,23 @@ export async function pushDoseEvent(event: DoseEvent): Promise<void> {
 }
 
 /**
- * 오늘 복용 기록을 자신이 소유한 모든 보호 그룹에 스냅샷으로 업로드한다.
- * 보호자의 CareMonitorScreen이 이 데이터를 표시한다.
+ * 서버에서 데이터를 풀다운하여 로컬 SQLite에 upsert합니다.
+ * 기기 교체·재설치 후 로그인 시 호출하면 서버 데이터가 복원됩니다.
  */
+export async function pullFromServer(userId: string): Promise<void> {
+  const { data } = await api.get<{
+    medications: Medication[];
+    schedules:   Schedule[];
+    doseEvents:  DoseEventPayload[];
+  }>('/sync/pull');
+
+  await Promise.all([
+    ...data.medications.map((m) => upsertMedication(m, userId)),
+    ...data.schedules.map((s)   => upsertSchedule(s, userId)),
+    ...data.doseEvents.map((e)  => upsertDoseEvent(e, userId)),
+  ]);
+}
+
 export async function uploadTodaySnapshot(
   userId: string,
   todayEvents: DoseEvent[],

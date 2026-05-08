@@ -122,6 +122,36 @@ export async function markOverdueEventsMissed(cutoffIso: string): Promise<void> 
   );
 }
 
+export async function upsertDoseEvent(
+  event: Omit<DoseEvent, 'photoPath'>,
+  userId: string,
+): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(
+    `INSERT INTO dose_events
+       (id, schedule_id, medication_id, planned_at, status, taken_at, snooze_count, source, note, user_id, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET
+       status       = excluded.status,
+       taken_at     = excluded.taken_at,
+       snooze_count = excluded.snooze_count,
+       note         = excluded.note,
+       updated_at   = excluded.updated_at`,
+    event.id,
+    event.scheduleId,
+    event.medicationId,
+    event.plannedAt,
+    event.status,
+    event.takenAt ?? null,
+    event.snoozeCount,
+    event.source,
+    event.note ?? null,
+    userId,
+    event.createdAt,
+    event.updatedAt,
+  );
+}
+
 export async function deleteFutureDoseEvents(scheduleId: string): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(

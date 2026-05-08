@@ -82,14 +82,17 @@ export async function awardDoseTaken(
     return null;
   }
 
-  const today = new Date().toISOString().slice(0, 10);
+  const localNow      = new Date();
+  const localMidnight = new Date(localNow.getFullYear(), localNow.getMonth(), localNow.getDate(), 0, 0, 0, 0);
+  const nextMidnight  = new Date(localMidnight.getTime() + 24 * 60 * 60_000);
   const daily = await db.getFirstAsync<{ cnt: number }>(
-    `SELECT COUNT(*) as cnt FROM point_ledger WHERE user_id = ? AND reason = 'dose_taken' AND date(created_at) = ?`,
+    `SELECT COUNT(*) as cnt FROM point_ledger WHERE user_id = ? AND reason = 'dose_taken' AND created_at >= ? AND created_at < ?`,
     userId,
-    today,
+    localMidnight.toISOString(),
+    nextMidnight.toISOString(),
   );
   const dailyCnt = daily?.cnt ?? 0;
-  console.log('[awardDoseTaken] daily count', { dailyCnt, today });
+  console.log('[awardDoseTaken] daily count', { dailyCnt, localMidnight: localMidnight.toISOString() });
   if (dailyCnt >= 5) {
     console.log('[awardDoseTaken] SKIP: daily limit reached');
     return null;

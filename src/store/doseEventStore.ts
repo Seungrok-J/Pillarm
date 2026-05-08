@@ -24,7 +24,7 @@ interface DoseEventState {
   error: string | null;
   fetchTodayEvents: (dateStr: string) => Promise<void>;
   fetchByDateRange: (startIso: string, endIso: string) => Promise<DoseEvent[]>;
-  markTaken: (id: string) => Promise<void>;
+  markTaken: (id: string) => Promise<{ streakAwarded: boolean; pointsAwarded: boolean }>;
   markSkipped: (id: string) => Promise<void>;
   /** snoozeCount를 1 증가시키고 plannedAt을 snoozeMinutes 후로 업데이트합니다. 3회 고정 초과 시 false 반환. */
   snooze: (id: string, snoozeMinutes: number) => Promise<boolean>;
@@ -73,16 +73,25 @@ export const useDoseEventStore = create<DoseEventState>((set, get) => ({
       await updateDoseEventStatus(id, 'taken', now);
       // 복용 완료 시 예약된 알림 취소
       cancelNotificationForDoseEvent(id).catch(() => {});
-      // 포인트 적립 후 fetchBalance가 최신값을 읽도록 await 처리
+      let streakAwarded = false;
+      let pointsAwarded = false;
       if (event) {
         const graceMinutes = useSettingsStore.getState().settings?.missedToLateMinutes ?? 120;
         const takenEvent: DoseEvent = { ...event, status: 'taken', takenAt: now };
         const uid = currentUserId();
         console.log('[markTaken] awarding points', { eventId: id, uid, plannedAt: event.plannedAt, takenAt: now, graceMinutes });
+        let pointsEntry: Awaited<ReturnType<typeof awardDoseTaken>> = null;
+        let streakEntry: { delta: number } | null = null;
         await Promise.all([
-          awardDoseTaken(takenEvent, graceMinutes, uid).catch((e) => console.error('[awardDoseTaken]', e)),
-          awardStreakBonus(uid).catch((e) => console.error('[awardStreakBonus]', e)),
+          awardDoseTaken(takenEvent, graceMinutes, uid)
+            .then((entry) => { pointsEntry = entry; })
+            .catch((e) => console.error('[awardDoseTaken]', e)),
+          awardStreakBonus(uid)
+            .then((entry) => { streakEntry = entry; })
+            .catch((e) => console.error('[awardStreakBonus]', e)),
         ]);
+        streakAwarded = streakEntry !== null;
+        pointsAwarded = pointsEntry !== null;
         // 포인트 적립 후 잔액 UI 즉시 갱신
         await usePointStore.getState().fetchBalance();
       }
@@ -92,6 +101,7 @@ export const useDoseEventStore = create<DoseEventState>((set, get) => ({
         if (updated) pushDoseEvent(updated).catch(() => {});
         uploadTodaySnapshot(currentUserId(), allEvents).catch(() => {});
       }
+      return { streakAwarded, pointsAwarded };
     } catch (e) {
       set({ todayEvents: prev, error: (e as Error).message });
       throw e;

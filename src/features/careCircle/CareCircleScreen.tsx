@@ -32,71 +32,6 @@ function memberDisplayName(m: ApiCareMember): string {
   return m.memberUserId.slice(0, 8);
 }
 
-// ── 별칭 편집 모달 ─────────────────────────────────────────────────────────────
-
-interface NicknameModalProps {
-  visible:         boolean;
-  currentNickname: string;
-  displayName:     string;
-  onConfirm:       (nickname: string) => void;
-  onClose:         () => void;
-}
-
-function NicknameModal({ visible, currentNickname, displayName, onConfirm, onClose }: NicknameModalProps) {
-  const [value, setValue] = useState(currentNickname);
-
-  useEffect(() => {
-    if (visible) setValue(currentNickname);
-  }, [visible, currentNickname]);
-
-  return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={nmStyles.overlay}>
-        <View style={nmStyles.sheet}>
-          <Text style={nmStyles.title}>별칭 수정</Text>
-          <Text style={nmStyles.sub}>{displayName}에게 부를 별칭을 입력하세요</Text>
-          <TextInput
-            style={nmStyles.input}
-            value={value}
-            onChangeText={setValue}
-            placeholder="예: 엄마, 할머니"
-            placeholderTextColor="#9ca3af"
-            autoFocus
-            maxLength={20}
-            returnKeyType="done"
-            onSubmitEditing={() => onConfirm(value)}
-          />
-          <View style={nmStyles.btns}>
-            <TouchableOpacity style={nmStyles.cancelBtn} onPress={onClose}>
-              <Text style={nmStyles.cancelTxt}>취소</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={nmStyles.confirmBtn} onPress={() => onConfirm(value)}>
-              <Text style={nmStyles.confirmTxt}>저장</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
-}
-
-const nmStyles = StyleSheet.create({
-  overlay:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  sheet:      { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 28 },
-  title:      { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 4 },
-  sub:        { fontSize: 13, color: '#6b7280', marginBottom: 16 },
-  input: {
-    borderWidth: 1, borderColor: '#d1d5db', borderRadius: 12,
-    paddingHorizontal: 16, paddingVertical: 12, fontSize: 16, color: '#111827',
-    backgroundColor: '#f9fafb', marginBottom: 16,
-  },
-  btns:       { flexDirection: 'row', gap: 10 },
-  cancelBtn:  { flex: 1, backgroundColor: '#f3f4f6', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
-  cancelTxt:  { color: '#374151', fontWeight: '600' },
-  confirmBtn: { flex: 1, backgroundColor: '#3b82f6', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
-  confirmTxt: { color: '#fff', fontWeight: '700' },
-});
-
 // ── 초대 모달 ──────────────────────────────────────────────────────────────────
 
 interface InviteModalProps {
@@ -169,8 +104,8 @@ export default function CareCircleScreen() {
   const [newName,        setNewName]        = useState('');
   const [creating,       setCreating]       = useState(false);
 
-  // 별칭 편집 모달
-  const [nicknameTarget, setNicknameTarget] = useState<{ circleId: string; member: ApiCareMember } | null>(null);
+  // 인라인 별칭 편집
+  const [editingNickname, setEditingNickname] = useState<{ circleId: string; memberId: string; value: string } | null>(null);
 
   const loadCircles = useCallback(async () => {
     try {
@@ -262,15 +197,15 @@ export default function CareCircleScreen() {
 
   // ── 별칭 저장 ──────────────────────────────────────────────────────────────
 
-  async function handleSaveNickname(nickname: string) {
-    if (!nicknameTarget) return;
+  async function handleSaveNickname() {
+    if (!editingNickname) return;
     try {
-      await updateMemberNickname(nicknameTarget.circleId, nicknameTarget.member.id, nickname);
+      await updateMemberNickname(editingNickname.circleId, editingNickname.memberId, editingNickname.value);
       await loadCircles();
     } catch {
       Alert.alert('오류', '별칭 저장에 실패했습니다');
     } finally {
-      setNicknameTarget(null);
+      setEditingNickname(null);
     }
   }
 
@@ -347,9 +282,50 @@ export default function CareCircleScreen() {
   // ── 렌더: 멤버 행 ──────────────────────────────────────────────────────────
 
   function renderMemberRow(member: ApiCareMember, circleId: string) {
-    const display = memberDisplayName(member);
+    const isEditing = editingNickname?.memberId === member.id;
+    const display   = memberDisplayName(member);
     const hasNickname = !!member.nickname;
-    const realName = member.memberUserName ?? member.memberUserEmail ?? '';
+    const realName  = member.memberUserName ?? member.memberUserEmail ?? '';
+
+    if (isEditing) {
+      return (
+        <View key={member.id} testID={`member-${member.id}`} style={styles.memberRow}>
+          <View style={styles.memberIcon}>
+            <Text style={styles.memberIconText}>👤</Text>
+          </View>
+          <View style={styles.memberEditArea}>
+            <TextInput
+              testID={`input-nickname-${member.id}`}
+              style={styles.nicknameInput}
+              value={editingNickname!.value}
+              onChangeText={(t) => setEditingNickname((prev) => prev && { ...prev, value: t })}
+              placeholder="예: 엄마, 할머니"
+              placeholderTextColor="#9ca3af"
+              autoFocus
+              maxLength={20}
+              returnKeyType="done"
+              onSubmitEditing={handleSaveNickname}
+            />
+            <View style={styles.nicknameEditBtns}>
+              <TouchableOpacity
+                testID={`btn-nickname-save-${member.id}`}
+                style={styles.nicknameSaveBtn}
+                onPress={handleSaveNickname}
+              >
+                <Text style={styles.nicknameSaveTxt}>저장</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.nicknameCancelBtn}
+                onPress={() => setEditingNickname(null)}
+              >
+                <Text style={styles.nicknameCancelTxt}>취소</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      );
+    }
+
     return (
       <View key={member.id} testID={`member-${member.id}`} style={styles.memberRow}>
         <View style={styles.memberIcon}>
@@ -366,7 +342,7 @@ export default function CareCircleScreen() {
           <TouchableOpacity
             testID={`btn-nickname-${member.id}`}
             style={styles.memberActionBtn}
-            onPress={() => setNicknameTarget({ circleId, member })}
+            onPress={() => setEditingNickname({ circleId, memberId: member.id, value: member.nickname ?? '' })}
             accessibilityLabel="별칭 수정"
           >
             <Text style={styles.memberActionTxt}>별칭</Text>
@@ -513,14 +489,6 @@ export default function CareCircleScreen() {
         code={inviteCode}
         onClose={() => { setInviteVisible(false); setInviteCode(null); }}
       />
-
-      <NicknameModal
-        visible={!!nicknameTarget}
-        currentNickname={nicknameTarget?.member.nickname ?? ''}
-        displayName={nicknameTarget ? memberDisplayName(nicknameTarget.member) : ''}
-        onConfirm={handleSaveNickname}
-        onClose={() => setNicknameTarget(null)}
-      />
     </ScrollView>
   );
 }
@@ -569,6 +537,18 @@ const styles = StyleSheet.create({
   memberActionDanger: { backgroundColor: '#fef2f2' },
   memberActionTxt:    { fontSize: 12, fontWeight: '600', color: '#374151' },
   memberActionDangerTxt: { color: '#ef4444' },
+
+  memberEditArea:   { flex: 1 },
+  nicknameInput: {
+    borderWidth: 1, borderColor: '#3b82f6', borderRadius: 8,
+    paddingHorizontal: 10, paddingVertical: 6, fontSize: 14, color: '#111827',
+    backgroundColor: '#f9fafb',
+  },
+  nicknameEditBtns:  { flexDirection: 'row', gap: 6, marginTop: 6 },
+  nicknameSaveBtn:   { flex: 1, backgroundColor: '#3b82f6', borderRadius: 8, paddingVertical: 6, alignItems: 'center' },
+  nicknameSaveTxt:   { fontSize: 12, fontWeight: '700', color: '#fff' },
+  nicknameCancelBtn: { flex: 1, backgroundColor: '#f3f4f6', borderRadius: 8, paddingVertical: 6, alignItems: 'center' },
+  nicknameCancelTxt: { fontSize: 12, fontWeight: '600', color: '#374151' },
 
   emptyMembers: { fontSize: 14, color: '#9ca3af', textAlign: 'center', paddingVertical: 8 },
 

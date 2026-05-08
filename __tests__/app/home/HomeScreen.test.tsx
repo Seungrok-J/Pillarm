@@ -38,6 +38,11 @@ jest.mock('../../../src/db', () => ({
   markOverdueEventsMissed: jest.fn().mockResolvedValue(undefined),
   markScheduledEventsLate: jest.fn().mockResolvedValue(undefined),
   updateDoseEventMemo: jest.fn().mockResolvedValue(undefined),
+  getDatabase: jest.fn().mockResolvedValue({
+    getFirstAsync: jest.fn().mockResolvedValue(null),
+    getAllAsync: jest.fn().mockResolvedValue([]),
+    runAsync: jest.fn().mockResolvedValue(undefined),
+  }),
 }));
 
 jest.mock('../../../src/notifications', () => ({
@@ -51,11 +56,24 @@ jest.mock('../../../src/notifications/scheduler', () => ({
   rescheduleSnooze: jest.fn().mockResolvedValue(undefined),
 }));
 
+jest.mock('../../../src/features/points/pointEngine', () => ({
+  awardDoseTaken:  jest.fn().mockResolvedValue(null),
+  awardStreakBonus: jest.fn().mockResolvedValue(null),
+  awardPerfectWeek: jest.fn().mockResolvedValue(null),
+}));
+
 jest.mock('../../../src/utils', () => ({
   todayString: () => '2026-04-22',
   generateId: () => 'test-id',
   addMinutes: (d: Date, m: number) => new Date(d.getTime() + m * 60_000),
   toDateString: (d: Date) => d.toISOString().slice(0, 10),
+  toLocalISOString: (d: Date) => {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return (
+      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
+      `T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+    );
+  },
 }));
 
 // ── Imports after mocks ───────────────────────────────────────────────────────
@@ -63,6 +81,7 @@ jest.mock('../../../src/utils', () => ({
 import * as reactNavigation from '@react-navigation/native';
 import * as db from '../../../src/db';
 import * as notifications from '../../../src/notifications';
+import * as pointEngine from '../../../src/features/points/pointEngine';
 import {
   useDoseEventStore,
   useMedicationStore,
@@ -80,6 +99,7 @@ const mockGetDoseEventsByDate = db.getDoseEventsByDate as jest.Mock;
 const mockUpdateDoseEventStatus = db.updateDoseEventStatus as jest.Mock;
 const mockUpdateDoseEventSnooze = db.updateDoseEventSnooze as jest.Mock;
 const mockGetAllMedications = db.getAllMedications as jest.Mock;
+const mockAwardStreakBonus = pointEngine.awardStreakBonus as jest.Mock;
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -102,12 +122,22 @@ const MEDICATION: Medication = {
   updatedAt: '2026-04-22T00:00:00Z',
 };
 
+// plannedAt 을 30분 후로 설정하여 항상 'active' 상태로 만듭니다.
+function makePlannedAt(offsetMs = 30 * 60_000): string {
+  const d = new Date(Date.now() + offsetMs);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return (
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
+    `T${pad(d.getHours())}:${pad(d.getMinutes())}:00`
+  );
+}
+
 function makeEvent(overrides: Partial<DoseEvent> = {}): DoseEvent {
   return {
     id: 'evt-1',
     scheduleId: 'sched-1',
     medicationId: 'med-1',
-    plannedAt: '2026-04-22T08:00:00',
+    plannedAt: makePlannedAt(),
     status: 'scheduled',
     snoozeCount: 0,
     source: 'notification',
@@ -261,7 +291,8 @@ describe('AC2 — 복용 버튼 낙관적 업데이트', () => {
 
 describe('AC3 — 미루기 후 알림 재발송', () => {
   it('미루기 버튼 탭 시 rescheduleSnooze 가 호출된다', async () => {
-    mockGetDoseEventsByDate.mockResolvedValue([makeEvent({ status: 'late' })]);
+    // displayState = 'late' 가 되려면 plannedAt이 과거여야 한다 (grace 이내)
+    mockGetDoseEventsByDate.mockResolvedValue([makeEvent({ plannedAt: makePlannedAt(-30 * 60_000) })]);
     const { getByTestId } = render(<HomeScreen />);
     await waitForEvent(getByTestId);
 
@@ -277,7 +308,7 @@ describe('AC3 — 미루기 후 알림 재발송', () => {
   });
 
   it('rescheduleSnooze 에 defaultSnoozeMinutes(15) 가 전달된다', async () => {
-    mockGetDoseEventsByDate.mockResolvedValue([makeEvent({ status: 'late' })]);
+    mockGetDoseEventsByDate.mockResolvedValue([makeEvent({ plannedAt: makePlannedAt(-30 * 60_000) })]);
     const { getByTestId } = render(<HomeScreen />);
     await waitForEvent(getByTestId);
 
@@ -289,7 +320,9 @@ describe('AC3 — 미루기 후 알림 재발송', () => {
   });
 
   it('snoozeCount 가 maxSnoozeCount 이상이면 미루기 버튼이 없다', async () => {
-    mockGetDoseEventsByDate.mockResolvedValue([makeEvent({ status: 'late', snoozeCount: 3 })]);
+    mockGetDoseEventsByDate.mockResolvedValue([
+      makeEvent({ plannedAt: makePlannedAt(-30 * 60_000), snoozeCount: 3 }),
+    ]);
 
     const { queryByTestId } = render(<HomeScreen />);
 
@@ -298,7 +331,7 @@ describe('AC3 — 미루기 후 알림 재발송', () => {
   });
 
   it('미루기 후 updateDoseEventSnooze 가 호출된다', async () => {
-    mockGetDoseEventsByDate.mockResolvedValue([makeEvent({ status: 'late' })]);
+    mockGetDoseEventsByDate.mockResolvedValue([makeEvent({ plannedAt: makePlannedAt(-30 * 60_000) })]);
     const { getByTestId } = render(<HomeScreen />);
     await waitForEvent(getByTestId);
 
@@ -410,5 +443,58 @@ describe('FAB', () => {
     fireEvent.press(getByTestId('btn-fab'));
 
     expect(mockNavigate).toHaveBeenCalledWith('ScheduleNew');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AC5 — 7일 연속 달성 모달
+// ═══════════════════════════════════════════════════════════════════════════════
+
+describe('AC5 — 7일 연속 달성 모달', () => {
+  it('awardStreakBonus 가 non-null 반환 시 축하 모달이 표시된다', async () => {
+    mockAwardStreakBonus.mockResolvedValueOnce({
+      id: 'entry-streak', userId: 'local', reason: 'streak_7days',
+      delta: 50, balance: 110, createdAt: '2026-05-08T09:00:00',
+    });
+
+    const { getByTestId, queryByTestId } = render(<HomeScreen />);
+    await waitForEvent(getByTestId);
+
+    expect(queryByTestId('btn-streak-confirm')).toBeNull();
+
+    fireEvent.press(getByTestId('btn-take-evt-1'));
+
+    await waitFor(() => expect(getByTestId('btn-streak-confirm')).toBeTruthy());
+  });
+
+  it('awardStreakBonus 가 null 반환 시 모달이 표시되지 않는다', async () => {
+    mockAwardStreakBonus.mockResolvedValueOnce(null);
+
+    const { getByTestId, queryByTestId } = render(<HomeScreen />);
+    await waitForEvent(getByTestId);
+
+    fireEvent.press(getByTestId('btn-take-evt-1'));
+
+    await waitFor(() =>
+      expect(useDoseEventStore.getState().todayEvents[0]?.status).toBe('taken'),
+    );
+    expect(queryByTestId('btn-streak-confirm')).toBeNull();
+  });
+
+  it('확인 버튼 탭 시 모달이 닫힌다', async () => {
+    mockAwardStreakBonus.mockResolvedValueOnce({
+      id: 'entry-streak', userId: 'local', reason: 'streak_7days',
+      delta: 50, balance: 110, createdAt: '2026-05-08T09:00:00',
+    });
+
+    const { getByTestId, queryByTestId } = render(<HomeScreen />);
+    await waitForEvent(getByTestId);
+
+    fireEvent.press(getByTestId('btn-take-evt-1'));
+    await waitFor(() => expect(getByTestId('btn-streak-confirm')).toBeTruthy());
+
+    fireEvent.press(getByTestId('btn-streak-confirm'));
+
+    await waitFor(() => expect(queryByTestId('btn-streak-confirm')).toBeNull());
   });
 });

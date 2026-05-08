@@ -23,6 +23,7 @@ import {
   usePointStore,
 } from '../../store';
 import { useAuthStore } from '../../store/authStore';
+import { useThemeStore } from '../../store/themeStore';
 import { isSyncEnabled, uploadTodaySnapshot } from '../../sync/syncService';
 import { rescheduleSnooze } from '../../notifications';
 import { updateDoseEventMemo } from '../../db';
@@ -56,11 +57,13 @@ export default function HomeScreen() {
   const settings = useSettingsStore((s) => s.settings) ?? FALLBACK_SETTINGS;
   const { balance, streak, fetchBalance } = usePointStore();
   const { userId } = useAuthStore();
+  const theme = useThemeStore((s) => s.activeTheme);
 
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
-  const [showPointsInfo, setShowPointsInfo] = useState(false);
-  const [refreshing,     setRefreshing]     = useState(false);
-  const [now,            setNow]            = useState(() => new Date());
+  const [showPointsInfo,  setShowPointsInfo]  = useState(false);
+  const [showStreakModal, setShowStreakModal] = useState(false);
+  const [refreshing,      setRefreshing]      = useState(false);
+  const [now,             setNow]             = useState(() => new Date());
 
   // 버튼 활성/비활성 상태가 분 단위로 바뀌므로 1분마다 갱신
   useEffect(() => {
@@ -81,8 +84,10 @@ export default function HomeScreen() {
   // ── 토스트 애니메이션 ───────────────────────────────────────────────────
   const toastOpacity = useRef(new Animated.Value(0)).current;
   const toastTranslateY = useRef(new Animated.Value(20)).current;
+  const [toastMessage, setToastMessage] = useState('+10 포인트! 🎉');
 
-  function triggerToast() {
+  function triggerToast(message: string) {
+    setToastMessage(message);
     toastOpacity.setValue(0);
     toastTranslateY.setValue(20);
     Animated.sequence([
@@ -150,9 +155,10 @@ export default function HomeScreen() {
   // ── 액션 ───────────────────────────────────────────────────────────────
   async function handleTake(id: string) {
     try {
-      await markTaken(id);
-      triggerToast();
+      const { streakAwarded, pointsAwarded } = await markTaken(id);
+      triggerToast(pointsAwarded ? '+10 포인트! 🎉' : '오늘 포인트 한도를 채웠어요 💊');
       await fetchBalance();
+      if (streakAwarded) setShowStreakModal(true);
     } catch {
       // 낙관적 업데이트 롤백은 store 에서 처리됨
     }
@@ -229,7 +235,7 @@ export default function HomeScreen() {
                   <Text style={styles.badgeText}>🔥 {streak}일</Text>
                 </View>
               )}
-              <View style={styles.balanceBadge}>
+              <View style={[styles.balanceBadge, { backgroundColor: theme.primaryLight }]}>
                 <Text style={styles.badgeText}>⭐ {balance.toLocaleString()}P</Text>
               </View>
             </TouchableOpacity>
@@ -313,7 +319,7 @@ export default function HomeScreen() {
                 <Text style={styles.piLabel}>복용 완료</Text>
                 <Text style={styles.piDesc}>예정 시간에 맞춰 복용하면 적립</Text>
               </View>
-              <Text style={styles.piPoints}>+10P</Text>
+              <Text style={[styles.piPoints, { color: theme.primary }]}>+10P</Text>
             </View>
             <View style={styles.piDivider} />
             <View style={styles.piRow}>
@@ -322,7 +328,7 @@ export default function HomeScreen() {
                 <Text style={styles.piLabel}>연속 7일 달성</Text>
                 <Text style={styles.piDesc}>7일마다 보너스 적립</Text>
               </View>
-              <Text style={styles.piPoints}>+50P</Text>
+              <Text style={[styles.piPoints, { color: theme.primary }]}>+50P</Text>
             </View>
             <View style={styles.piDivider} />
             <View style={styles.piRow}>
@@ -331,12 +337,40 @@ export default function HomeScreen() {
                 <Text style={styles.piLabel}>이번 주 누락 0건</Text>
                 <Text style={styles.piDesc}>한 주 동안 빠짐없이 복용하면 적립</Text>
               </View>
-              <Text style={styles.piPoints}>+30P</Text>
+              <Text style={[styles.piPoints, { color: theme.primary }]}>+30P</Text>
             </View>
             <View style={styles.piCurrentRow}>
               <Text style={styles.piCurrentLabel}>현재 보유</Text>
               <Text style={styles.piCurrentValue}>⭐ {balance.toLocaleString()}P</Text>
             </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* 연속 7일 달성 축하 모달 */}
+      <Modal
+        testID="modal-streak"
+        visible={showStreakModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowStreakModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.piOverlay}
+          activeOpacity={1}
+          onPress={() => setShowStreakModal(false)}
+        >
+          <TouchableOpacity activeOpacity={1} style={styles.piCard}>
+            <Text style={styles.streakTitle}>🔥 7일 연속 달성!</Text>
+            <Text style={styles.streakDesc}>꾸준한 복용 습관을 만들고 있어요.</Text>
+            <Text style={[styles.streakPoints, { color: theme.primary }]}>+50 포인트 적립!</Text>
+            <TouchableOpacity
+              testID="btn-streak-confirm"
+              style={[styles.streakBtn, { backgroundColor: theme.primary }]}
+              onPress={() => setShowStreakModal(false)}
+            >
+              <Text style={styles.streakBtnTxt}>확인</Text>
+            </TouchableOpacity>
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
@@ -347,7 +381,7 @@ export default function HomeScreen() {
         onPress={() => navigation.navigate('ScheduleNew')}
         accessibilityLabel="약 일정 추가"
         accessibilityRole="button"
-        style={styles.fab}
+        style={[styles.fab, { backgroundColor: theme.primary }]}
       >
         <Text style={styles.fabText}>＋</Text>
       </TouchableOpacity>
@@ -361,7 +395,7 @@ export default function HomeScreen() {
           { opacity: toastOpacity, transform: [{ translateY: toastTranslateY }] },
         ]}
       >
-        <Text style={styles.toastText}>+10 포인트! 🎉</Text>
+        <Text style={styles.toastText}>{toastMessage}</Text>
       </Animated.View>
     </View>
     </SafeAreaView>
@@ -473,4 +507,10 @@ const styles = StyleSheet.create({
   },
   piCurrentLabel: { fontSize: 14, color: '#6b7280' },
   piCurrentValue: { fontSize: 18, fontWeight: '700', color: '#111827' },
+
+  streakTitle:  { fontSize: 26, textAlign: 'center', marginBottom: 8 },
+  streakDesc:   { fontSize: 15, color: '#6b7280', textAlign: 'center', marginBottom: 6 },
+  streakPoints: { fontSize: 20, fontWeight: '700', textAlign: 'center', marginBottom: 24 },
+  streakBtn:    { borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  streakBtnTxt: { fontSize: 16, fontWeight: '700', color: '#fff' },
 });

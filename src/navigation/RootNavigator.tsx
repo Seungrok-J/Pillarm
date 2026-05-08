@@ -7,6 +7,7 @@ import * as ExpoLinking from 'expo-linking';
 import OnboardingScreen, { ONBOARDING_KEY } from '../app/onboarding/OnboardingScreen';
 import ScheduleStackNavigator from './ScheduleStackNavigator';
 import { useAuthStore } from '../store/authStore';
+import { useThemeStore } from '../store/themeStore';
 import type { RootStackParamList } from './types';
 import { syncPushToken } from '../notifications/pushToken';
 
@@ -21,12 +22,14 @@ const linking: LinkingOptions<RootStackParamList> = {
 
 export default function RootNavigator() {
   const { loadSession } = useAuthStore();
+  const loadTheme = useThemeStore((s) => s.loadTheme);
   const [onboardingDone, setOnboardingDone] = React.useState<boolean | null>(null);
 
   useEffect(() => {
     Promise.all([
       AsyncStorage.getItem(ONBOARDING_KEY),
       loadSession(),
+      loadTheme(),
     ]).then(([value]) => {
       setOnboardingDone(value === 'true');
       SplashScreen.hideAsync().catch(() => {});

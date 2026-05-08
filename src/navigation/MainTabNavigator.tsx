@@ -7,6 +7,7 @@ import HistoryScreen from '../app/history/HistoryScreen';
 import StatsScreen from '../app/stats/StatsScreen';
 import SettingsScreen from '../app/settings/SettingsScreen';
 import PointHistoryScreen from '../features/points/PointHistoryScreen';
+import { useThemeStore } from '../store/themeStore';
 
 const Tab = createBottomTabNavigator<BottomTabParamList>();
 
@@ -21,11 +22,13 @@ const ICONS: Record<keyof BottomTabParamList, { on: IconName; off: IconName }> =
 };
 
 export default function MainTabNavigator() {
+  const primary = useThemeStore((s) => s.activeTheme.primary);
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarActiveTintColor: '#3b82f6',
+        tabBarActiveTintColor: primary,
         tabBarInactiveTintColor: '#9ca3af',
         tabBarStyle: { borderTopColor: '#f3f4f6' },
         tabBarIcon: ({ focused, color, size }) => {

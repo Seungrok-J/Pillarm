@@ -3,11 +3,18 @@ import { render, fireEvent } from '@testing-library/react-native';
 import DoseCard from './DoseCard';
 import { DoseEvent } from '../domain';
 
+// plannedAt 을 30분 후로 설정하여 'active' 상태로 만듭니다 (2시간 전 ~ 예정 시각).
+const FUTURE = new Date(Date.now() + 30 * 60_000);
+const pad = (n: number) => String(n).padStart(2, '0');
+const PLANNED_AT =
+  `${FUTURE.getFullYear()}-${pad(FUTURE.getMonth() + 1)}-${pad(FUTURE.getDate())}` +
+  `T${pad(FUTURE.getHours())}:${pad(FUTURE.getMinutes())}:00`;
+
 const mockEvent: DoseEvent = {
   id: 'evt-1',
   scheduleId: 'sched-1',
   medicationId: 'med-1',
-  plannedAt: '2026-04-22T08:00:00.000Z',
+  plannedAt: PLANNED_AT,
   status: 'scheduled',
   snoozeCount: 0,
   source: 'notification',

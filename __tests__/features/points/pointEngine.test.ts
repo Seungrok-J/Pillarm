@@ -15,6 +15,13 @@ jest.mock('../../../src/db', () => ({
 
 jest.mock('../../../src/utils', () => ({
   generateId: jest.fn(() => 'gen-id'),
+  toLocalISOString: (d: Date) => {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return (
+      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
+      `T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+    );
+  },
 }));
 
 jest.mock('../../../src/features/points/streakCalculator', () => ({
@@ -111,10 +118,10 @@ describe('awardDoseTaken', () => {
     expect(result).toBeNull();
   });
 
-  it('plannedAt - 30분 이전 → null (너무 이른 복용)', async () => {
-    // plannedAt 08:00 - 30min = 07:30 한계, takenAt 07:25
+  it('plannedAt - 2시간 이전 → null (너무 이른 복용)', async () => {
+    // plannedAt 08:00 - 2h = 06:00 한계, takenAt 05:55
     const result = await awardDoseTaken(
-      makeEvent({ takenAt: '2026-04-24T07:25:00' }),
+      makeEvent({ takenAt: '2026-04-24T05:55:00' }),
       120,
     );
     expect(result).toBeNull();
@@ -140,18 +147,46 @@ describe('awardDoseTaken', () => {
     expect(result!.balance).toBe(10);
   });
 
-  it('plannedAt - 30분 정확히 → 범위 포함 (경계값)', async () => {
-    // plannedAt 08:00, takenAt 07:30 (정확히 -30분)
+  it('plannedAt - 2시간 정확히 → 범위 포함 (경계값)', async () => {
+    // plannedAt 08:00, takenAt 06:00 (정확히 -2시간 경계)
     mockDb.getFirstAsync
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce({ cnt: 0 })
       .mockResolvedValueOnce({ balance: 0 });
 
     const result = await awardDoseTaken(
-      makeEvent({ takenAt: '2026-04-24T07:30:00' }),
+      makeEvent({ takenAt: '2026-04-24T06:00:00' }),
       120,
     );
     expect(result).not.toBeNull();
+  });
+
+  it('일일 5회 한도 초과 → null, INSERT 없음', async () => {
+    mockDb.getFirstAsync
+      .mockResolvedValueOnce(null)         // dup: 없음
+      .mockResolvedValueOnce({ cnt: 5 });  // daily 5회 이미 적립
+
+    const result = await awardDoseTaken(makeEvent(), 120);
+
+    expect(result).toBeNull();
+    expect(mockDb.runAsync).not.toHaveBeenCalled();
+  });
+
+  it('daily limit 쿼리가 로컬 자정 범위(UTC ISO)를 사용한다', async () => {
+    mockDb.getFirstAsync
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ cnt: 0 })
+      .mockResolvedValueOnce({ balance: 0 });
+
+    await awardDoseTaken(makeEvent(), 120);
+
+    // getFirstAsync 두 번째 호출(daily limit)에 UTC ISO 포맷의 범위 인자가 전달되어야 함
+    const calls = mockDb.getFirstAsync.mock.calls;
+    const dailyCall = calls[1] as unknown[];
+    expect(dailyCall[0]).toMatch(/created_at >= \? AND created_at < \?/);
+    // 세 번째와 네 번째 파라미터가 UTC ISO 포맷
+    expect(String(dailyCall[2])).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+    expect(String(dailyCall[3])).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
   });
 });
 

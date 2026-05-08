@@ -119,6 +119,9 @@ docker-compose exec server npm run db:migrate
 | `JWT_REFRESH_SECRET` | 필수 | Refresh token 서명 키 (access secret 과 다르게 설정) |
 | `PORT` | 선택 | 서버 포트 (기본: 3000) |
 | `NODE_ENV` | 선택 | `production` 으로 설정 시 스택 트레이스 미노출 |
+| `FIREBASE_PROJECT_ID` | 선택 | FCM 보호자 알림 활성화 시 필수 |
+| `FIREBASE_CLIENT_EMAIL` | 선택 | Firebase 서비스 계정 이메일 |
+| `FIREBASE_PRIVATE_KEY` | 선택 | Firebase 서비스 계정 프라이빗 키 (`\\n` 이스케이프 포함) |
 
 ### 서버 테스트
 
@@ -127,6 +130,28 @@ cd server
 npm test
 npm run test:coverage  # 목표: 70% 이상
 ```
+
+---
+
+## 주요 기능
+
+### Phase 1 — 오프라인 MVP
+- **복용 일정 등록** — 약 이름(식약처 API 자동완성), 복용 시간, 반복 주기, 식전/식후 설정
+- **복용 체크** — 예정 시간 2시간 전부터 graceMinutes(기본 2시간) 경과 전까지 복용 버튼 활성화, 탭 1회로 완료 처리
+- **알림** — expo-notifications 로컬 스케줄링, 조용한 시간대 정책, 스누즈
+- **기록·통계** — 주간/월별 복용률 차트, 누락 패턴 분석
+
+### Phase 2 — 확장
+- **포인트 리워드** — 복용 완료 +10P (일일 5회 한도), 7일 연속 +50P, 완벽한 주 +30P
+  - 일일 한도 초과 시 토스트 메시지 별도 안내
+  - 5종 테마(기본·민트·코랄·라벤더·선셋) 포인트로 구매
+- **복용 일정 관리**
+  - 종료된 일정은 기본 숨김 → "지난 일정 N건 보기" 토글로 확인
+  - 지난 일정 삭제 시 별도 확인 메시지 ("복용 기록은 유지됩니다")
+- **보호자 공유** — 6자리 코드/QR 초대, 오늘 복용 현황 실시간 확인, 누락 시 FCM 푸시 알림
+- **약 정보 DB 연동** — 식약처 e약은요 API 자동완성 (debounce 300ms), 오프라인 시 직접 입력 전환
+- **AI 코칭** — 최근 30일 누락 패턴 분석, 통계 화면 하단 코칭 메시지 + 스케줄 수정 Quick Fix
+- **기기 교체 데이터 복원** — 로그인 시 `GET /sync/pull`로 서버 데이터 자동 복원
 
 ---
 
@@ -159,6 +184,15 @@ export const API_BASE_URL = 'http://localhost:3000'; // 서버 주소로 변경
 Phase 1 기능(복용 등록, 알림, 체크, 통계)은 서버 없이 오프라인에서도 완전히 동작합니다.
 Phase 2 기능(보호자 공유, 약 정보 DB 연동)은 서버 연동 후 활성화됩니다.
 
+### 서버 백그라운드 서비스
+
+서버 기동 시 다음 서비스가 자동으로 시작됩니다:
+
+| 서비스 | 파일 | 동작 |
+|--------|------|------|
+| FCM 초기화 | `services/fcmService.ts` | Firebase Admin SDK 초기화 |
+| 누락 알림 발송 | `services/missedDoseNotifier.ts` | 5분마다 `status='missed'` 이벤트 탐지 → 보호자 FCM 푸시 발송 |
+
 ---
 
 ## 디렉터리 구조
@@ -173,16 +207,17 @@ pillarm/
 │   ├── features/      # 기능 모듈 (careCircle, medicationDB, points, aiCoaching)
 │   ├── navigation/    # React Navigation 설정
 │   ├── notifications/ # 알림 스케줄링
-│   ├── store/         # Zustand 스토어
+│   ├── store/         # Zustand 스토어 (themeStore 포함)
 │   └── utils/
 │       ├── date.ts        # toLocalISOString, todayString 등 날짜 유틸
 │       ├── doseDisplay.ts # DoseDisplayState·computeDisplayState (DoseCard·History 공유)
+│       ├── themeManager.ts # 5종 테마 정의·AsyncStorage 저장
 │       ├── statsCalculator.ts
 │       └── uuid.ts
 ├── server/            # Phase 2 백엔드 (Express + Prisma)
 │   ├── src/
 │   │   ├── routes/    # auth, careCircle, doseSync, sync
-│   │   ├── services/  # inviteService, fcmService
+│   │   ├── services/  # inviteService, fcmService, missedDoseNotifier
 │   │   ├── middleware/ # requireAuth, errorHandler
 │   │   └── lib/       # prisma, jwt
 │   └── prisma/
@@ -198,3 +233,4 @@ pillarm/
 - 모든 `/care-circles/*` 엔드포인트는 JWT 인증 필수
 - 보호자는 자신이 속한 서클의 데이터만 조회 가능 (비구성원 → 403)
 - **TODO**: `SharePolicy.allowedFields` 기반 필드 레벨 접근 제어 미구현 (현재 구성원이면 스냅샷 전체 필드 접근 가능)
+- 보호 그룹 삭제 후 보호자가 스냅샷 재조회 시 403 응답 → 클라이언트에서 "접근이 차단되었습니다" 안내

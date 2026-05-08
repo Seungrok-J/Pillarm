@@ -161,15 +161,19 @@ describe('markTaken', () => {
   });
 
   it('takenAt에 현재 시각(ISO8601)을 기록한다', async () => {
-    const before = new Date().toISOString();
+    const beforeMs = Date.now();
     useDoseEventStore.setState({ todayEvents: [makeEvent()] });
 
     await useDoseEventStore.getState().markTaken('evt-1');
 
     const takenAt = useDoseEventStore.getState().todayEvents[0]?.takenAt!;
-    const after = new Date().toISOString();
-    expect(takenAt >= before).toBe(true);
-    expect(takenAt <= after).toBe(true);
+    expect(takenAt).toBeDefined();
+    // 로컬 ISO 포맷 (YYYY-MM-DDTHH:mm:ss) 또는 UTC ISO 포맷 모두 허용
+    expect(takenAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+    const afterMs = Date.now();
+    const takenMs = new Date(takenAt).getTime();
+    expect(takenMs).toBeGreaterThanOrEqual(beforeMs - 1000);
+    expect(takenMs).toBeLessThanOrEqual(afterMs + 1000);
   });
 
   it('updateDoseEventStatus를 "taken"으로 호출한다', async () => {

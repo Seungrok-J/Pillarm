@@ -19,6 +19,10 @@ jest.mock('../../src/db', () => ({
   insertDoseEvent: jest.fn().mockResolvedValue(undefined),
   markOverdueEventsMissed: jest.fn().mockResolvedValue(undefined),
   markScheduledEventsLate: jest.fn().mockResolvedValue(undefined),
+  getDatabase: jest.fn().mockResolvedValue({
+    getFirstAsync: jest.fn().mockResolvedValue(null),
+    runAsync: jest.fn().mockResolvedValue(undefined),
+  }),
 }));
 
 // generateId 는 예측 가능한 값으로 대체합니다.

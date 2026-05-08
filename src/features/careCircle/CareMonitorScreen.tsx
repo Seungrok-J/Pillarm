@@ -27,7 +27,7 @@ interface SnapshotEvent {
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: string }> = {
   taken:     { label: '복용 완료', color: '#16a34a', bg: '#f0fdf4', icon: '✅' },
-  late:      { label: '늦게 복용', color: '#ca8a04', bg: '#fefce8', icon: '⏰' },
+  late:      { label: '복용 완료', color: '#16a34a', bg: '#f0fdf4', icon: '✅' },
   missed:    { label: '복용 누락', color: '#dc2626', bg: '#fef2f2', icon: '❌' },
   skipped:   { label: '건너뜀',   color: '#6b7280', bg: '#f9fafb', icon: '⏭️' },
   scheduled: { label: '예정',     color: '#3b82f6', bg: '#eff6ff', icon: '💊' },
@@ -101,6 +101,8 @@ export default function CareMonitorScreen() {
       if (status === 404) {
         setSnapshot(null);
         setLastSync(new Date());
+      } else if (status === 403) {
+        setError('보호 그룹 접근이 차단되었습니다.\n피보호자가 그룹을 해제했거나 멤버에서 삭제되었어요.');
       } else {
         setError('복용 현황을 불러오지 못했습니다');
       }

@@ -14,7 +14,7 @@ export type DoseDisplayState =
 export const DOSE_DISPLAY_LABEL: Record<DoseDisplayState, string> = {
   waiting:  '예정',
   active:   '복용 가능',
-  late:     '늦은 복용',
+  late:     '복용 가능',
   missed:   '누락',
   taken:    '완료',
   skipped:  '건너뜀',
@@ -23,7 +23,7 @@ export const DOSE_DISPLAY_LABEL: Record<DoseDisplayState, string> = {
 export const DOSE_DISPLAY_COLOR: Record<DoseDisplayState, string> = {
   waiting:  '#6b7280',
   active:   '#3b82f6',
-  late:     '#f97316',
+  late:     '#3b82f6',
   missed:   '#ef4444',
   taken:    '#16a34a',
   skipped:  '#9ca3af',

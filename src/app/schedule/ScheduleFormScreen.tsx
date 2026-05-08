@@ -262,6 +262,18 @@ export default function ScheduleFormScreen() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (name.trim() && name.trim().length <= 50) {
+      setErrors((prev) => prev.name ? { ...prev, name: undefined } : prev);
+    }
+  }, [name]);
+
+  useEffect(() => {
+    if (times.length > 0) {
+      setErrors((prev) => prev.times ? { ...prev, times: undefined } : prev);
+    }
+  }, [times]);
+
   function validate(): FormErrors {
     const errs: FormErrors = {};
     if (!name.trim()) {

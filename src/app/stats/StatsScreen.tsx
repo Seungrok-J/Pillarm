@@ -302,9 +302,6 @@ export default function StatsScreen() {
               <Text testID="txt-count-summary" style={st.ringInfoSub}>
                 완료 {stats.taken}건 / 전체 {stats.total}건
               </Text>
-              {stats.late > 0 && (
-                <Text style={st.ringInfoLate}>늦은 복용 {stats.late}회 포함</Text>
-              )}
               {tab === 'week' && stats.total > 0 && stats.missed === 0 && (
                 <Text testID="txt-perfect-week" style={st.perfectWeekTxt}>이번 주 완벽해요! 🏆</Text>
               )}
