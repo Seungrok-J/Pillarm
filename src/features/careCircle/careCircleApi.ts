@@ -3,16 +3,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthStore } from '../../store/authStore';
 
 // ── 설정 ──────────────────────────────────────────────────────────────────────
-// 실기기(Expo Go QR): 컴퓨터 로컬 IP (예: 192.168.0.x)
-// Android 에뮬레이터: 10.0.2.2
-// iOS 시뮬레이터: localhost
-const API_BASE_URL_MAP = {
-  emulator: 'http://10.0.2.2:3000',
-  device:   `http://${process.env.EXPO_PUBLIC_SERVER_IP ?? 'localhost'}:3000`,
-};
-export const API_BASE_URL = process.env.EXPO_PUBLIC_SERVER_IP
-  ? API_BASE_URL_MAP.device
-  : API_BASE_URL_MAP.emulator;
+// 우선순위: EXPO_PUBLIC_SERVER_URL(클라우드) > EXPO_PUBLIC_SERVER_IP(로컬 실기기) > 에뮬레이터
+export const API_BASE_URL =
+  process.env.EXPO_PUBLIC_SERVER_URL
+    ? process.env.EXPO_PUBLIC_SERVER_URL
+    : process.env.EXPO_PUBLIC_SERVER_IP
+      ? `http://${process.env.EXPO_PUBLIC_SERVER_IP}:3000`
+      : 'http://10.0.2.2:3000';
 
 const ACCESS_KEY  = '@pillarm/access_token';
 const REFRESH_KEY = '@pillarm/refresh_token';
