@@ -23,7 +23,8 @@ export default function MedicationSearchInput({
   const [results,  setResults]  = useState<MedicationSearchResult[]>([]);
   const [loading,  setLoading]  = useState(false);
   const [isOnline, setIsOnline] = useState(true);
-  const justSelectedRef = useRef(false);
+  const justSelectedRef    = useRef(false);
+  const pressingDropdownRef = useRef(false);
   const toastOpacity   = useRef(new Animated.Value(0)).current;
   const toastTranslateY = useRef(new Animated.Value(8)).current;
 
@@ -115,6 +116,12 @@ export default function MedicationSearchInput({
           style={styles.input}
           value={value}
           onChangeText={onChange}
+          onBlur={() => {
+            setTimeout(() => {
+              if (!pressingDropdownRef.current) setResults([]);
+              pressingDropdownRef.current = false;
+            }, 250);
+          }}
           placeholder={placeholder ?? '예: 이부프로펜'}
           placeholderTextColor="#9ca3af"
           maxLength={50}
@@ -148,6 +155,7 @@ export default function MedicationSearchInput({
               <TouchableOpacity
                 testID={`dropdown-item-${item.itemSeq}`}
                 style={styles.dropdownItem}
+                onPressIn={() => { pressingDropdownRef.current = true; }}
                 onPress={() => handleSelect(item)}
                 accessibilityRole="button"
               >
