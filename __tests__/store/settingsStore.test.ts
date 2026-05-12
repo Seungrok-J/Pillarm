@@ -28,6 +28,9 @@ const SETTINGS: UserSettings = {
   maxSnoozeCount: 3,
   missedToLateMinutes: 120,
   autoMarkMissedEnabled: true,
+  mealTimeBreakfast: '08:00',
+  mealTimeLunch: '12:00',
+  mealTimeDinner: '19:00',
 };
 
 beforeEach(() => {

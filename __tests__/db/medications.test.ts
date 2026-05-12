@@ -54,7 +54,7 @@ describe('medications DB', () => {
   describe('getAllMedications', () => {
     it('active 약 목록을 반환한다', async () => {
       db.getAllAsync.mockResolvedValue([BASE_ROW]);
-      const result = await getAllMedications();
+      const result = await getAllMedications('local');
       expect(result).toHaveLength(1);
       expect(result[0].id).toBe('med-1');
       expect(result[0].name).toBe('이부프로펜정');
@@ -62,18 +62,18 @@ describe('medications DB', () => {
     });
 
     it('약이 없으면 빈 배열 반환', async () => {
-      const result = await getAllMedications();
+      const result = await getAllMedications('local');
       expect(result).toEqual([]);
     });
 
     it('is_active=1 필터로 쿼리한다', async () => {
-      await getAllMedications();
+      await getAllMedications('local');
       expect(db.getAllAsync.mock.calls[0][0]).toContain('is_active = 1');
     });
 
     it('dosageValue/dosageUnit null 인 경우 falsy 값 반환', async () => {
       db.getAllAsync.mockResolvedValue([{ ...BASE_ROW, dosage_value: null, dosage_unit: null }]);
-      const [r] = await getAllMedications();
+      const [r] = await getAllMedications('local');
       expect(r.dosageValue).toBeFalsy();
       expect(r.dosageUnit).toBeFalsy();
     });
@@ -83,20 +83,20 @@ describe('medications DB', () => {
 
   describe('upsertMedication', () => {
     it('INSERT OR UPDATE 쿼리를 실행한다', async () => {
-      await upsertMedication(BASE_MED);
+      await upsertMedication(BASE_MED, 'local');
       expect(db.runAsync).toHaveBeenCalledTimes(1);
       expect(db.runAsync.mock.calls[0][0]).toContain('ON CONFLICT(id) DO UPDATE SET');
     });
 
     it('isActive=false 이면 0을 전달한다', async () => {
-      await upsertMedication({ ...BASE_MED, isActive: false });
+      await upsertMedication({ ...BASE_MED, isActive: false }, 'local');
       const params = db.runAsync.mock.calls[0];
       expect(params).toContain(0);
     });
 
     it('dosageValue/dosageUnit 없으면 null 전달', async () => {
       const med: Medication = { ...BASE_MED, dosageValue: undefined, dosageUnit: undefined };
-      await upsertMedication(med);
+      await upsertMedication(med, 'local');
       const params = db.runAsync.mock.calls[0];
       expect(params).toContain(null);
     });

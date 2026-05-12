@@ -46,7 +46,7 @@ router.post('/signup', async (req, res, next) => {
       data: { email, passwordHash, name, ...(fcmToken ? { fcmToken } : {}) },
     });
 
-    const payload = { userId: user.id, email: user.email };
+    const payload = { userId: user.id, email: user.email ?? '' };
     const accessToken = signAccess(payload);
     const refreshToken = signRefresh(payload);
 
@@ -75,7 +75,7 @@ router.post('/login', async (req, res, next) => {
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) throw new AppError('Invalid credentials', 401);
 
-    const payload = { userId: user.id, email: user.email };
+    const payload = { userId: user.id, email: user.email ?? '' };
     const accessToken = signAccess(payload);
     const refreshToken = signRefresh(payload);
 

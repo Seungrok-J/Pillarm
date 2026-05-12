@@ -92,7 +92,7 @@ describe('awardDoseTaken', () => {
       .mockResolvedValueOnce({ cnt: 0 })        // daily 횟수 check
       .mockResolvedValueOnce({ balance: 50 });  // 잔액
 
-    const result = await awardDoseTaken(makeEvent(), 120);
+    const result = await awardDoseTaken(makeEvent(), 120, 'local');
 
     expect(result).not.toBeNull();
     expect(result!.delta).toBe(10);
@@ -103,7 +103,7 @@ describe('awardDoseTaken', () => {
   });
 
   it('takenAt 없으면 null 반환, DB 호출 없음', async () => {
-    const result = await awardDoseTaken(makeEvent({ takenAt: undefined }), 120);
+    const result = await awardDoseTaken(makeEvent({ takenAt: undefined }), 120, 'local');
 
     expect(result).toBeNull();
     expect(mockDb.runAsync).not.toHaveBeenCalled();
@@ -114,6 +114,7 @@ describe('awardDoseTaken', () => {
     const result = await awardDoseTaken(
       makeEvent({ takenAt: '2026-04-24T10:00:00' }),
       60,
+      'local',
     );
     expect(result).toBeNull();
   });
@@ -123,6 +124,7 @@ describe('awardDoseTaken', () => {
     const result = await awardDoseTaken(
       makeEvent({ takenAt: '2026-04-24T05:55:00' }),
       120,
+      'local',
     );
     expect(result).toBeNull();
   });
@@ -130,7 +132,7 @@ describe('awardDoseTaken', () => {
   it('이미 적립된 이벤트 → null, INSERT 없음 (멱등성)', async () => {
     mockDb.getFirstAsync.mockResolvedValueOnce({ id: 'dup-entry' });
 
-    const result = await awardDoseTaken(makeEvent(), 120);
+    const result = await awardDoseTaken(makeEvent(), 120, 'local');
 
     expect(result).toBeNull();
     expect(mockDb.runAsync).not.toHaveBeenCalled();
@@ -142,7 +144,7 @@ describe('awardDoseTaken', () => {
       .mockResolvedValueOnce({ cnt: 0 })   // daily 횟수 check
       .mockResolvedValueOnce(null);        // balance: 없음(null) → 0
 
-    const result = await awardDoseTaken(makeEvent(), 120);
+    const result = await awardDoseTaken(makeEvent(), 120, 'local');
 
     expect(result!.balance).toBe(10);
   });
@@ -157,6 +159,7 @@ describe('awardDoseTaken', () => {
     const result = await awardDoseTaken(
       makeEvent({ takenAt: '2026-04-24T06:00:00' }),
       120,
+      'local',
     );
     expect(result).not.toBeNull();
   });
@@ -166,7 +169,7 @@ describe('awardDoseTaken', () => {
       .mockResolvedValueOnce(null)         // dup: 없음
       .mockResolvedValueOnce({ cnt: 5 });  // daily 5회 이미 적립
 
-    const result = await awardDoseTaken(makeEvent(), 120);
+    const result = await awardDoseTaken(makeEvent(), 120, 'local');
 
     expect(result).toBeNull();
     expect(mockDb.runAsync).not.toHaveBeenCalled();
@@ -178,7 +181,7 @@ describe('awardDoseTaken', () => {
       .mockResolvedValueOnce({ cnt: 0 })
       .mockResolvedValueOnce({ balance: 0 });
 
-    await awardDoseTaken(makeEvent(), 120);
+    await awardDoseTaken(makeEvent(), 120, 'local');
 
     // getFirstAsync 두 번째 호출(daily limit)에 UTC ISO 포맷의 범위 인자가 전달되어야 함
     const calls = mockDb.getFirstAsync.mock.calls;

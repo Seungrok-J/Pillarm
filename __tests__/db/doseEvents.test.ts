@@ -36,7 +36,7 @@ const BASE_EVENT: DoseEvent = {
   status: 'scheduled',
   takenAt: undefined,
   snoozeCount: 0,
-  source: 'scheduled',
+  source: 'notification',
   note: undefined,
   photoPath: undefined,
   createdAt: '2025-01-01T00:00:00.000Z',
@@ -51,7 +51,7 @@ const BASE_ROW: Record<string, unknown> = {
   status: 'scheduled',
   taken_at: null,
   snooze_count: 0,
-  source: 'scheduled',
+  source: 'notification',
   note: null,
   photo_path: null,
   created_at: '2025-01-01T00:00:00.000Z',
@@ -71,27 +71,27 @@ describe('doseEvents DB', () => {
   describe('getDoseEventsByDate', () => {
     it('날짜별 이벤트를 반환한다', async () => {
       db.getAllAsync.mockResolvedValue([BASE_ROW]);
-      const result = await getDoseEventsByDate('2025-01-01');
+      const result = await getDoseEventsByDate('2025-01-01', 'local');
       expect(result).toHaveLength(1);
       expect(result[0].id).toBe('evt-1');
       expect(result[0].status).toBe('scheduled');
     });
 
     it('date() 필터로 쿼리한다', async () => {
-      await getDoseEventsByDate('2025-01-01');
+      await getDoseEventsByDate('2025-01-01', 'local');
       expect(db.getAllAsync.mock.calls[0][0]).toContain('date(planned_at)');
     });
 
     it('photo_path 와 note 가 null 이면 falsy 값 반환', async () => {
       db.getAllAsync.mockResolvedValue([BASE_ROW]);
-      const [r] = await getDoseEventsByDate('2025-01-01');
+      const [r] = await getDoseEventsByDate('2025-01-01', 'local');
       expect(r.photoPath).toBeFalsy();
       expect(r.note).toBeFalsy();
     });
 
     it('photo_path 가 있으면 photoPath 에 매핑된다', async () => {
       db.getAllAsync.mockResolvedValue([{ ...BASE_ROW, photo_path: 'file:///test.jpg', note: '메모' }]);
-      const [r] = await getDoseEventsByDate('2025-01-01');
+      const [r] = await getDoseEventsByDate('2025-01-01', 'local');
       expect(r.photoPath).toBe('file:///test.jpg');
       expect(r.note).toBe('메모');
     });
@@ -102,12 +102,12 @@ describe('doseEvents DB', () => {
   describe('getDoseEventsByDateRange', () => {
     it('기간별 이벤트를 반환한다', async () => {
       db.getAllAsync.mockResolvedValue([BASE_ROW]);
-      const result = await getDoseEventsByDateRange('2025-01-01T00:00:00.000Z', '2025-01-08T00:00:00.000Z');
+      const result = await getDoseEventsByDateRange('2025-01-01T00:00:00.000Z', '2025-01-08T00:00:00.000Z', 'local');
       expect(result).toHaveLength(1);
     });
 
     it('planned_at 범위로 쿼리한다', async () => {
-      await getDoseEventsByDateRange('2025-01-01T00:00:00.000Z', '2025-01-08T00:00:00.000Z');
+      await getDoseEventsByDateRange('2025-01-01T00:00:00.000Z', '2025-01-08T00:00:00.000Z', 'local');
       const sql = db.getAllAsync.mock.calls[0][0] as string;
       expect(sql).toContain('planned_at >= ?');
       expect(sql).toContain('planned_at < ?');
@@ -118,18 +118,18 @@ describe('doseEvents DB', () => {
 
   describe('insertDoseEvent', () => {
     it('INSERT 쿼리를 실행한다', async () => {
-      await insertDoseEvent(BASE_EVENT);
+      await insertDoseEvent(BASE_EVENT, 'local');
       expect(db.runAsync).toHaveBeenCalledTimes(1);
       expect(db.runAsync.mock.calls[0][0]).toContain('INSERT INTO dose_events');
     });
 
     it('photo_path 파라미터를 포함한다', async () => {
-      await insertDoseEvent({ ...BASE_EVENT, photoPath: 'file:///photo.jpg' });
+      await insertDoseEvent({ ...BASE_EVENT, photoPath: 'file:///photo.jpg' }, 'local');
       expect(db.runAsync.mock.calls[0]).toContain('file:///photo.jpg');
     });
 
     it('optional 필드가 없으면 null 전달', async () => {
-      await insertDoseEvent(BASE_EVENT);
+      await insertDoseEvent(BASE_EVENT, 'local');
       const params = db.runAsync.mock.calls[0];
       expect(params).toContain(null); // takenAt, note, photo_path
     });
@@ -171,7 +171,7 @@ describe('doseEvents DB', () => {
 
   describe('updateDoseEventSnooze', () => {
     it('snooze_count 를 업데이트한다', async () => {
-      await updateDoseEventSnooze('evt-1', 2);
+      await updateDoseEventSnooze('evt-1', 2, '2025-01-01T08:10:00.000Z');
       expect(db.runAsync.mock.calls[0][0]).toContain('snooze_count = ?');
       expect(db.runAsync.mock.calls[0]).toContain(2);
     });

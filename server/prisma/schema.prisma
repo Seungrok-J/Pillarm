@@ -31,12 +31,15 @@ enum NotificationPolicy {
 
 model User {
   id           String   @id @default(cuid())
-  email        String   @unique
+  /// 이메일 가입: 필수. Apple 숨김 이메일 사용 시 null 가능.
+  email        String?  @unique
   passwordHash String?
   /// 표시 이름 (이메일 가입 시 직접 입력, 소셜 로그인 시 provider 값)
   name         String?
-  /// OAuth provider (null = 이메일 가입, "kakao" | "google" 등)
+  /// OAuth provider (null = 이메일 가입, "apple" | "google" | "kakao" | "naver")
   provider     String?
+  /// 소셜 제공자의 고유 사용자 ID
+  providerId   String?
   /// FCM 등록 토큰 (로그인 시 앱에서 업데이트)
   fcmToken     String?
   createdAt    DateTime @default(now())
@@ -49,6 +52,8 @@ model User {
   medications   Medication[]        @relation("UserMedications")
   schedules     Schedule[]          @relation("UserSchedules")
   doseEvents    DoseEvent[]         @relation("UserDoseEvents")
+
+  @@unique([provider, providerId])
 }
 
 model CareCircle {

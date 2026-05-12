@@ -24,11 +24,11 @@ Notifications.setNotificationHandler({
           doseEventId,
         );
         if (row?.status === 'taken' || row?.status === 'skipped') {
-          return { shouldShowAlert: false, shouldPlaySound: false, shouldSetBadge: false };
+          return { shouldShowAlert: false, shouldPlaySound: false, shouldSetBadge: false, shouldShowBanner: false, shouldShowList: false };
         }
       } catch {}
     }
-    return { shouldShowAlert: true, shouldPlaySound: true, shouldSetBadge: true };
+    return { shouldShowAlert: true, shouldPlaySound: true, shouldSetBadge: true, shouldShowBanner: true, shouldShowList: true };
   },
 });
 

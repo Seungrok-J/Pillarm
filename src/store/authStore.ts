@@ -19,7 +19,7 @@ export interface AuthState {
   isLoggedIn:   boolean;
 
   loadSession:  () => Promise<void>;
-  saveSession:  (s: { accessToken: string; refreshToken: string; userId: string; userEmail: string; userName?: string | null }) => Promise<void>;
+  saveSession:  (s: { accessToken: string; refreshToken: string; userId: string; userEmail: string | null; userName?: string | null }) => Promise<void>;
   clearSession: () => Promise<void>;
 }
 
@@ -52,7 +52,9 @@ export const useAuthStore = create<AuthState>((set) => ({
       AsyncStorage.setItem(K.ACCESS,   accessToken),
       AsyncStorage.setItem(K.REFRESH,  refreshToken),
       AsyncStorage.setItem(K.USER_ID,  userId),
-      AsyncStorage.setItem(K.EMAIL,    userEmail),
+      userEmail != null
+        ? AsyncStorage.setItem(K.EMAIL, userEmail)
+        : AsyncStorage.removeItem(K.EMAIL),
       userName != null
         ? AsyncStorage.setItem(K.NAME, userName)
         : AsyncStorage.removeItem(K.NAME),

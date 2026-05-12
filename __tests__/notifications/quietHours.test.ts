@@ -10,6 +10,9 @@ const BASE: UserSettings = {
   maxSnoozeCount: 3,
   missedToLateMinutes: 120,
   autoMarkMissedEnabled: true,
+  mealTimeBreakfast: '08:00',
+  mealTimeLunch: '12:00',
+  mealTimeDinner: '19:00',
 };
 
 /** 로컬 시각으로 Date 생성 (타임존 독립적 테스트) */

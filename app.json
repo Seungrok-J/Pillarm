@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "pillarm",
+    "name": "필람",
     "slug": "pillarm",
     "scheme": "pillarm",
     "version": "1.0.0",
@@ -13,15 +13,37 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "bundleIdentifier": "com.pillarm.app",
+      "buildNumber": "1",
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSCameraUsageDescription": "약 봉투 QR 코드 스캔에 사용됩니다.",
+        "NSPhotoLibraryUsageDescription": "약 복용 사진을 첨부하기 위해 사진 접근 권한이 필요합니다.",
+        "NSUserNotificationsUsageDescription": "복용 시간 알림을 보내기 위해 필요합니다.",
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "naveridlogin_ios_I36D3qy6P71DcMWOAIEi"
+            ]
+          }
+        ]
+      }
     },
-    "android                                            ": {
+    "android": {
+      "package": "com.pillarm.app",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -29,6 +51,20 @@
     "plugins": [
       "expo-sqlite",
       "expo-notifications",
+      "expo-apple-authentication",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.131302702516-igvegcggjg5mk6pc8nfllaalda99scul"
+        }
+      ],
+      [
+        "@react-native-kakao/core",
+        {
+          "nativeAppKey": "8dc3f74482bc4d09a9c1c8502acf99c4",
+          "isKakaoTalkLoginAvailable": true
+        }
+      ],
       [
         "expo-image-picker",
         {
@@ -36,7 +72,14 @@
           "cameraPermission": "약 복용 사진을 찍기 위해 카메라 접근 권한이 필요합니다."
         }
       ],
-      "@react-native-community/datetimepicker"
-    ]
+      "@react-native-community/datetimepicker",
+      "expo-web-browser"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "67c4ebb9-813e-4d76-b1b7-9077791975d2"
+      }
+    },
+    "owner": "seungrok-j"
   }
 }

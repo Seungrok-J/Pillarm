@@ -11,7 +11,7 @@ function makeEvent(overrides: Partial<DoseEvent> = {}): DoseEvent {
     plannedAt: new Date(Date.now() + 7_200_000).toISOString(), // 2시간 후
     status: 'scheduled',
     snoozeCount: 0,
-    source: 'scheduled',
+    source: 'notification',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     ...overrides,

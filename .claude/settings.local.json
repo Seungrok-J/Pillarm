@@ -65,7 +65,13 @@
       "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('jest',{}\\), indent=2\\)\\)\")",
       "Bash(python -c ' *)",
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\jsl\\\\Desktop\\\\필람\\(Pillarm\\)\" -Recurse -Directory)",
-      "Bash(Select-Object -ExpandProperty FullName)"
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(eas --version)",
+      "Bash(eas whoami *)",
+      "Bash(npm show *)",
+      "Bash(eas build *)",
+      "Bash(eas build:view b24d602d-3901-4bff-a747-ecacaf31a15f)",
+      "Bash(npm uninstall *)"
     ]
   }
 }

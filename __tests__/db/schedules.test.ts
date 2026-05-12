@@ -27,7 +27,7 @@ const asDb = (m: ReturnType<typeof makeMockDb>) => m as any;
 const BASE_SCHEDULE: Schedule = {
   id: 'sch-1',
   medicationId: 'med-1',
-  scheduleType: 'daily',
+  scheduleType: 'fixed',
   startDate: '2025-01-01',
   endDate: undefined,
   daysOfWeek: undefined,
@@ -42,7 +42,7 @@ const BASE_SCHEDULE: Schedule = {
 const BASE_ROW: Record<string, unknown> = {
   id: 'sch-1',
   medication_id: 'med-1',
-  schedule_type: 'daily',
+  schedule_type: 'fixed',
   start_date: '2025-01-01',
   end_date: null,
   days_of_week: null,
@@ -67,25 +67,25 @@ describe('schedules DB', () => {
   describe('getSchedulesByMedication', () => {
     it('약 ID로 스케줄 목록을 반환한다', async () => {
       db.getAllAsync.mockResolvedValue([BASE_ROW]);
-      const result = await getSchedulesByMedication('med-1');
+      const result = await getSchedulesByMedication('med-1', 'local');
       expect(result).toHaveLength(1);
       expect(result[0].id).toBe('sch-1');
       expect(result[0].times).toEqual(['08:00', '20:00']);
     });
 
     it('없으면 빈 배열 반환', async () => {
-      const result = await getSchedulesByMedication('unknown');
+      const result = await getSchedulesByMedication('unknown', 'local');
       expect(result).toEqual([]);
     });
 
     it('medication_id 로 필터링한다', async () => {
-      await getSchedulesByMedication('med-1');
+      await getSchedulesByMedication('med-1', 'local');
       expect(db.getAllAsync.mock.calls[0]).toContain('med-1');
     });
 
     it('daysOfWeek 가 있으면 JSON.parse 된다', async () => {
       db.getAllAsync.mockResolvedValue([{ ...BASE_ROW, days_of_week: '[1,3,5]' }]);
-      const [r] = await getSchedulesByMedication('med-1');
+      const [r] = await getSchedulesByMedication('med-1', 'local');
       expect(r.daysOfWeek).toEqual([1, 3, 5]);
     });
   });
@@ -94,27 +94,27 @@ describe('schedules DB', () => {
 
   describe('upsertSchedule', () => {
     it('INSERT OR UPDATE 쿼리를 실행한다', async () => {
-      await upsertSchedule(BASE_SCHEDULE);
+      await upsertSchedule(BASE_SCHEDULE, 'local');
       expect(db.runAsync.mock.calls[0][0]).toContain('ON CONFLICT(id) DO UPDATE SET');
     });
 
     it('times 를 JSON 문자열로 전달한다', async () => {
-      await upsertSchedule(BASE_SCHEDULE);
+      await upsertSchedule(BASE_SCHEDULE, 'local');
       expect(db.runAsync.mock.calls[0]).toContain(JSON.stringify(['08:00', '20:00']));
     });
 
     it('isActive=false 이면 0 전달', async () => {
-      await upsertSchedule({ ...BASE_SCHEDULE, isActive: false });
+      await upsertSchedule({ ...BASE_SCHEDULE, isActive: false }, 'local');
       expect(db.runAsync.mock.calls[0]).toContain(0);
     });
 
     it('endDate 없으면 null 전달', async () => {
-      await upsertSchedule(BASE_SCHEDULE);
+      await upsertSchedule(BASE_SCHEDULE, 'local');
       expect(db.runAsync.mock.calls[0]).toContain(null);
     });
 
     it('daysOfWeek 있으면 JSON 문자열로 전달한다', async () => {
-      await upsertSchedule({ ...BASE_SCHEDULE, daysOfWeek: [1, 3, 5] });
+      await upsertSchedule({ ...BASE_SCHEDULE, daysOfWeek: [1, 3, 5] }, 'local');
       expect(db.runAsync.mock.calls[0]).toContain(JSON.stringify([1, 3, 5]));
     });
   });
@@ -140,12 +140,12 @@ describe('schedules DB', () => {
   describe('getAllSchedules', () => {
     it('모든 active 스케줄을 반환한다', async () => {
       db.getAllAsync.mockResolvedValue([BASE_ROW]);
-      const result = await getAllSchedules();
+      const result = await getAllSchedules('local');
       expect(result).toHaveLength(1);
     });
 
     it('is_active=1 조건으로 쿼리한다', async () => {
-      await getAllSchedules();
+      await getAllSchedules('local');
       expect(db.getAllAsync.mock.calls[0][0]).toContain('is_active = 1');
     });
   });

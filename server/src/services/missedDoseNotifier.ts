@@ -48,7 +48,7 @@ async function checkAndNotify(notifiedIds: Set<string>): Promise<void> {
 
     await notifyMissedDose(
       guardianTokens,
-      event.user.email,
+      event.user.email ?? event.user.name ?? '사용자',
       medication?.name ?? '약',
     );
   }
