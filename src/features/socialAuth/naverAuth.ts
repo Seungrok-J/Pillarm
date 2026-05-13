@@ -5,8 +5,8 @@ import { socialLogin, type SocialAuthResponse } from './socialAuthApi';
 
 WebBrowser.maybeCompleteAuthSession();
 
-const CLIENT_ID = 'I36D3qy6P71DcMWOAIEi';
-const CLIENT_SECRET = 'kdKymjVgww';
+const CLIENT_ID = process.env.EXPO_PUBLIC_NAVER_CLIENT_ID ?? '';
+const CLIENT_SECRET = process.env.EXPO_PUBLIC_NAVER_CLIENT_SECRET ?? '';
 
 const discovery = {
   authorizationEndpoint: 'https://nid.naver.com/oauth2.0/authorize',

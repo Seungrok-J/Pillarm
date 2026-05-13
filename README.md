@@ -14,7 +14,10 @@
 | 내비게이션 | React Navigation v7 (Bottom Tabs + Stack) |
 | 스타일 | NativeWind (Tailwind for RN) |
 | 테스트 | Jest + React Native Testing Library |
-| 서버 (Phase 2) | Express + Prisma + PostgreSQL |
+| 서버 | Express + Prisma + PostgreSQL |
+| 서버 호스팅 | Railway |
+| 빌드 | EAS Build (Expo Application Services) |
+| 소셜 로그인 | expo-apple-authentication, @react-native-google-signin/google-signin, @react-native-kakao, expo-auth-session |
 
 ---
 
@@ -36,10 +39,19 @@ npm run test:coverage
 
 ### 환경 변수 (선택)
 
-식품의약품안전처 API 연동 시 `.env` 파일에 추가:
+`.env` 파일에 필요한 항목 추가:
 
 ```
+# 식약처 API (약 이름 자동완성)
 EXPO_PUBLIC_MFDS_API_KEY=<공공데이터포털 API 키>
+
+# 서버 연결 (우선순위: SERVER_URL > SERVER_IP > 에뮬레이터 기본값)
+EXPO_PUBLIC_SERVER_URL=https://<your-app>.up.railway.app   # 클라우드 (Railway)
+EXPO_PUBLIC_SERVER_IP=192.168.0.x                          # 로컬 실기기 테스트용
+
+# Google 로그인
+EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=<iOS OAuth 클라이언트 ID>
+EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=<Web OAuth 클라이언트 ID>
 ```
 
 ---
@@ -153,6 +165,14 @@ npm run test:coverage  # 목표: 70% 이상
 - **AI 코칭** — 최근 30일 누락 패턴 분석, 통계 화면 하단 코칭 메시지 + 스케줄 수정 Quick Fix
 - **기기 교체 데이터 복원** — 로그인 시 `GET /sync/pull`로 서버 데이터 자동 복원
 
+### Phase 3 — 소셜 로그인 & 스토어 배포 (진행 중)
+- **소셜 간편 로그인** — Apple(iOS 전용), Google, 카카오, 네이버
+  - 이메일 계정과 동일 이메일의 소셜 계정 자동 연결
+  - 소셜 전용 계정은 비밀번호 변경 메뉴 미노출
+- **EAS Build** — iOS/Android 프로덕션 빌드 자동화
+- **Railway 서버 배포** — 클라우드 서버로 이전, 앱 심사 대응
+- **App Store / Google Play 배포** (진행 예정)
+
 ---
 
 ## Phase 1 → Phase 2 마이그레이션 가이드
@@ -174,15 +194,16 @@ Phase 1 앱이 설치된 기기에 Phase 2 앱을 업데이트하면 앱 시작 
 
 ### 서버 연동 설정
 
-```typescript
-// src/features/careCircle/careCircleApi.ts
-export const API_BASE_URL = 'http://localhost:3000'; // 서버 주소로 변경
-// Android 에뮬레이터: 'http://10.0.2.2:3000'
-// 실기기: 'http://<서버IP>:3000'
+`src/features/careCircle/careCircleApi.ts`의 `API_BASE_URL`은 환경변수 우선순위로 자동 결정됩니다:
+
+```
+EXPO_PUBLIC_SERVER_URL (Railway 등 클라우드)
+  → EXPO_PUBLIC_SERVER_IP (로컬 실기기: http://<IP>:3000)
+  → http://10.0.2.2:3000 (Android 에뮬레이터 기본값)
 ```
 
 Phase 1 기능(복용 등록, 알림, 체크, 통계)은 서버 없이 오프라인에서도 완전히 동작합니다.
-Phase 2 기능(보호자 공유, 약 정보 DB 연동)은 서버 연동 후 활성화됩니다.
+Phase 2+ 기능(보호자 공유, 소셜 로그인)은 서버 연동 후 활성화됩니다.
 
 ### 서버 백그라운드 서비스
 
@@ -204,26 +225,55 @@ pillarm/
 │   ├── components/    # 공통 UI 컴포넌트
 │   ├── db/            # SQLite 마이그레이션 & 쿼리
 │   ├── domain/        # 엔터티 타입
-│   ├── features/      # 기능 모듈 (careCircle, medicationDB, points, aiCoaching)
+│   ├── features/
+│   │   ├── careCircle/    # 보호자 공유 API & UI
+│   │   ├── medicationDB/  # 식약처 API 자동완성
+│   │   ├── points/        # 포인트·리워드
+│   │   ├── aiCoaching/    # AI 코칭
+│   │   └── socialAuth/    # 소셜 로그인 (Apple·Google·Kakao·Naver)
 │   ├── navigation/    # React Navigation 설정
 │   ├── notifications/ # 알림 스케줄링
-│   ├── store/         # Zustand 스토어 (themeStore 포함)
+│   ├── store/         # Zustand 스토어 (authStore, themeStore 포함)
 │   └── utils/
 │       ├── date.ts        # toLocalISOString, todayString 등 날짜 유틸
 │       ├── doseDisplay.ts # DoseDisplayState·computeDisplayState (DoseCard·History 공유)
 │       ├── themeManager.ts # 5종 테마 정의·AsyncStorage 저장
 │       ├── statsCalculator.ts
 │       └── uuid.ts
-├── server/            # Phase 2 백엔드 (Express + Prisma)
+├── server/            # 백엔드 (Express + Prisma, Railway 배포)
 │   ├── src/
 │   │   ├── routes/    # auth, careCircle, doseSync, sync
 │   │   ├── services/  # inviteService, fcmService, missedDoseNotifier
 │   │   ├── middleware/ # requireAuth, errorHandler
 │   │   └── lib/       # prisma, jwt
-│   └── prisma/
-│       └── schema.prisma
+│   ├── prisma/
+│   │   └── schema.prisma
+│   └── railway.toml   # Railway 배포 설정
+├── eas.json           # EAS Build 프로파일
 └── __tests__/         # Jest 테스트
 ```
+
+---
+
+## EAS Build (Phase 3)
+
+소셜 로그인 라이브러리는 네이티브 모듈을 포함하므로 **Expo Go 대신 개발 빌드**가 필요합니다.
+
+```bash
+# EAS CLI 설치 (1회)
+npm install -g eas-cli
+eas login
+
+# 개발 빌드 (실기기 테스트)
+eas build --platform ios --profile development
+eas build --platform android --profile development
+
+# 프로덕션 빌드
+eas build --platform ios --profile production      # App Store 제출용
+eas build --platform android --profile production  # Google Play AAB
+```
+
+> 프로덕션 제출 전 `eas.json`의 `submit.production.ios`에 `ascAppId`, `appleTeamId`를 실제 값으로 설정 필요.
 
 ---
 

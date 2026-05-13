@@ -1,7 +1,9 @@
 # PRD Phase 3 — 간편 로그인 & 스토어 배포
 
 > **전제 조건:** Phase 2가 완료되어 보호자 공유·포인트·AI 코칭이 실기기에서 정상 동작해야 한다.  
-> **목표:** 소셜 간편 로그인 추가, App Store 우선 배포 후 Google Play 배포
+> **목표:** 소셜 간편 로그인 추가, Railway 서버 배포, App Store 우선 배포 후 Google Play 배포
+>
+> **진행 상태 (2026-05-13):** 소셜 로그인 코드·EAS 빌드 설정·Railway 배포 완료. App Store / Google Play 배포 진행 전.
 
 ---
 
@@ -9,15 +11,16 @@
 
 ### 1-1. 지원 플랫폼
 
-| 제공자 | iOS | Android | 비고 |
-|--------|-----|---------|------|
-| Apple | ✅ 필수 | ❌ | App Store 규정상 타사 소셜 로그인 제공 시 Apple 로그인 필수 |
-| Google | ✅ | ✅ | `@react-native-google-signin/google-signin` |
-| Kakao | ✅ | ✅ | `@react-native-kakao/core` (개발 빌드 필요) |
-| Naver | ✅ | ✅ | `react-native-naver-login` (개발 빌드 필요) |
-| Facebook | ✅ | ✅ | `react-native-fbsdk-next` (선택, 우선순위 낮음) |
+| 제공자 | iOS | Android | 구현 상태 | 비고 |
+|--------|-----|---------|-----------|------|
+| Apple | ✅ 필수 | ❌ | ✅ 완료 | App Store 규정상 타사 소셜 로그인 제공 시 Apple 로그인 필수 |
+| Google | ✅ | ✅ | ✅ 완료 | `@react-native-google-signin/google-signin` |
+| Kakao | ✅ | ✅ | ✅ 완료 | `@react-native-kakao/core` + `@react-native-kakao/user` |
+| Naver | ✅ | ✅ | ✅ 완료 | `expo-auth-session` OAuth2 방식 (네이티브 SDK 불필요) |
+| Facebook | — | — | ❌ 제외 | 우선순위 낮아 미구현 |
 
-> ⚠️ 소셜 로그인 라이브러리 모두 네이티브 모듈을 포함하므로 **Expo Go 사용 불가**, 개발 빌드(`expo-dev-client`) 필요.
+> ⚠️ Apple·Google·Kakao는 네이티브 모듈을 포함하므로 **Expo Go 사용 불가**, 개발 빌드(`expo-dev-client`) 필요.  
+> Naver는 `expo-auth-session` 기반 순수 JS OAuth2 구현으로 Expo Go에서도 동작.
 
 ---
 
@@ -97,7 +100,7 @@ Response: { accessToken, refreshToken, userId, name, isNewUser }
 
 ### 1-4. 클라이언트 구현
 
-#### 설치 패키지
+#### 설치 패키지 (완료)
 
 ```bash
 # 개발 빌드 클라이언트 (필수)
@@ -112,43 +115,58 @@ npm install @react-native-google-signin/google-signin
 # Kakao
 npm install @react-native-kakao/core @react-native-kakao/user
 
-# Naver
-npm install react-native-naver-login
-
-# (선택) Facebook
-npm install react-native-fbsdk-next
+# Naver (expo-auth-session 방식 — react-native-naver-login 미사용)
+npx expo install expo-auth-session expo-web-browser
 ```
 
-#### app.json 플러그인 설정
+> **네이버 구현 변경 이유:** `react-native-naver-login`은 네이티브 모듈 빌드 복잡도가 높아 `expo-auth-session` 기반 OAuth2 Authorization Code Flow로 대체.  
+> iOS URL Scheme(`naveridlogin_ios_<CLIENT_ID>`)은 `app.json` infoPlist의 `CFBundleURLTypes`에 등록.
+
+#### app.json 플러그인 설정 (실제 구성)
 
 ```json
 {
   "expo": {
+    "scheme": "pillarm",
     "plugins": [
       "expo-apple-authentication",
-      "@react-native-google-signin/google-signin",
-      ["@react-native-kakao/core", { "kakaoAppKey": "KAKAO_NATIVE_APP_KEY" }],
-      ["react-native-naver-login", {
-        "naverConsumerKey": "NAVER_CLIENT_ID",
-        "naverConsumerSecret": "NAVER_CLIENT_SECRET",
-        "naverServiceAppName": "필람"
+      ["@react-native-google-signin/google-signin", {
+        "iosUrlScheme": "com.googleusercontent.apps.<IOS_CLIENT_ID>"
+      }],
+      ["@react-native-kakao/core", {
+        "nativeAppKey": "KAKAO_NATIVE_APP_KEY",
+        "isKakaoTalkLoginAvailable": true
+      }],
+      "expo-web-browser",
+      ["expo-build-properties", {
+        "android": {
+          "extraMavenRepos": ["https://devrepo.kakao.com/nexus/content/groups/public/"]
+        }
       }]
-    ]
+    ],
+    "ios": {
+      "infoPlist": {
+        "CFBundleURLTypes": [
+          { "CFBundleURLSchemes": ["naveridlogin_ios_<NAVER_CLIENT_ID>"] }
+        ]
+      }
+    }
   }
 }
 ```
 
-#### 파일 구조 추가
+#### 파일 구조 (완료)
 
 ```
 src/
 ├── features/
 │   └── socialAuth/
-│       ├── appleAuth.ts       ← expo-apple-authentication 래퍼
-│       ├── googleAuth.ts      ← google-signin 래퍼
-│       ├── kakaoAuth.ts       ← kakao 래퍼
-│       ├── naverAuth.ts       ← naver 래퍼
-│       └── socialAuthApi.ts   ← POST /auth/social 호출
+│       ├── appleAuth.ts       ← expo-apple-authentication 래퍼 ✅
+│       ├── googleAuth.ts      ← google-signin 래퍼 ✅
+│       ├── kakaoAuth.ts       ← @react-native-kakao/user 래퍼 ✅
+│       ├── naverAuth.ts       ← expo-auth-session OAuth2 흐름 ✅
+│       ├── socialAuthApi.ts   ← POST /auth/social 호출 ✅
+│       └── index.ts           ← re-export ✅
 └── app/
     └── auth/
         └── LoginScreen.tsx    ← 소셜 버튼 추가
@@ -188,13 +206,18 @@ src/
 
 #### Naver
 - [Naver Developers](https://developers.naver.com) → 앱 등록 → `네이버 로그인` API 추가
-- URL Scheme 및 번들 ID 등록
+- Callback URL 등록: `pillarm://oauth` (expo-auth-session redirect URI)
+- iOS: `app.json` infoPlist의 `CFBundleURLSchemes`에 `naveridlogin_ios_<CLIENT_ID>` 추가
+- CLIENT_ID / CLIENT_SECRET은 `.env`의 `EXPO_PUBLIC_NAVER_CLIENT_ID` / `EXPO_PUBLIC_NAVER_CLIENT_SECRET`으로 관리 (현재 `naverAuth.ts` 하드코딩 → 배포 전 환경변수로 이동 필요)
 
 ---
 
 ### 1-6. 완료 기준 (AC)
 
-- [ ] Apple 로그인 → 신규 계정 생성 후 앱 진입
+- [x] 소셜 로그인 클라이언트 코드 구현 (Apple / Google / Kakao / Naver)
+- [x] `POST /auth/social` API 연동 (`socialAuthApi.ts`)
+- [x] EAS Build 설정 (`eas.json`) 및 app.json 플러그인 등록
+- [ ] Apple 로그인 → 신규 계정 생성 후 앱 진입 (실기기 테스트)
 - [ ] Apple 로그인 → 기존 계정 재로그인 시 데이터 유지
 - [ ] Google 로그인 (iOS/Android) → 신규·재로그인 모두 정상 동작
 - [ ] 카카오 로그인 (iOS/Android) → 신규·재로그인 모두 정상 동작
@@ -202,10 +225,74 @@ src/
 - [ ] 이메일 계정과 동일 이메일의 소셜 로그인 시 계정이 자동 연결됨
 - [ ] 소셜 로그인 후 기존 기능(복용 기록, 보호자 공유 등) 정상 동작
 - [ ] 소셜 전용 계정은 비밀번호 변경 메뉴가 노출되지 않음
+- [x] `naverAuth.ts` CLIENT_ID/SECRET 환경변수 이전
 
 ---
 
-## 2. App Store 배포 (우선)
+## 2. Railway 서버 배포 ✅ 완료
+
+스토어 배포 전 클라우드 서버가 필요하다. 로컬 IP(`192.168.0.x`)로는 앱 심사 시 서버 연결 실패로 거절됨.
+
+### 2-1. 배포 구성
+
+| 항목 | 내용 |
+|------|------|
+| 플랫폼 | [Railway](https://railway.app) |
+| 빌더 | Nixpacks (자동 감지) |
+| 빌드 커맨드 | `npm install && npm run build && npx prisma generate` |
+| 시작 커맨드 | `npx prisma migrate deploy && npm start` |
+| 재시작 정책 | 실패 시 자동 재시작 (최대 10회) |
+
+### 2-2. 설정 파일 (`server/railway.toml`)
+
+```toml
+[build]
+builder = "NIXPACKS"
+buildCommand = "npm install && npm run build && npx prisma generate"
+
+[deploy]
+startCommand = "npx prisma migrate deploy && npm start"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+```
+
+### 2-3. Railway 환경 변수 설정
+
+Railway 대시보드 → 프로젝트 → Variables에서 설정:
+
+| 변수 | 값 |
+|------|-----|
+| `DATABASE_URL` | Railway PostgreSQL 플러그인 자동 주입 |
+| `JWT_ACCESS_SECRET` | 32자 이상 랜덤 문자열 |
+| `JWT_REFRESH_SECRET` | 위와 다른 32자 이상 랜덤 문자열 |
+| `NODE_ENV` | `production` |
+| `FIREBASE_PROJECT_ID` | FCM 사용 시 |
+| `FIREBASE_CLIENT_EMAIL` | FCM 사용 시 |
+| `FIREBASE_PRIVATE_KEY` | FCM 사용 시 |
+| `APPLE_TEAM_ID` | Apple 로그인 서버 검증 시 |
+
+### 2-4. 클라이언트 환경 변수
+
+앱에서 Railway URL 우선 사용:
+
+```bash
+# .env 또는 EAS Secrets
+EXPO_PUBLIC_SERVER_URL=https://<your-app>.up.railway.app
+```
+
+우선순위: `EXPO_PUBLIC_SERVER_URL` (클라우드) > `EXPO_PUBLIC_SERVER_IP` (로컬 실기기) > `10.0.2.2:3000` (에뮬레이터)
+
+### 2-5. 완료 기준 (AC)
+
+- [x] `server/railway.toml` 생성
+- [x] `API_BASE_URL` 우선순위 로직 적용 (`careCircleApi.ts`)
+- [x] Railway 배포 후 엔드포인트 정상 응답 확인
+- [x] `EXPO_PUBLIC_SERVER_URL` EAS Secrets에 등록
+- [x] `EXPO_PUBLIC_NAVER_CLIENT_ID` / `EXPO_PUBLIC_NAVER_CLIENT_SECRET` EAS Secrets에 등록
+
+---
+
+## 3. App Store 배포 (우선)
 
 ### 2-1. 사전 준비
 
@@ -229,36 +316,38 @@ eas login
 eas build:configure
 ```
 
-#### eas.json
+#### eas.json (완료)
 
 ```json
 {
-  "cli": { "version": ">= 13.0.0" },
+  "cli": { "version": ">= 13.0.0", "appVersionSource": "local" },
   "build": {
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "ios": { "simulator": false }
+      "ios": { "simulator": false },
+      "android": { "buildType": "apk" }
     },
     "preview": {
       "distribution": "internal",
-      "ios": { "buildConfiguration": "Release" }
+      "ios": { "buildConfiguration": "Release" },
+      "android": { "buildType": "apk" }
     },
     "production": {
-      "ios": {
-        "buildConfiguration": "Release"
-      },
-      "android": {
-        "buildType": "app-bundle"
-      }
+      "ios": { "buildConfiguration": "Release" },
+      "android": { "buildType": "app-bundle" }
     }
   },
   "submit": {
     "production": {
       "ios": {
         "appleId": "seungrokjeong@gmail.com",
-        "ascAppId": "앱_ID_숫자",
-        "appleTeamId": "팀_ID"
+        "ascAppId": "APP_STORE_CONNECT_APP_ID",
+        "appleTeamId": "APPLE_TEAM_ID"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./google-play-service-account.json",
+        "track": "production"
       }
     }
   }
@@ -369,7 +458,8 @@ eas build:configure
 
 ### 2-6. 완료 기준 (AC)
 
-- [ ] EAS Build 프로덕션 빌드 성공
+- [x] EAS Build 설정 완료 (`eas.json`, iOS + Android 프로파일)
+- [ ] EAS Build 프로덕션 빌드 성공 (`eas build --platform ios --profile production`)
 - [ ] TestFlight에서 실기기 테스트 완료 (크래시 없음)
 - [ ] 개인정보 처리방침 URL 등록
 - [ ] App Store Connect 메타데이터·스크린샷 업로드
@@ -378,9 +468,9 @@ eas build:configure
 
 ---
 
-## 3. Google Play 배포
+## 4. Google Play 배포
 
-### 3-1. 사전 준비
+### 4-1. 사전 준비
 
 | 항목 | 내용 |
 |------|------|
@@ -409,7 +499,7 @@ eas build:configure
 
 ---
 
-### 3-2. Google Play 배포 절차
+### 4-2. Google Play 배포 절차
 
 ```
 1. EAS Build로 Android AAB 생성
@@ -438,8 +528,9 @@ eas build:configure
 
 ---
 
-### 3-3. 완료 기준 (AC)
+### 4-3. 완료 기준 (AC)
 
+- [x] EAS Build Android AAB 빌드 프로파일 설정 (`eas.json` production android)
 - [ ] EAS Build Android AAB 빌드 성공
 - [ ] Google Play 내부 테스트 트랙 등록 및 테스트 완료
 - [ ] 스토어 등록정보·스크린샷 업로드 (한국어)
@@ -448,18 +539,22 @@ eas build:configure
 
 ---
 
-## 4. Phase 3 전체 완료 기준
+## 5. Phase 3 전체 완료 기준
 
-- [ ] Apple·Google·카카오·네이버 로그인이 iOS에서 모두 정상 동작
+- [x] 소셜 로그인 클라이언트 코드 구현 (Apple / Google / Kakao / Naver)
+- [x] EAS Build 설정 완료
+- [x] Railway 서버 배포 설정 완료
+- [ ] Apple·Google·카카오·네이버 로그인이 iOS에서 모두 정상 동작 (실기기 테스트)
 - [ ] Google·카카오·네이버 로그인이 Android에서 모두 정상 동작
 - [ ] 소셜 로그인 후 기존 이메일 계정 데이터와 연결이 가능
+- [ ] `naverAuth.ts` CLIENT_ID/SECRET 환경변수 이전
 - [ ] App Store에 정식 출시 완료
 - [ ] Google Play에 정식 출시 완료
 - [ ] 개인정보 처리방침 페이지 공개
 
 ---
 
-## 5. 참고 — 배포 체크리스트
+## 6. 참고 — 배포 체크리스트
 
 ### App Store 제출 전 최종 점검
 
@@ -475,11 +570,21 @@ eas build:configure
 ### 환경 변수 분리 (로컬 → 프로덕션)
 
 ```bash
-# .env.production
-EXPO_PUBLIC_SERVER_IP=실제_서버_도메인_또는_IP
+# .env (개발)
+EXPO_PUBLIC_SERVER_IP=192.168.0.x   # 로컬 실기기 테스트용
 
-# 프로덕션 서버는 로컬 PC가 아닌 클라우드 서버여야 함
-# 예: Railway, Render, AWS EC2, GCP 등
+# EAS Secrets (프로덕션 빌드)
+EXPO_PUBLIC_SERVER_URL=https://<your-app>.up.railway.app
+EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=<iOS OAuth 클라이언트 ID>
+EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=<Web OAuth 클라이언트 ID>
 ```
 
-> ⚠️ 현재 서버가 `192.168.0.x` 로컬 IP인 상태로 배포하면 앱스토어 심사 시 서버 연결 실패로 거절될 수 있음. 배포 전 클라우드 서버 이전 필요.
+> ✅ `EXPO_PUBLIC_SERVER_URL` 우선순위 로직이 이미 `careCircleApi.ts`에 적용됨.  
+> Railway URL이 설정되면 자동으로 클라우드 서버를 사용함.
+
+### 소셜 로그인 사전 등록 체크
+
+- [ ] Naver Developers: Callback URL `pillarm://oauth` 등록
+- [ ] Google Cloud Console: iOS Bundle ID `com.pillarm.app`, SHA-1 등록
+- [ ] Kakao Developers: iOS Bundle ID, Android 패키지명, 키 해시 등록
+- [ ] Apple Developer: `Sign In with Apple` 기능 활성화
