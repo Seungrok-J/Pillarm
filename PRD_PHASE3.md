@@ -225,7 +225,7 @@ src/
 - [ ] 이메일 계정과 동일 이메일의 소셜 로그인 시 계정이 자동 연결됨
 - [ ] 소셜 로그인 후 기존 기능(복용 기록, 보호자 공유 등) 정상 동작
 - [ ] 소셜 전용 계정은 비밀번호 변경 메뉴가 노출되지 않음
-- [x] `naverAuth.ts` CLIENT_ID/SECRET 환경변수 이전
+- [x] `naverAuth.ts` CLIENT_ID/SECRET 환경변수 이전 (`EXPO_PUBLIC_NAVER_CLIENT_ID/SECRET`)
 
 ---
 
@@ -461,7 +461,8 @@ eas build:configure
 - [x] EAS Build 설정 완료 (`eas.json`, iOS + Android 프로파일)
 - [ ] EAS Build 프로덕션 빌드 성공 (`eas build --platform ios --profile production`)
 - [ ] TestFlight에서 실기기 테스트 완료 (크래시 없음)
-- [ ] 개인정보 처리방침 URL 등록
+- [x] 개인정보 처리방침 페이지 생성 (https://seungrok-j.github.io/Pillarm/privacy-policy.html)
+- [ ] App Store Connect에 개인정보 처리방침 URL 등록
 - [ ] App Store Connect 메타데이터·스크린샷 업로드
 - [ ] Apple 앱 심사 통과
 - [ ] App Store 출시 확인
