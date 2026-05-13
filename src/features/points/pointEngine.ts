@@ -51,10 +51,7 @@ export async function awardDoseTaken(
   graceMinutes: number,
   userId: string,
 ): Promise<PointLedger | null> {
-  console.log('[awardDoseTaken] start', { id: doseEvent.id, plannedAt: doseEvent.plannedAt, takenAt: doseEvent.takenAt, graceMinutes, userId });
-
   if (!doseEvent.takenAt) {
-    console.log('[awardDoseTaken] SKIP: no takenAt');
     return null;
   }
 
@@ -64,9 +61,7 @@ export async function awardDoseTaken(
   const inWindow  =
     takenMs >= plannedMs - EARLY_WINDOW_MS &&
     takenMs <= plannedMs + graceMinutes * 60_000;
-  console.log('[awardDoseTaken] window check', { plannedMs, takenMs, diffMin, earlyLimitMin: -30, lateLimitMin: graceMinutes, inWindow });
   if (!inWindow) {
-    console.log('[awardDoseTaken] SKIP: outside window');
     return null;
   }
 
@@ -78,7 +73,6 @@ export async function awardDoseTaken(
     doseEvent.id,
   );
   if (dup) {
-    console.log('[awardDoseTaken] SKIP: duplicate', dup.id);
     return null;
   }
 
@@ -92,9 +86,7 @@ export async function awardDoseTaken(
     nextMidnight.toISOString(),
   );
   const dailyCnt = daily?.cnt ?? 0;
-  console.log('[awardDoseTaken] daily count', { dailyCnt, localMidnight: localMidnight.toISOString() });
   if (dailyCnt >= 5) {
-    console.log('[awardDoseTaken] SKIP: daily limit reached');
     return null;
   }
 
@@ -109,7 +101,6 @@ export async function awardDoseTaken(
     createdAt: new Date().toISOString(),
   };
   await insertEntry(entry);
-  console.log('[awardDoseTaken] SUCCESS', { newBalance: entry.balance });
   return entry;
 }
 

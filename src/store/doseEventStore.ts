@@ -79,16 +79,15 @@ export const useDoseEventStore = create<DoseEventState>((set, get) => ({
         const graceMinutes = useSettingsStore.getState().settings?.missedToLateMinutes ?? 120;
         const takenEvent: DoseEvent = { ...event, status: 'taken', takenAt: now };
         const uid = currentUserId();
-        console.log('[markTaken] awarding points', { eventId: id, uid, plannedAt: event.plannedAt, takenAt: now, graceMinutes });
         let pointsEntry: Awaited<ReturnType<typeof awardDoseTaken>> = null;
         let streakEntry: { delta: number } | null = null;
         await Promise.all([
           awardDoseTaken(takenEvent, graceMinutes, uid)
             .then((entry) => { pointsEntry = entry; })
-            .catch((e) => console.error('[awardDoseTaken]', e)),
+            .catch(() => {}),
           awardStreakBonus(uid)
             .then((entry) => { streakEntry = entry; })
-            .catch((e) => console.error('[awardStreakBonus]', e)),
+            .catch(() => {}),
         ]);
         streakAwarded = streakEntry !== null;
         pointsAwarded = pointsEntry !== null;

@@ -37,8 +37,8 @@ export const usePointStore = create<PointState>((set) => ({
         getDoseEventsByDateRange(toLocalISOString(from), toLocalISOString(new Date()), uid),
       ]);
       set({ balance, streak: getCurrentStreak(events) });
-    } catch (e) {
-      console.error('[pointStore.fetchBalance]', e);
+    } catch {
+      // 잔액 조회 실패 시 기존 값 유지
     }
   },
 
@@ -46,8 +46,8 @@ export const usePointStore = create<PointState>((set) => ({
     try {
       const history = await getHistory(currentUserId());
       set({ history });
-    } catch (e) {
-      console.error('[pointStore.fetchHistory]', e);
+    } catch {
+      // 히스토리 조회 실패 시 기존 값 유지
     }
   },
 }));
