@@ -299,7 +299,7 @@ EXPO_PUBLIC_SERVER_URL=https://<your-app>.up.railway.app
 | 항목 | 내용 |
 |------|------|
 | Apple Developer Program | $99/년 등록 필요 ([애플 개발자 사이트](https://developer.apple.com)) |
-| Bundle ID | `com.pillarm.app` (고유값, 등록 후 변경 불가) |
+| Bundle ID | `com.seungrokj.pillarm` (고유값, 등록 후 변경 불가) |
 | 앱 이름 | 필람 (App Store 검색용 영문명: Pillarm) |
 | 카테고리 | Health & Fitness (주), Medical (부) |
 | 연령 등급 | 4+ |
@@ -363,7 +363,7 @@ eas build:configure
     "slug": "pillarm",
     "version": "1.0.0",
     "ios": {
-      "bundleIdentifier": "com.pillarm.app",
+      "bundleIdentifier": "com.seungrokj.pillarm",
       "buildNumber": "1",
       "infoPlist": {
         "NSCameraUsageDescription": "약 봉투 QR 코드 스캔에 사용됩니다",
@@ -476,7 +476,7 @@ eas build:configure
 | 항목 | 내용 |
 |------|------|
 | Google Play Console | 1회 등록비 $25 ([play.google.com/console](https://play.google.com/console)) |
-| 패키지명 | `com.pillarm.app` (app.json의 android.package와 동일) |
+| 패키지명 | `com.seungrokj.pillarm` (app.json의 android.package와 동일) |
 | 서명 키 | EAS Credentials로 자동 관리 권장 |
 
 #### app.json Android 설정 추가
@@ -485,7 +485,7 @@ eas build:configure
 {
   "expo": {
     "android": {
-      "package": "com.pillarm.app",
+      "package": "com.seungrokj.pillarm",
       "versionCode": 1,
       "permissions": [
         "POST_NOTIFICATIONS",
@@ -586,6 +586,6 @@ EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=<Web OAuth 클라이언트 ID>
 ### 소셜 로그인 사전 등록 체크
 
 - [ ] Naver Developers: Callback URL `pillarm://oauth` 등록
-- [ ] Google Cloud Console: iOS Bundle ID `com.pillarm.app`, SHA-1 등록
+- [ ] Google Cloud Console: iOS Bundle ID `com.seungrokj.pillarm`, SHA-1 등록
 - [ ] Kakao Developers: iOS Bundle ID, Android 패키지명, 키 해시 등록
 - [ ] Apple Developer: `Sign In with Apple` 기능 활성화

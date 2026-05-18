@@ -120,9 +120,10 @@ export interface UserProfile {
   createdAt: string;
 }
 
-export const getMyProfile   = () => api.get<UserProfile>('/auth/me').then((r) => r.data);
-export const updateMyName   = (name: string) => api.patch<UserProfile>('/auth/me', { name }).then((r) => r.data);
-export const resetPassword  = (email: string, name: string, newPassword: string) =>
+export const getMyProfile    = () => api.get<UserProfile>('/auth/me').then((r) => r.data);
+export const updateMyName    = (name: string) => api.patch<UserProfile>('/auth/me', { name }).then((r) => r.data);
+export const deleteMyAccount = () => api.delete('/auth/me');
+export const resetPassword   = (email: string, name: string, newPassword: string) =>
   api.post<{ message: string }>('/auth/reset-password', { email, name, newPassword }).then((r) => r.data);
 
 // ── CareCircle 타입 ───────────────────────────────────────────────────────────

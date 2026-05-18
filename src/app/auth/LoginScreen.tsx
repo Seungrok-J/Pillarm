@@ -26,9 +26,10 @@ export default function LoginScreen() {
   const navigation = useNavigation<Nav>();
   const { saveSession } = useAuthStore();
 
-  const [email, setEmail]       = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading]   = useState(false);
+  const [email, setEmail]           = useState('');
+  const [password, setPassword]     = useState('');
+  const [loading, setLoading]       = useState(false);
+  const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
 
   // ── 이메일 로그인 ─────────────────────────────────────────────────────────────
 
@@ -64,6 +65,7 @@ export default function LoginScreen() {
     loginFn: () => Promise<SocialAuthResponse>,
   ) {
     setLoading(true);
+    setLoadingProvider(providerName);
     try {
       const data = await loginFn();
       await saveSession({
@@ -92,6 +94,7 @@ export default function LoginScreen() {
       Alert.alert('로그인 실패', msg);
     } finally {
       setLoading(false);
+      setLoadingProvider(null);
     }
   }
 
@@ -217,6 +220,15 @@ export default function LoginScreen() {
           </TouchableOpacity>
         </View>
 
+        {loadingProvider && (
+          <View style={styles.loadingOverlay}>
+            <View style={styles.loadingBox}>
+              <ActivityIndicator size="large" color="#3b82f6" />
+              <Text style={styles.loadingText}>{loadingProvider}로 로그인 중...</Text>
+            </View>
+          </View>
+        )}
+
         <View style={styles.footer}>
           <Text style={styles.footerText}>아직 계정이 없으신가요?</Text>
           <TouchableOpacity testID="btn-go-signup" onPress={() => navigation.navigate('Signup')}>
@@ -290,4 +302,17 @@ const styles = StyleSheet.create({
   footer:     { flexDirection: 'row', justifyContent: 'center', marginTop: 32, gap: 6 },
   footerText: { fontSize: 14, color: '#6b7280' },
   linkText:   { fontSize: 14, color: '#3b82f6', fontWeight: '600' },
+
+  loadingOverlay: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center', alignItems: 'center', zIndex: 99,
+  },
+  loadingBox: {
+    backgroundColor: '#fff', borderRadius: 16,
+    paddingVertical: 28, paddingHorizontal: 40,
+    alignItems: 'center', gap: 14,
+    shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 12, elevation: 8,
+  },
+  loadingText: { fontSize: 15, color: '#374151', fontWeight: '600' },
 });

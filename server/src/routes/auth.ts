@@ -187,6 +187,27 @@ router.patch('/fcm-token', requireAuth, async (req, res, next) => {
   }
 });
 
+// ── DELETE /auth/me ───────────────────────────────────────────────────────────
+
+router.delete('/me', requireAuth, async (req, res, next) => {
+  try {
+    const { userId } = req.user!;
+
+    // 다른 케어서클에서 이 사용자의 멤버십 삭제
+    await prisma.careMember.deleteMany({ where: { memberUserId: userId } });
+    // 다른 케어서클에서 이 사용자가 환자인 스냅샷 삭제
+    await prisma.doseEventSnapshot.deleteMany({ where: { patientId: userId } });
+    // 소유한 케어서클 삭제 (멤버·정책·초대코드·스냅샷 cascade)
+    await prisma.careCircle.deleteMany({ where: { ownerUserId: userId } });
+    // 유저 삭제 (리프레시토큰·약·일정·복용기록 cascade)
+    await prisma.user.delete({ where: { id: userId } });
+
+    res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ── POST /auth/reset-password ─────────────────────────────────────────────────
 
 const resetPasswordSchema = z.object({

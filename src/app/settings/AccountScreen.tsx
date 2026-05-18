@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/authStore';
-import { getMyProfile, updateMyName, type UserProfile } from '../../features/careCircle/careCircleApi';
+import { getMyProfile, updateMyName, deleteMyAccount, type UserProfile } from '../../features/careCircle/careCircleApi';
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -14,14 +14,15 @@ function formatDate(iso: string): string {
 }
 
 export default function AccountScreen() {
-  const { userEmail, userName, saveSession, accessToken, refreshToken, userId } = useAuthStore();
+  const { userEmail, userName, saveSession, clearSession, accessToken, refreshToken, userId } = useAuthStore();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
 
-  const [editingName, setEditingName] = useState(false);
-  const [nameInput,   setNameInput]   = useState('');
-  const [savingName,  setSavingName]  = useState(false);
+  const [editingName,   setEditingName]   = useState(false);
+  const [nameInput,     setNameInput]     = useState('');
+  const [savingName,    setSavingName]    = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -65,6 +66,30 @@ export default function AccountScreen() {
     }
   }
 
+  async function handleDeleteAccount() {
+    Alert.alert(
+      '회원 탈퇴',
+      '탈퇴하면 모든 데이터가 영구적으로 삭제됩니다. 정말 탈퇴하시겠어요?',
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '탈퇴하기',
+          style: 'destructive',
+          onPress: async () => {
+            setDeletingAccount(true);
+            try {
+              await deleteMyAccount();
+              await clearSession();
+            } catch {
+              Alert.alert('오류', '탈퇴 처리 중 문제가 발생했습니다. 다시 시도해주세요.');
+              setDeletingAccount(false);
+            }
+          },
+        },
+      ],
+    );
+  }
+
   const displayName = profile?.name ?? userName ?? '';
   const displayEmail = profile?.email ?? userEmail ?? '';
   const joinedAt = profile?.createdAt ? formatDate(profile.createdAt) : '-';
@@ -89,7 +114,7 @@ export default function AccountScreen() {
                 {provider && (
                   <View style={styles.providerBadge}>
                     <Text style={styles.providerBadgeTxt}>
-                      {provider === 'kakao' ? '카카오' : provider === 'google' ? '구글' : provider}
+                      {provider === 'kakao' ? '카카오' : provider === 'google' ? '구글' : provider === 'apple' ? '애플' : provider === 'naver' ? '네이버' : provider}
                     </Text>
                   </View>
                 )}
@@ -135,11 +160,9 @@ export default function AccountScreen() {
                   ) : (
                     <View style={styles.fieldValueRow}>
                       <Text style={styles.fieldValue}>{displayName || '(미설정)'}</Text>
-                      {!provider && (
-                        <TouchableOpacity onPress={() => setEditingName(true)} style={styles.editBtn}>
-                          <Text style={styles.editBtnTxt}>수정</Text>
-                        </TouchableOpacity>
-                      )}
+                      <TouchableOpacity onPress={() => setEditingName(true)} style={styles.editBtn}>
+                        <Text style={styles.editBtnTxt}>수정</Text>
+                      </TouchableOpacity>
                     </View>
                   )}
                 </View>
@@ -148,7 +171,12 @@ export default function AccountScreen() {
 
                 <View style={styles.fieldRow}>
                   <Text style={styles.fieldLabel}>이메일</Text>
-                  <Text style={styles.fieldValue}>{displayEmail}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.fieldValue}>{displayEmail || '(미제공)'}</Text>
+                    {displayEmail.includes('privaterelay.appleid.com') && (
+                      <Text style={styles.relayNote}>Apple 개인 정보 보호 이메일</Text>
+                    )}
+                  </View>
                 </View>
 
                 <View style={styles.divider} />
@@ -164,7 +192,7 @@ export default function AccountScreen() {
                     <View style={styles.fieldRow}>
                       <Text style={styles.fieldLabel}>로그인 방식</Text>
                       <Text style={styles.fieldValue}>
-                        {provider === 'kakao' ? '카카오 소셜 로그인' : provider === 'google' ? '구글 소셜 로그인' : provider}
+                        {provider === 'kakao' ? '카카오 소셜 로그인' : provider === 'google' ? '구글 소셜 로그인' : provider === 'apple' ? '애플 소셜 로그인' : provider === 'naver' ? '네이버 소셜 로그인' : provider}
                       </Text>
                     </View>
                   </>
@@ -182,6 +210,18 @@ export default function AccountScreen() {
                   </View>
                 </View>
               )}
+
+              {/* ── 회원 탈퇴 ── */}
+              <TouchableOpacity
+                style={styles.deleteBtn}
+                onPress={handleDeleteAccount}
+                disabled={deletingAccount}
+              >
+                {deletingAccount
+                  ? <ActivityIndicator size="small" color="#ef4444" />
+                  : <Text style={styles.deleteBtnTxt}>회원 탈퇴</Text>
+                }
+              </TouchableOpacity>
             </>
           )}
         </ScrollView>
@@ -242,4 +282,13 @@ const styles = StyleSheet.create({
 
   infoBox: { paddingHorizontal: 16, paddingVertical: 14 },
   infoTxt: { fontSize: 13, color: '#6b7280', lineHeight: 20 },
+
+  relayNote: { fontSize: 11, color: '#9ca3af', marginTop: 2 },
+
+  deleteBtn: {
+    marginTop: 32, marginBottom: 16,
+    paddingVertical: 14, alignItems: 'center',
+    borderWidth: 1, borderColor: '#fca5a5', borderRadius: 12,
+  },
+  deleteBtnTxt: { fontSize: 14, color: '#ef4444', fontWeight: '600' },
 });
