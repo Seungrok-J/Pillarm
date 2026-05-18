@@ -89,9 +89,9 @@ export default function LoginScreen() {
         code === 'SIGN_IN_CANCELLED'      // Google
       ) return;
 
-      const msg = (err as { response?: { data?: { error?: string } } })
-        ?.response?.data?.error ?? `${providerName} 로그인에 실패했습니다`;
-      Alert.alert('로그인 실패', msg);
+      const e = err as { code?: string; message?: string; response?: { data?: { error?: string } } };
+      const msg = e.response?.data?.error ?? e.message ?? `${providerName} 로그인에 실패했습니다`;
+      Alert.alert('로그인 실패', `[${e.code ?? 'ERR'}] ${msg}`);
     } finally {
       setLoading(false);
       setLoadingProvider(null);

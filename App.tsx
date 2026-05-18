@@ -5,11 +5,16 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Notifications from 'expo-notifications';
+import { initialize as initKakao } from '@react-native-kakao/core';
+import { configureGoogle } from './src/features/socialAuth/googleAuth';
 import { getDatabase } from './src/db';
 import { checkAndMarkMissed } from './src/notifications';
 import { useSettingsStore, useDoseEventStore } from './src/store';
 import { todayString } from './src/utils';
 import RootNavigator from './src/navigation';
+
+initKakao();
+configureGoogle();
 
 // 포그라운드 알림 핸들러: 이미 복용 완료된 이벤트는 알림을 표시하지 않음
 Notifications.setNotificationHandler({
