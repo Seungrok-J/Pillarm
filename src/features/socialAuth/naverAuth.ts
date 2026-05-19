@@ -14,7 +14,7 @@ const discovery = {
 };
 
 export async function signInWithNaver(): Promise<SocialAuthResponse> {
-  const redirectUri = AuthSession.makeRedirectUri({ scheme: 'pillarm', path: 'oauth' });
+  const redirectUri = 'https://seungrok-j.github.io/Pillarm/oauth-callback';
 
   const request = new AuthSession.AuthRequest({
     clientId: CLIENT_ID,
