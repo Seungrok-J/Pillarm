@@ -131,8 +131,16 @@ async function upsertSocialUser(params: {
     const displayName = name ?? (email ? email.split('@')[0] : null) ?? provider;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     user = await prisma.user.create({ data: { email: email ?? null, name: displayName, provider, providerId, ...(fcmToken ? { fcmToken } : {}) } as any });
-  } else if (fcmToken) {
-    await prisma.user.update({ where: { id: user.id }, data: { fcmToken } });
+  } else {
+    // 기존 유저: 이름이 provider 폴백값("kakao","naver" 등)이면 실제 닉네임으로 업데이트
+    const needsNameUpdate = name && user.name === provider;
+    const updateData = {
+      ...(needsNameUpdate ? { name } : {}),
+      ...(fcmToken ? { fcmToken } : {}),
+    };
+    if (Object.keys(updateData).length > 0) {
+      user = await prisma.user.update({ where: { id: user.id }, data: updateData });
+    }
   }
 
   const jwtPayload = { userId: user.id, email: user.email ?? '' };
