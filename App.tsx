@@ -13,9 +13,6 @@ import { useSettingsStore, useDoseEventStore } from './src/store';
 import { todayString } from './src/utils';
 import RootNavigator from './src/navigation';
 
-try { initKakao('8dc3f74482bc4d09a9c1c8502acf99c4'); } catch {}
-try { configureGoogle(); } catch {}
-
 // 포그라운드 알림 핸들러: 이미 복용 완료된 이벤트는 알림을 표시하지 않음
 Notifications.setNotificationHandler({
   handleNotification: async (notification) => {
@@ -47,6 +44,9 @@ export default function App() {
   // ── DB 초기화 & 설정 로드 ────────────────────────────────────────────────
   useEffect(() => {
     (async () => {
+      try { initKakao('8dc3f74482bc4d09a9c1c8502acf99c4'); } catch (e) { console.warn('[App] initKakao:', e); }
+      configureGoogle();
+
       try {
         await getDatabase();                              // 마이그레이션 실행
         await useSettingsStore.getState().loadSettings(); // UserSettings 로드
