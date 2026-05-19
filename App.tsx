@@ -13,7 +13,7 @@ import { useSettingsStore, useDoseEventStore } from './src/store';
 import { todayString } from './src/utils';
 import RootNavigator from './src/navigation';
 
-initKakao();
+initKakao('8dc3f74482bc4d09a9c1c8502acf99c4');
 configureGoogle();
 
 // 포그라운드 알림 핸들러: 이미 복용 완료된 이벤트는 알림을 표시하지 않음
