@@ -5,6 +5,9 @@ import {
   KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
+import type { RootStackParamList } from '../../navigation';
 import { useAuthStore } from '../../store/authStore';
 import { getMyProfile, updateMyName, deleteMyAccount, type UserProfile } from '../../features/careCircle/careCircleApi';
 
@@ -14,6 +17,7 @@ function formatDate(iso: string): string {
 }
 
 export default function AccountScreen() {
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const { userEmail, userName, saveSession, clearSession, accessToken, refreshToken, userId } = useAuthStore();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -80,6 +84,11 @@ export default function AccountScreen() {
             try {
               await deleteMyAccount();
               await clearSession();
+              Alert.alert(
+                '탈퇴 완료',
+                '그동안 필람을 이용해주셔서 감사합니다.',
+                [{ text: '확인', onPress: () => navigation.popToTop() }],
+              );
             } catch {
               Alert.alert('오류', '탈퇴 처리 중 문제가 발생했습니다. 다시 시도해주세요.');
               setDeletingAccount(false);
