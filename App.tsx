@@ -5,7 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Notifications from 'expo-notifications';
-import { initialize as initKakao } from '@react-native-kakao/core';
+import { initializeKakaoSDK } from '@react-native-kakao/core';
 import { configureGoogle } from './src/features/socialAuth/googleAuth';
 import { getDatabase } from './src/db';
 import { checkAndMarkMissed } from './src/notifications';
@@ -44,8 +44,8 @@ export default function App() {
   // ── DB 초기화 & 설정 로드 ────────────────────────────────────────────────
   useEffect(() => {
     (async () => {
-      try { initKakao('8dc3f74482bc4d09a9c1c8502acf99c4'); } catch (e) { console.warn('[App] initKakao:', e); }
-      configureGoogle();
+      try { await initializeKakaoSDK('8dc3f74482bc4d09a9c1c8502acf99c4'); } catch (e) { console.warn('[App] initKakao:', e); }
+      try { configureGoogle(); } catch (e) { console.warn('[App] configureGoogle:', e); }
 
       try {
         await getDatabase();                              // 마이그레이션 실행

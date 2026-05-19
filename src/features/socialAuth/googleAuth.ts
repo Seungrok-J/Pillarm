@@ -19,11 +19,9 @@ export async function signInWithGoogle(): Promise<SocialAuthResponse> {
   }
   const userInfo = await GoogleSignin.signIn();
 
-  let idToken = userInfo.data?.idToken;
-  if (!idToken) {
-    const tokens = await GoogleSignin.getTokens();
-    idToken = tokens.idToken;
-  }
+  if (userInfo.type !== 'success') throw new Error('Google 로그인을 완료해주세요');
+
+  const idToken = userInfo.data?.idToken;
   if (!idToken) throw new Error('Google idToken을 받지 못했습니다');
 
   const fcmToken = await getExpoPushToken();
