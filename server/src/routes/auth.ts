@@ -8,6 +8,12 @@ import { requireAuth } from '../middleware/auth';
 
 const router = Router();
 
+const PROVIDER_NAMES: Record<string, string> = {
+  google: '구글',
+  kakao:  '카카오',
+  apple:  '애플',
+};
+
 const signupSchema = z.object({
   email:    z.string().email('유효한 이메일을 입력하세요'),
   password: z.string().min(8, '비밀번호는 8자 이상이어야 합니다'),
@@ -38,7 +44,16 @@ router.post('/signup', async (req, res, next) => {
     const { email, password, name } = parsed.data;
 
     const existing = await prisma.user.findUnique({ where: { email } });
-    if (existing) throw new AppError('Email already in use', 409);
+    if (existing) {
+      if (existing.provider) {
+        const pName = PROVIDER_NAMES[existing.provider] ?? existing.provider;
+        throw new AppError(
+          `이 이메일은 이미 ${pName} 계정으로 가입되어 있습니다. ${pName} 로그인을 이용해주세요.`,
+          409,
+        );
+      }
+      throw new AppError('이미 가입된 이메일입니다.', 409);
+    }
 
     const passwordHash = await bcrypt.hash(password, 10);
     const { fcmToken } = parsed.data as { fcmToken?: string };
@@ -70,10 +85,21 @@ router.post('/login', async (req, res, next) => {
     const { email, password } = parsed.data;
 
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user || !user.passwordHash) throw new AppError('Invalid credentials', 401);
+    if (!user) throw new AppError('이메일 또는 비밀번호가 올바르지 않습니다.', 401);
+
+    if (!user.passwordHash) {
+      if (user.provider) {
+        const pName = PROVIDER_NAMES[user.provider] ?? user.provider;
+        throw new AppError(
+          `이 이메일은 ${pName} 계정으로 가입되어 있습니다. ${pName} 로그인을 이용해주세요.`,
+          401,
+        );
+      }
+      throw new AppError('이메일 또는 비밀번호가 올바르지 않습니다.', 401);
+    }
 
     const valid = await bcrypt.compare(password, user.passwordHash);
-    if (!valid) throw new AppError('Invalid credentials', 401);
+    if (!valid) throw new AppError('이메일 또는 비밀번호가 올바르지 않습니다.', 401);
 
     const payload = { userId: user.id, email: user.email ?? '' };
     const accessToken = signAccess(payload);
@@ -227,6 +253,15 @@ router.post('/reset-password', async (req, res, next) => {
     // 이메일·이름 불일치 시 동일한 오류 반환 (계정 존재 여부 노출 방지)
     if (!user || user.name?.trim().toLowerCase() !== name.trim().toLowerCase()) {
       throw new AppError('이름 또는 이메일이 일치하지 않습니다', 404);
+    }
+
+    // 소셜 전용 계정은 비밀번호 없음 → 재설정 불가
+    if (user.provider && !user.passwordHash) {
+      const pName = PROVIDER_NAMES[user.provider] ?? user.provider;
+      throw new AppError(
+        `이 이메일은 ${pName} 계정으로 가입되어 있습니다. 비밀번호 재설정이 불가합니다.`,
+        400,
+      );
     }
 
     const passwordHash = await bcrypt.hash(newPassword, 10);

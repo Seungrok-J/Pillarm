@@ -11,9 +11,11 @@ import { useAuthStore } from '../../store/authStore';
 import QRCode from 'react-native-qrcode-svg';
 import {
   listCircles, createCircle, deleteCircle, createInvite,
-  deleteMember, updateMemberNickname,
+  deleteMember, updateMemberNickname, leaveCircle,
   type ApiCareCircle, type ApiCareMember,
 } from './careCircleApi';
+
+const JOIN_WEB_URL = 'https://seungrok-j.github.io/Pillarm/join';
 
 type Nav = StackNavigationProp<RootStackParamList>;
 
@@ -43,9 +45,9 @@ interface InviteModalProps {
 function InviteModal({ visible, code, onClose }: InviteModalProps) {
   function handleShare() {
     if (!code) return;
-    const url = `pillarm://join/${code}`;
+    const url = `${JOIN_WEB_URL}?code=${code}`;
     Share.share({
-      message: `필람 앱에서 보호 그룹 초대를 수락하세요 (24시간 유효)\n\n${url}`,
+      message: `필람 보호 그룹 초대입니다. 아래 링크를 눌러 참여해주세요 (24시간 유효)\n\n${url}`,
       url,
     });
   }
@@ -69,7 +71,7 @@ function InviteModal({ visible, code, onClose }: InviteModalProps) {
           {/* QR 코드 */}
           {code && (
             <View style={styles.qrWrap} testID="qr-code">
-              <QRCode value={`pillarm://join/${code}`} size={160} backgroundColor="#fff" color="#111827" />
+              <QRCode value={`${JOIN_WEB_URL}?code=${code}`} size={160} backgroundColor="#fff" color="#111827" />
             </View>
           )}
 
@@ -362,6 +364,27 @@ export default function CareCircleScreen() {
 
   // ── 렌더: 참여 그룹 카드 (보호자 뷰) ─────────────────────────────────────
 
+  function handleLeaveCircle(circle: ApiCareCircle) {
+    Alert.alert(
+      '그룹 나가기',
+      `"${circle.name}"에서 나가시겠어요? 이후 복용 현황을 볼 수 없게 됩니다.`,
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '나가기', style: 'destructive',
+          onPress: async () => {
+            try {
+              await leaveCircle(circle.id);
+              await loadCircles();
+            } catch {
+              Alert.alert('오류', '그룹 나가기에 실패했습니다');
+            }
+          },
+        },
+      ],
+    );
+  }
+
   function renderMemberCircle(circle: ApiCareCircle) {
     return (
       <View testID={`card-joined-${circle.id}`} style={styles.circleCard}>
@@ -384,6 +407,16 @@ export default function CareCircleScreen() {
           accessibilityRole="button"
         >
           <Text style={styles.monitorBtnText}>오늘 복용 현황 보기 →</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          testID={`btn-leave-${circle.id}`}
+          style={styles.leaveBtn}
+          onPress={() => handleLeaveCircle(circle)}
+          accessibilityLabel="그룹 나가기"
+          accessibilityRole="button"
+        >
+          <Text style={styles.leaveBtnText}>그룹 나가기</Text>
         </TouchableOpacity>
       </View>
     );
@@ -560,6 +593,8 @@ const styles = StyleSheet.create({
 
   monitorBtn:     { backgroundColor: '#eff6ff', borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 8 },
   monitorBtnText: { color: '#3b82f6', fontWeight: '600', fontSize: 14 },
+  leaveBtn:       { borderRadius: 10, paddingVertical: 10, alignItems: 'center', marginTop: 6 },
+  leaveBtnText:   { color: '#9ca3af', fontWeight: '500', fontSize: 13 },
 
   emptyCard: {
     backgroundColor: '#fff', borderRadius: 16, padding: 20,

@@ -23,6 +23,9 @@ export async function signInWithGoogle(): Promise<SocialAuthResponse> {
   }
   const userInfo = await GoogleSignin.signIn();
 
+  if (userInfo.type === 'cancelled') {
+    throw Object.assign(new Error('cancelled'), { code: 'SIGN_IN_CANCELLED' });
+  }
   if (userInfo.type !== 'success') throw new Error('Google 로그인을 완료해주세요');
 
   const idToken = userInfo.data?.idToken;

@@ -9,7 +9,11 @@ import { AppError } from '../middleware/errorHandler';
 
 const router = Router();
 
-const SERVER_URL = process.env.SERVER_URL ?? 'https://pillarm-production.up.railway.app';
+const PROVIDER_NAMES: Record<string, string> = {
+  google: '구글',
+  kakao:  '카카오',
+  apple:  '애플',
+};
 
 const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 function refreshExpiry(): Date {
@@ -17,27 +21,12 @@ function refreshExpiry(): Date {
 }
 
 const socialSchema = z.object({
-  provider:    z.enum(['apple', 'google', 'kakao', 'naver']),
+  provider:    z.enum(['apple', 'google', 'kakao']),
   idToken:     z.string().optional(),
   accessToken: z.string().optional(),
   name:        z.string().trim().max(50).optional(),
   fcmToken:    z.string().optional(),
 });
-
-// ── HTTP GET (인증 헤더 없음) ──────────────────────────────────────────────────
-function fetchGet<T>(url: string): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const req = https.get(url, (res) => {
-      let data = '';
-      res.on('data', (chunk) => { data += chunk; });
-      res.on('end', () => {
-        try { resolve(JSON.parse(data) as T); }
-        catch { reject(new Error('Invalid JSON response')); }
-      });
-    });
-    req.on('error', reject);
-  });
-}
 
 // ── HTTP GET (Bearer 인증) ────────────────────────────────────────────────────
 function fetchJson<T>(url: string, token: string): Promise<T> {
@@ -92,19 +81,6 @@ async function verifyKakao(accessToken: string): Promise<{ providerId: string; e
   };
 }
 
-async function verifyNaver(accessToken: string): Promise<{ providerId: string; email?: string; name?: string }> {
-  const data = await fetchJson<{ response?: { id?: string; email?: string; name?: string; nickname?: string } }>(
-    'https://openapi.naver.com/v1/nid/me',
-    accessToken,
-  );
-  if (!data.response?.id) throw new AppError('Invalid Naver token', 401);
-  return {
-    providerId: data.response.id,
-    email: data.response.email,
-    name: data.response.name ?? data.response.nickname,
-  };
-}
-
 // ── 공통: 소셜 사용자 DB upsert + JWT 발급 ───────────────────────────────────
 
 async function upsertSocialUser(params: {
@@ -121,8 +97,24 @@ async function upsertSocialUser(params: {
   if (!user && email) {
     const emailUser = await prisma.user.findUnique({ where: { email } });
     if (emailUser) {
+      if (!emailUser.provider) {
+        // 이메일/비밀번호 계정 — 침묵 연결 금지
+        throw new AppError(
+          '이 이메일은 이미 이메일/비밀번호로 가입된 계정입니다. 이메일 로그인을 이용해주세요.',
+          409,
+        );
+      }
+      if (emailUser.provider !== provider) {
+        // 다른 소셜 제공자 계정
+        const existingName = PROVIDER_NAMES[emailUser.provider] ?? emailUser.provider;
+        throw new AppError(
+          `이 이메일은 이미 ${existingName} 계정으로 가입되어 있습니다. ${existingName} 로그인을 이용해주세요.`,
+          409,
+        );
+      }
+      // 같은 제공자·같은 이메일 → 기존 계정 사용 (providerId 업데이트)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      user = await prisma.user.update({ where: { id: emailUser.id }, data: { provider, providerId, ...(fcmToken ? { fcmToken } : {}) } as any });
+      user = await prisma.user.update({ where: { id: emailUser.id }, data: { providerId, ...(fcmToken ? { fcmToken } : {}) } as any });
     }
   }
 
@@ -132,7 +124,7 @@ async function upsertSocialUser(params: {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     user = await prisma.user.create({ data: { email: email ?? null, name: displayName, provider, providerId, ...(fcmToken ? { fcmToken } : {}) } as any });
   } else {
-    // 기존 유저: 이름이 provider 폴백값("kakao","naver" 등)이면 실제 닉네임으로 업데이트
+    // 기존 유저: 이름이 provider 폴백값("kakao" 등)이면 실제 닉네임으로 업데이트
     const needsNameUpdate = name && user.name === provider;
     const updateData = {
       ...(needsNameUpdate ? { name } : {}),
@@ -151,7 +143,7 @@ async function upsertSocialUser(params: {
   return { user, isNewUser, accessToken, refreshToken };
 }
 
-// ── POST /auth/social  (Apple / Google / Kakao / Naver accessToken 방식) ──────
+// ── POST /auth/social  (Apple / Google / Kakao) ──────────────────────────────
 
 router.post('/', async (req, res, next) => {
   try {
@@ -181,11 +173,6 @@ router.post('/', async (req, res, next) => {
         ({ providerId, email, name: providerName } = await verifyKakao(accessToken));
         break;
       }
-      case 'naver': {
-        if (!accessToken) throw new AppError('accessToken required for Naver', 400);
-        ({ providerId, email, name: providerName } = await verifyNaver(accessToken));
-        break;
-      }
     }
 
     const { user, isNewUser, accessToken: newAccess, refreshToken: newRefresh } = await upsertSocialUser({
@@ -201,56 +188,6 @@ router.post('/', async (req, res, next) => {
     });
   } catch (err) {
     next(err);
-  }
-});
-
-// ── GET /auth/social/naver/start  (서버사이드 OAuth 시작) ─────────────────────
-
-router.get('/naver/start', (req, res) => {
-  const clientId   = process.env.NAVER_CLIENT_ID ?? '';
-  const callbackUri = `${SERVER_URL}/auth/social/naver/callback`;
-  const state      = Math.random().toString(36).substring(7);
-  res.redirect(
-    `https://nid.naver.com/oauth2.0/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(callbackUri)}&state=${state}`,
-  );
-});
-
-// ── GET /auth/social/naver/callback  (Naver → 서버 → 앱 딥링크) ──────────────
-
-router.get('/naver/callback', async (req, res, next) => {
-  try {
-    const { code, state } = req.query as { code?: string; state?: string };
-    if (!code) return res.redirect('pillarm://oauth-callback?error=no_code');
-
-    const clientId    = process.env.NAVER_CLIENT_ID ?? '';
-    const clientSecret = process.env.NAVER_CLIENT_SECRET ?? '';
-    const callbackUri  = `${SERVER_URL}/auth/social/naver/callback`;
-
-    // 1. 인가 코드 → 액세스 토큰
-    const tokenData = await fetchGet<{ access_token?: string }>(
-      `https://nid.naver.com/oauth2.0/token?grant_type=authorization_code&client_id=${clientId}&client_secret=${clientSecret}&code=${code}&state=${state}&redirect_uri=${encodeURIComponent(callbackUri)}`,
-    );
-    if (!tokenData.access_token) return res.redirect('pillarm://oauth-callback?error=no_token');
-
-    // 2. 사용자 정보 조회
-    const { providerId, email, name } = await verifyNaver(tokenData.access_token);
-
-    // 3. DB upsert + JWT 발급
-    const { user, isNewUser, accessToken, refreshToken } = await upsertSocialUser({
-      provider: 'naver', providerId, email, name,
-    });
-
-    // 4. 앱 딥링크로 HTTP 302 → ASWebAuthenticationSession이 pillarm:// 감지
-    const params = new URLSearchParams({
-      accessToken,
-      refreshToken,
-      userId:    user.id,
-      name:      user.name ?? '',
-      isNewUser: String(isNewUser),
-    });
-    return res.redirect(`pillarm://oauth-callback?${params.toString()}`);
-  } catch (err) {
-    return next(err);
   }
 });
 

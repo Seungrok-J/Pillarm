@@ -16,7 +16,6 @@ import {
   signInWithApple,
   signInWithGoogle,
   signInWithKakao,
-  signInWithNaver,
   type SocialAuthResponse,
 } from '../../features/socialAuth';
 
@@ -50,9 +49,13 @@ export default function LoginScreen() {
       initialPush(data.userId).catch(() => {});
       navigation.goBack();
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { error?: string } } })
-        ?.response?.data?.error ?? '로그인에 실패했습니다';
-      Alert.alert('로그인 실패', msg);
+      const e = err as { response?: { status?: number; data?: { error?: string } } };
+      const msg = e.response?.data?.error ?? '로그인에 실패했습니다';
+      // 소셜 계정 충돌: 어떤 소셜로 로그인해야 하는지 안내
+      const title = e.response?.status === 401 && msg.includes('로그인을 이용해주세요')
+        ? '로그인 방식 확인'
+        : '로그인 실패';
+      Alert.alert(title, msg);
     } finally {
       setLoading(false);
     }
@@ -89,9 +92,14 @@ export default function LoginScreen() {
         code === 'SIGN_IN_CANCELLED'      // Google
       ) return;
 
-      const e = err as { code?: string; message?: string; response?: { data?: { error?: string } } };
+      const e = err as { code?: string; message?: string; response?: { status?: number; data?: { error?: string } } };
+      const status = e.response?.status;
       const msg = e.response?.data?.error ?? e.message ?? `${providerName} 로그인에 실패했습니다`;
-      Alert.alert('로그인 실패', `[${e.code ?? 'ERR'}] ${msg}`);
+      if (status === 409) {
+        Alert.alert('이미 가입된 계정', msg);
+      } else {
+        Alert.alert('로그인 실패', `[${e.code ?? 'ERR'}] ${msg}`);
+      }
     } finally {
       setLoading(false);
       setLoadingProvider(null);
@@ -208,16 +216,6 @@ export default function LoginScreen() {
             <Text style={styles.kakaoBtnText}>💬  카카오로 계속하기</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            testID="btn-naver"
-            style={[styles.socialBtn, styles.naverBtn]}
-            onPress={() => handleSocialLogin('네이버', signInWithNaver)}
-            disabled={loading}
-            accessibilityRole="button"
-            accessibilityLabel="네이버로 계속하기"
-          >
-            <Text style={styles.naverBtnText}>N  네이버로 계속하기</Text>
-          </TouchableOpacity>
         </View>
 
         {loadingProvider && (
@@ -295,9 +293,6 @@ const styles = StyleSheet.create({
 
   kakaoBtn:     { backgroundColor: '#FEE500', borderColor: '#FEE500' },
   kakaoBtnText: { color: '#191919', fontSize: 15, fontWeight: '600' },
-
-  naverBtn:     { backgroundColor: '#03C75A', borderColor: '#03C75A' },
-  naverBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
 
   footer:     { flexDirection: 'row', justifyContent: 'center', marginTop: 32, gap: 6 },
   footerText: { fontSize: 14, color: '#6b7280' },

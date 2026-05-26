@@ -17,25 +17,23 @@ function randomCode(): string {
 export async function generateInviteCode(
   careCircleId: string,
 ): Promise<{ code: string; expiresAt: Date }> {
+  // 기존 코드 제거 후 새 코드 발급 (서클당 코드 1개 유지)
+  await prisma.inviteCode.deleteMany({ where: { careCircleId } });
+
   const code = randomCode();
   const expiresAt = new Date(Date.now() + TTL_MS);
-
   await prisma.inviteCode.create({ data: { careCircleId, code, expiresAt } });
 
   return { code, expiresAt };
 }
 
 export async function validateInviteCode(code: string): Promise<string> {
+  // 만료 여부만 확인 — usedAt 체크 제거로 24시간 내 다중 참여 허용
   const invite = await prisma.inviteCode.findFirst({
-    where: { code, usedAt: null, expiresAt: { gt: new Date() } },
+    where: { code, expiresAt: { gt: new Date() } },
   });
 
-  if (!invite) throw new AppError('Invalid or expired invite code', 400);
-
-  await prisma.inviteCode.update({
-    where: { id: invite.id },
-    data: { usedAt: new Date() },
-  });
+  if (!invite) throw new AppError('초대 코드가 유효하지 않거나 만료되었습니다', 400);
 
   return invite.careCircleId;
 }

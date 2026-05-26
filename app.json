@@ -67,7 +67,6 @@
         }
       ],
       "@react-native-community/datetimepicker",
-      "expo-web-browser",
       [
         "expo-build-properties",
         {

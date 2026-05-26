@@ -193,6 +193,33 @@ router.patch('/:id/members/:memberId', async (req, res, next) => {
   }
 });
 
+// ── DELETE /care-circles/:id/leave ──────────────────────────────────────────
+// 보호자(멤버)가 직접 그룹에서 나가기
+
+router.delete('/:id/leave', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user!.userId;
+
+    const circle = await prisma.careCircle.findUnique({ where: { id } });
+    if (!circle) throw new AppError('Not found', 404);
+
+    if (circle.ownerUserId === userId) {
+      throw new AppError('그룹 소유자는 나갈 수 없습니다. 그룹 해제를 이용해주세요.', 400);
+    }
+
+    const member = await prisma.careMember.findUnique({
+      where: { careCircleId_memberUserId: { careCircleId: id, memberUserId: userId } },
+    });
+    if (!member) throw new AppError('Not a member', 404);
+
+    await prisma.careMember.delete({ where: { id: member.id } });
+    res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ── POST /care-circles/:id/invite ────────────────────────────────────────────
 
 router.post('/:id/invite', async (req, res, next) => {

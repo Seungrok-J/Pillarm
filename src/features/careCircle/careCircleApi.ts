@@ -42,6 +42,13 @@ api.interceptors.response.use(
   (r) => r,
   async (error: AxiosError) => {
     const original = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+
+    // Auth endpoints return 401 for wrong credentials/account conflicts — pass through as-is
+    const url = original?.url ?? '';
+    if (/\/auth\/(login|signup|reset-password|social)/.test(url)) {
+      return Promise.reject(error);
+    }
+
     if (error.response?.status !== 401 || original._retry) return Promise.reject(error);
     original._retry = true;
 
@@ -178,6 +185,8 @@ export const joinCircle    = (code: string)  =>
   api.post<ApiCareMember>('/care-circles/join', { code }).then((r) => r.data);
 export const deleteMember  = (circleId: string, memberId: string) =>
   api.delete(`/care-circles/${circleId}/members/${memberId}`);
+export const leaveCircle   = (circleId: string) =>
+  api.delete(`/care-circles/${circleId}/leave`);
 export const updateMemberNickname = (circleId: string, memberId: string, nickname: string) =>
   api.patch<ApiCareMember>(`/care-circles/${circleId}/members/${memberId}`, { nickname }).then((r) => r.data);
 

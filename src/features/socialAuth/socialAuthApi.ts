@@ -1,6 +1,6 @@
 import { api } from '../careCircle/careCircleApi';
 
-export type SocialProvider = 'apple' | 'google' | 'kakao' | 'naver';
+export type SocialProvider = 'apple' | 'google' | 'kakao';
 
 export interface SocialAuthResponse {
   accessToken:  string;

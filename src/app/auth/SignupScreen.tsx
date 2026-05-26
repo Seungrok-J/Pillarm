@@ -43,9 +43,21 @@ export default function SignupScreen() {
       initialPush(data.userId).catch(() => {});
       navigation.goBack();
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { error?: string } } })
-        ?.response?.data?.error ?? '회원가입에 실패했습니다';
-      Alert.alert('회원가입 실패', msg);
+      const e = err as { response?: { status?: number; data?: { error?: string } } };
+      const status = e.response?.status;
+      const msg = e.response?.data?.error ?? '회원가입에 실패했습니다';
+      if (status === 409) {
+        Alert.alert(
+          '이미 가입된 계정',
+          msg,
+          [
+            { text: '확인' },
+            { text: '로그인 화면으로', onPress: () => navigation.navigate('Login') },
+          ],
+        );
+      } else {
+        Alert.alert('회원가입 실패', msg);
+      }
     } finally {
       setLoading(false);
     }

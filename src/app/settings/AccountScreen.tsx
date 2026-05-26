@@ -123,7 +123,7 @@ export default function AccountScreen() {
                 {provider && (
                   <View style={styles.providerBadge}>
                     <Text style={styles.providerBadgeTxt}>
-                      {provider === 'kakao' ? '카카오' : provider === 'google' ? '구글' : provider === 'apple' ? '애플' : provider === 'naver' ? '네이버' : provider}
+                      {provider === 'kakao' ? '카카오' : provider === 'google' ? '구글' : provider === 'apple' ? '애플' : provider}
                     </Text>
                   </View>
                 )}
@@ -201,7 +201,7 @@ export default function AccountScreen() {
                     <View style={styles.fieldRow}>
                       <Text style={styles.fieldLabel}>로그인 방식</Text>
                       <Text style={styles.fieldValue}>
-                        {provider === 'kakao' ? '카카오 소셜 로그인' : provider === 'google' ? '구글 소셜 로그인' : provider === 'apple' ? '애플 소셜 로그인' : provider === 'naver' ? '네이버 소셜 로그인' : provider}
+                        {provider === 'kakao' ? '카카오 소셜 로그인' : provider === 'google' ? '구글 소셜 로그인' : provider === 'apple' ? '애플 소셜 로그인' : provider}
                       </Text>
                     </View>
                   </>
