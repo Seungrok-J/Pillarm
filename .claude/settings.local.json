@@ -71,7 +71,18 @@
       "Bash(npm show *)",
       "Bash(eas build *)",
       "Bash(eas build:view b24d602d-3901-4bff-a747-ecacaf31a15f)",
-      "Bash(npm uninstall *)"
+      "Bash(npm uninstall *)",
+      "Bash(del \"src\\\\types\\\\react-native-naver-login.d.ts\")",
+      "Bash(cp \"C:\\\\Users\\\\jsl\\\\Desktop\\\\pillarmIcon.png\" \"C:\\\\Users\\\\jsl\\\\Desktop\\\\필람\\(Pillarm\\)\\\\assets\\\\icon.png\")",
+      "Bash(cp \"C:\\\\Users\\\\jsl\\\\Desktop\\\\pillarmIcon.png\" \"C:\\\\Users\\\\jsl\\\\Desktop\\\\필람\\(Pillarm\\)\\\\assets\\\\adaptive-icon.png\")",
+      "Bash(cp \"C:\\\\Users\\\\jsl\\\\Desktop\\\\pillarmIcon.png\" \"C:\\\\Users\\\\jsl\\\\Desktop\\\\필람\\(Pillarm\\)\\\\assets\\\\favicon.png\")",
+      "Bash(git add *)",
+      "Bash(git rm *)",
+      "Bash(git commit -m ' *)",
+      "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('expo',{}\\).get\\('plugins',[]\\), indent=2, ensure_ascii=False\\)\\)\")",
+      "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); deps={**d.get\\('dependencies',{}\\),**d.get\\('devDependencies',{}\\)}; social=[k for k in deps if any\\(x in k for x in ['apple','google-signin','kakao','naver','auth-session']\\)]; print\\('\\\\n'.join\\(social\\)\\)\")",
+      "Bash(git push *)",
+      "Bash(npx eas *)"
     ]
   }
 }

@@ -14,20 +14,13 @@
     },
     "ios": {
       "bundleIdentifier": "com.seungrokj.pillarm",
-      "buildNumber": "10",
+      "buildNumber": "11",
       "supportsTablet": false,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSCameraUsageDescription": "약 봉투 QR 코드 스캔에 사용됩니다.",
+        "NSCameraUsageDescription": "약 복용 사진을 찍기 위해 카메라 접근 권한이 필요합니다.",
         "NSPhotoLibraryUsageDescription": "약 복용 사진을 첨부하기 위해 사진 접근 권한이 필요합니다.",
-        "NSUserNotificationsUsageDescription": "복용 시간 알림을 보내기 위해 필요합니다.",
-        "CFBundleURLTypes": [
-          {
-            "CFBundleURLSchemes": [
-              "com.googleusercontent.apps.131302702516-igvegcggjg5mk6pc8nfllaalda99scul"
-            ]
-          }
-        ]
+        "NSUserNotificationsUsageDescription": "복용 시간 알림을 보내기 위해 필요합니다."
       }
     },
     "android": {

@@ -144,45 +144,52 @@ export default function DoseCard({
 
   // ── 사진 선택 ─────────────────────────────────────────────────────────────
   async function pickImage(source: 'camera' | 'gallery') {
-    if (source === 'camera') {
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert(
-          '카메라 권한이 필요합니다',
-          '사진을 찍으려면 설정에서 카메라 접근을 허용해 주세요.',
-          [
-            { text: '취소', style: 'cancel' },
-            { text: '설정 열기', onPress: () => void Linking.openSettings() },
-          ],
-        );
-        return;
+    try {
+      if (source === 'camera') {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert(
+            '카메라 권한이 필요합니다',
+            '사진을 찍으려면 설정에서 카메라 접근을 허용해 주세요.',
+            [
+              { text: '취소', style: 'cancel' },
+              { text: '설정 열기', onPress: () => void Linking.openSettings() },
+            ],
+          );
+          return;
+        }
       }
-    }
 
-    const result =
-      source === 'camera'
-        ? await ImagePicker.launchCameraAsync({
-            mediaTypes: ['images'],
-            allowsEditing: true,
-            quality: 0.8,
-          })
-        : await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ['images'],
-            allowsEditing: true,
-            quality: 0.8,
-          });
+      const result =
+        source === 'camera'
+          ? await ImagePicker.launchCameraAsync({
+              mediaTypes: ['images'],
+              allowsEditing: true,
+              quality: 0.8,
+            })
+          : await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ['images'],
+              allowsEditing: true,
+              quality: 0.8,
+            });
 
-    if (!result.canceled && result.assets[0]) {
-      const srcUri = result.assets[0].uri;
-      try {
-        const dir = `${FileSystem.documentDirectory}dose-photos/`;
-        await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
-        const ext = srcUri.split('.').pop()?.split('?')[0] ?? 'jpg';
-        const dest = `${dir}${Date.now()}.${ext}`;
-        await FileSystem.copyAsync({ from: srcUri, to: dest });
-        setLocalPhoto(dest);
-      } catch {
-        setLocalPhoto(srcUri);
+      if (!result.canceled && result.assets[0]) {
+        const srcUri = result.assets[0].uri;
+        try {
+          const dir = `${FileSystem.documentDirectory}dose-photos/`;
+          await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
+          const ext = srcUri.split('.').pop()?.split('?')[0] ?? 'jpg';
+          const dest = `${dir}${Date.now()}.${ext}`;
+          await FileSystem.copyAsync({ from: srcUri, to: dest });
+          setLocalPhoto(dest);
+        } catch {
+          setLocalPhoto(srcUri);
+        }
+      }
+    } catch (err) {
+      const msg = (err as { message?: string })?.message;
+      if (msg && !msg.includes('cancel') && !msg.includes('Cancel')) {
+        Alert.alert('사진 오류', `사진을 불러오지 못했습니다.\n(${msg})`);
       }
     }
   }

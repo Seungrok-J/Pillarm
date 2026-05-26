@@ -10,9 +10,10 @@ import { socialLogin, type SocialAuthResponse } from './socialAuthApi';
 const IOS_CLIENT_ID = '131302702516-igvegcggjg5mk6pc8nfllaalda99scul.apps.googleusercontent.com';
 
 export function configureGoogle() {
+  const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
   GoogleSignin.configure({
     iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? IOS_CLIENT_ID,
-    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+    ...(webClientId ? { webClientId } : {}),
   });
 }
 
