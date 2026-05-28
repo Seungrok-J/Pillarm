@@ -36,7 +36,7 @@ model User {
   passwordHash String?
   /// 표시 이름 (이메일 가입 시 직접 입력, 소셜 로그인 시 provider 값)
   name         String?
-  /// OAuth provider (null = 이메일 가입, "apple" | "google" | "kakao" | "naver")
+  /// OAuth provider (null = 이메일 가입, "apple" | "google" | "kakao")
   provider     String?
   /// 소셜 제공자의 고유 사용자 ID
   providerId   String?

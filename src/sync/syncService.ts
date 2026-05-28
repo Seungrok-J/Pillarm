@@ -5,6 +5,7 @@ import { getDoseEventsByDateRange, upsertDoseEvent } from '../db/doseEvents';
 import { api } from '../features/careCircle/careCircleApi';
 import { useAuthStore } from '../store/authStore';
 import { useMedicationStore } from '../store/medicationStore';
+import { todayString } from '../utils';
 
 type DoseEventPayload = Omit<DoseEvent, 'photoPath'>;
 
@@ -91,9 +92,10 @@ export async function uploadTodaySnapshot(
     note:           e.note,
   }));
 
+  const date = todayString(); // 클라이언트 로컬 날짜 (한국 시간 기준)
   await Promise.allSettled(
     ownedCircles.map((c) =>
-      api.put(`/care-circles/${c.id}/members/${userId}/today`, { events }),
+      api.put(`/care-circles/${c.id}/members/${userId}/today`, { date, events }),
     ),
   );
 }

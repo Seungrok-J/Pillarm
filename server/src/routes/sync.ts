@@ -115,6 +115,9 @@ router.put('/medications/:id', async (req, res, next) => {
 
     if (!data['name']) throw new AppError('name is required', 400);
 
+    const existing = await prisma.medication.findUnique({ where: { id } });
+    if (existing && existing.userId !== userId) throw new AppError('Forbidden', 403);
+
     const { id: _mId, ...mData } = data as any;
     const med = await prisma.medication.upsert({
       where:  { id },
@@ -137,6 +140,9 @@ router.put('/schedules/:id', async (req, res, next) => {
 
     if (!data['medicationId']) throw new AppError('medicationId is required', 400);
 
+    const existing = await prisma.schedule.findUnique({ where: { id } });
+    if (existing && existing.userId !== userId) throw new AppError('Forbidden', 403);
+
     const { id: _sId, ...sData } = data as any;
     const sched = await prisma.schedule.upsert({
       where:  { id },
@@ -158,6 +164,9 @@ router.put('/dose-events/:id', async (req, res, next) => {
     const data   = req.body as Record<string, unknown>;
 
     if (!data['scheduleId']) throw new AppError('scheduleId is required', 400);
+
+    const existing = await prisma.doseEvent.findUnique({ where: { id } });
+    if (existing && existing.userId !== userId) throw new AppError('Forbidden', 403);
 
     const { id: _eId, ...eData } = data as any;
     const event = await prisma.doseEvent.upsert({

@@ -195,5 +195,7 @@ export const updateMemberNickname = (circleId: string, memberId: string, nicknam
 export const uploadSnapshot = (circleId: string, patientId: string, events: unknown) =>
   api.put<DoseSnapshot>(`/care-circles/${circleId}/members/${patientId}/today`, events).then((r) => r.data);
 
-export const getSnapshot = (circleId: string, patientId: string) =>
-  api.get<DoseSnapshot>(`/care-circles/${circleId}/members/${patientId}/today`).then((r) => r.data);
+export const getSnapshot = (circleId: string, patientId: string, date?: string) =>
+  api.get<DoseSnapshot>(`/care-circles/${circleId}/members/${patientId}/today`, {
+    params: date ? { date } : undefined,
+  }).then((r) => r.data);

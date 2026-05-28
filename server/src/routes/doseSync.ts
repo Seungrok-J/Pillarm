@@ -7,7 +7,12 @@ const router = Router();
 router.use(requireAuth);
 
 function todayDate(): string {
-  return new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  return new Date().toISOString().slice(0, 10); // UTC YYYY-MM-DD (fallback only)
+}
+
+function parseClientDate(raw: unknown): string | null {
+  if (typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  return null;
 }
 
 async function assertCircleMember(
@@ -40,7 +45,8 @@ router.put('/:id/members/:userId/today', async (req, res, next) => {
 
     await assertCircleMember(circleId, requesterId);
 
-    const date = todayDate();
+    // 클라이언트 로컬 날짜를 우선 사용 (한국 시간 기준), 없으면 서버 UTC로 폴백
+    const date = parseClientDate((req.body as Record<string, unknown>)?.date) ?? todayDate();
     const snapshot = await prisma.doseEventSnapshot.upsert({
       where: { careCircleId_patientId_date: { careCircleId: circleId, patientId, date } },
       update: { data: req.body },
@@ -63,12 +69,14 @@ router.get('/:id/members/:userId/today', async (req, res, next) => {
 
     await assertCircleMember(circleId, requesterId);
 
+    // 클라이언트가 ?date=YYYY-MM-DD 를 넘기면 해당 날짜 스냅샷 조회
+    const date = parseClientDate(req.query.date) ?? todayDate();
     const snapshot = await prisma.doseEventSnapshot.findUnique({
       where: {
         careCircleId_patientId_date: {
           careCircleId: circleId,
           patientId,
-          date: todayDate(),
+          date,
         },
       },
     });

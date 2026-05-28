@@ -42,6 +42,14 @@ export const useDoseEventStore = create<DoseEventState>((set, get) => ({
       if (settings) await checkAndMarkMissed(settings);
       const todayEvents = await getDoseEventsByDate(dateStr, currentUserId());
       set({ todayEvents, isLoading: false });
+      // missed로 전환된 이벤트를 서버에 push — missedDoseNotifier 트리거 및 보호자 스냅샷 갱신
+      if (isSyncEnabled()) {
+        const missedEvents = todayEvents.filter((e) => e.status === 'missed');
+        if (missedEvents.length > 0) {
+          missedEvents.forEach((e) => pushDoseEvent(e).catch(() => {}));
+          uploadTodaySnapshot(currentUserId(), todayEvents).catch(() => {});
+        }
+      }
     } catch (e) {
       set({ isLoading: false, error: (e as Error).message });
     }
@@ -108,7 +116,7 @@ export const useDoseEventStore = create<DoseEventState>((set, get) => ({
   },
 
   markSkipped: async (id) => {
-    const now = new Date().toISOString();
+    const now = toLocalISOString(new Date());
     const prev = get().todayEvents;
     set((state) => ({
       todayEvents: state.todayEvents.map((e) =>
