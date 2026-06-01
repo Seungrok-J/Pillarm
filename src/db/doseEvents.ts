@@ -161,6 +161,19 @@ export async function deleteFutureDoseEvents(scheduleId: string): Promise<void> 
   );
 }
 
+/** 오늘 자정 이후 taken이 아닌 이벤트를 모두 삭제합니다. 일정 삭제 시 오늘 미완료 이벤트까지 제거하는 용도. */
+export async function deleteTodayAndFutureDoseEvents(scheduleId: string): Promise<void> {
+  const db = await getDatabase();
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const todayMidnight = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T00:00:00`;
+  await db.runAsync(
+    `DELETE FROM dose_events WHERE schedule_id = ? AND planned_at >= ? AND status != 'taken'`,
+    scheduleId,
+    todayMidnight,
+  );
+}
+
 function rowToDoseEvent(row: Record<string, unknown>): DoseEvent {
   return {
     id: row['id'] as string,

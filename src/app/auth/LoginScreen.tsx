@@ -11,6 +11,8 @@ import { useAuthStore } from '../../store/authStore';
 import { authLogin } from '../../features/careCircle/careCircleApi';
 import { getExpoPushToken } from '../../notifications/pushToken';
 import { initialPush, pullFromServer } from '../../sync/syncService';
+import { getUserSettings } from '../../db';
+import { rescheduleAllSchedules } from '../../notifications';
 import {
   isAppleAuthAvailable,
   signInWithApple,
@@ -45,8 +47,10 @@ export default function LoginScreen() {
         userEmail:    email.trim().toLowerCase(),
         userName:     data.name ?? null,
       });
-      pullFromServer(data.userId).catch(() => {});
-      initialPush(data.userId).catch(() => {});
+      pullFromServer(data.userId)
+        .then(() => getUserSettings())
+        .then((s) => rescheduleAllSchedules(s))
+        .catch(() => {});
       navigation.goBack();
     } catch (err: unknown) {
       const e = err as { response?: { status?: number; data?: { error?: string } } };
@@ -80,8 +84,12 @@ export default function LoginScreen() {
       });
       if (data.isNewUser) {
         initialPush(data.userId).catch(() => {});
+        getUserSettings().then((s) => rescheduleAllSchedules(s)).catch(() => {});
       } else {
-        pullFromServer(data.userId).catch(() => {});
+        pullFromServer(data.userId)
+          .then(() => getUserSettings())
+          .then((s) => rescheduleAllSchedules(s))
+          .catch(() => {});
       }
       navigation.goBack();
     } catch (err: unknown) {

@@ -5,6 +5,7 @@ import {
   getAllSchedules,
   upsertSchedule,
   deleteSchedule,
+  deleteTodayAndFutureDoseEvents,
 } from '../db';
 import { cancelForSchedule } from '../notifications';
 import { useAuthStore } from './authStore';
@@ -77,6 +78,7 @@ export const useScheduleStore = create<ScheduleState>((set, get) => ({
     }));
     try {
       await cancelForSchedule(id);
+      await deleteTodayAndFutureDoseEvents(id);
       await deleteSchedule(id);
       if (isSyncEnabled() && target) {
         pushSchedule({ ...target, isActive: false, updatedAt: new Date().toISOString() }).catch(() => {});

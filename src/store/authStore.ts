@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Notifications from 'expo-notifications';
+import { Platform } from 'react-native';
 
 const K = {
   ACCESS:  '@pillarm/access_token',
@@ -63,6 +65,9 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   clearSession: async () => {
+    if (Platform.OS !== 'web') {
+      await Notifications.cancelAllScheduledNotificationsAsync();
+    }
     await Promise.all([
       AsyncStorage.removeItem(K.ACCESS),
       AsyncStorage.removeItem(K.REFRESH),

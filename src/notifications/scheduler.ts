@@ -75,6 +75,7 @@ export async function scheduleForSchedule(
             scheduleId: schedule.id,
             medicationId: medication.id,
             doseEventId,
+            userId: currentUserId(),
           },
         },
         trigger: {
