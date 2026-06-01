@@ -54,11 +54,14 @@ async function verifyApple(idToken: string): Promise<{ providerId: string; email
 }
 
 async function verifyGoogle(idToken: string): Promise<{ providerId: string; email: string; name?: string }> {
-  const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-  const ticket = await client.verifyIdToken({
-    idToken,
-    audience: process.env.GOOGLE_CLIENT_ID,
-  });
+  // webClientId 설정 여부에 따라 idToken의 audience가 달라지므로 두 ID 모두 허용
+  const audiences = [
+    process.env.GOOGLE_CLIENT_ID,      // 웹 클라이언트 ID
+    process.env.GOOGLE_IOS_CLIENT_ID,  // iOS 클라이언트 ID
+  ].filter(Boolean) as string[];
+  if (audiences.length === 0) throw new AppError('Google client ID not configured', 500);
+  const client = new OAuth2Client();
+  const ticket = await client.verifyIdToken({ idToken, audience: audiences });
   const payload = ticket.getPayload();
   if (!payload?.sub) throw new AppError('Invalid Google token', 401);
   return { providerId: payload.sub, email: payload.email!, name: payload.name };
