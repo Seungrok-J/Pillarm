@@ -52,11 +52,12 @@ pillarm/
 
 ## 개발 단계
 
-| Phase | 파일 | 목표 |
-|-------|------|------|
-| 1 — MVP | `PRD_PHASE1.md` | 핵심 4기능: 등록·알림·체크·통계(기본) |
-| 2 — 확장 | `PRD_PHASE2.md` | 보호자 공유·약 DB 연동·포인트·AI 코칭 |
-| 3 — 배포 | `PRD_PHASE3.md` | 간편 로그인(Apple·Google·카카오·네이버) & App Store / Google Play 배포 |
+| Phase | 파일 | 목표 | 상태 |
+|-------|------|------|------|
+| 1 — MVP | `PRD_PHASE1.md` | 핵심 4기능: 등록·알림·체크·통계(기본) | ✅ 완료 |
+| 2 — 확장 | `PRD_PHASE2.md` | 보호자 공유·약 DB 연동·포인트·AI 코칭 | ✅ 완료 |
+| 3 — 배포 | `PRD_PHASE3.md` | 간편 로그인(Apple·Google·카카오) & App Store / Google Play 배포 | 🔧 진행 중 |
+| 4 — 스캔 | `PRD_PHASE4.md` | 약봉투 촬영 → Claude Vision AI 자동 일정 생성 | 📋 계획 중 |
 
 ## 작업 시작 전 체크리스트
 
