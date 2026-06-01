@@ -4,7 +4,7 @@ import {
   statusCodes,
 } from '@react-native-google-signin/google-signin';
 import { getExpoPushToken } from '../../notifications/pushToken';
-import { socialLogin, type SocialAuthResponse } from './socialAuthApi';
+import { socialLogin, type SocialAuthResponse, type SocialLinkRequired } from './socialAuthApi';
 
 // env var가 undefined여도 크래시 방지용 폴백
 const IOS_CLIENT_ID = '131302702516-igvegcggjg5mk6pc8nfllaalda99scul.apps.googleusercontent.com';
@@ -17,7 +17,7 @@ export function configureGoogle() {
   });
 }
 
-export async function signInWithGoogle(): Promise<SocialAuthResponse> {
+export async function signInWithGoogle(): Promise<SocialAuthResponse | SocialLinkRequired> {
   if (Platform.OS === 'android') {
     await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
   }

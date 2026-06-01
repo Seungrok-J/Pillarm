@@ -20,6 +20,10 @@ import {
   signInWithKakao,
   type SocialAuthResponse,
 } from '../../features/socialAuth';
+import {
+  confirmSocialLink,
+  type SocialLinkRequired,
+} from '../../features/socialAuth/socialAuthApi';
 
 type Nav = StackNavigationProp<RootStackParamList, 'Login'>;
 
@@ -69,49 +73,76 @@ export default function LoginScreen() {
 
   async function handleSocialLogin(
     providerName: string,
-    loginFn: () => Promise<SocialAuthResponse>,
+    loginFn: () => Promise<SocialAuthResponse | SocialLinkRequired>,
   ) {
     setLoading(true);
     setLoadingProvider(providerName);
     try {
-      const data = await loginFn();
-      await saveSession({
-        accessToken:  data.accessToken,
-        refreshToken: data.refreshToken,
-        userId:       data.userId,
-        userEmail:    null,
-        userName:     data.name ?? null,
-      });
-      if (data.isNewUser) {
-        initialPush(data.userId).catch(() => {});
-        getUserSettings().then((s) => rescheduleAllSchedules(s)).catch(() => {});
-      } else {
-        pullFromServer(data.userId)
-          .then(() => getUserSettings())
-          .then((s) => rescheduleAllSchedules(s))
-          .catch(() => {});
+      const result = await loginFn();
+
+      // 동일 이메일 계정 존재 → 연결 확인 다이얼로그
+      if ('requiresLink' in result && result.requiresLink) {
+        const link = result as unknown as SocialLinkRequired;
+        setLoading(false);
+        setLoadingProvider(null);
+        Alert.alert(
+          '이미 가입된 이메일',
+          `${link.email}\n\n이 이메일은 이미 ${link.existingProvider} 계정으로 가입되어 있어요.\n${link.newProvider} 계정을 기존 계정에 연결할까요?\n\n연결하면 두 방법 모두로 로그인할 수 있습니다.`,
+          [
+            { text: '취소', style: 'cancel' },
+            {
+              text: '연결하기',
+              onPress: async () => {
+                setLoading(true);
+                setLoadingProvider(providerName);
+                try {
+                  const data = await confirmSocialLink(link.linkToken);
+                  await afterLogin(data);
+                } catch {
+                  Alert.alert('오류', '계정 연결에 실패했습니다. 다시 시도해주세요.');
+                } finally {
+                  setLoading(false);
+                  setLoadingProvider(null);
+                }
+              },
+            },
+          ],
+        );
+        return;
       }
-      navigation.goBack();
+
+      await afterLogin(result as unknown as SocialAuthResponse);
     } catch (err: unknown) {
-      // 사용자가 직접 취소한 경우 Alert 생략
       const code = (err as { code?: string })?.code;
-      if (
-        code === 'ERR_REQUEST_CANCELED' || // Apple
-        code === 'SIGN_IN_CANCELLED'      // Google
-      ) return;
+      if (code === 'ERR_REQUEST_CANCELED' || code === 'SIGN_IN_CANCELLED') return;
 
       const e = err as { code?: string; message?: string; response?: { status?: number; data?: { error?: string } } };
-      const status = e.response?.status;
       const msg = e.response?.data?.error ?? e.message ?? `${providerName} 로그인에 실패했습니다`;
-      if (status === 409) {
-        Alert.alert('이미 가입된 계정', msg);
-      } else {
-        Alert.alert('로그인 실패', `[${e.code ?? 'ERR'}] ${msg}`);
-      }
+      Alert.alert('로그인 실패', msg);
     } finally {
       setLoading(false);
       setLoadingProvider(null);
     }
+  }
+
+  async function afterLogin(data: SocialAuthResponse) {
+    await saveSession({
+      accessToken:  data.accessToken,
+      refreshToken: data.refreshToken,
+      userId:       data.userId,
+      userEmail:    null,
+      userName:     data.name ?? null,
+    });
+    if (data.isNewUser) {
+      initialPush(data.userId).catch(() => {});
+      getUserSettings().then((s) => rescheduleAllSchedules(s)).catch(() => {});
+    } else {
+      pullFromServer(data.userId)
+        .then(() => getUserSettings())
+        .then((s) => rescheduleAllSchedules(s))
+        .catch(() => {});
+    }
+    navigation.goBack();
   }
 
   // ── 렌더 ──────────────────────────────────────────────────────────────────────

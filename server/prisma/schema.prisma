@@ -45,15 +45,30 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  ownedCircles  CareCircle[]        @relation("CircleOwner")
-  memberships   CareMember[]        @relation("MemberUser")
-  refreshTokens RefreshToken[]
-  snapshots     DoseEventSnapshot[] @relation("SnapshotPatient")
-  medications   Medication[]        @relation("UserMedications")
-  schedules     Schedule[]          @relation("UserSchedules")
-  doseEvents    DoseEvent[]         @relation("UserDoseEvents")
+  ownedCircles      CareCircle[]        @relation("CircleOwner")
+  memberships       CareMember[]        @relation("MemberUser")
+  refreshTokens     RefreshToken[]
+  snapshots         DoseEventSnapshot[] @relation("SnapshotPatient")
+  medications       Medication[]        @relation("UserMedications")
+  schedules         Schedule[]          @relation("UserSchedules")
+  doseEvents        DoseEvent[]         @relation("UserDoseEvents")
+  socialConnections SocialConnection[]
 
   @@unique([provider, providerId])
+}
+
+/// 소셜 계정 연결 — 1명의 유저가 여러 소셜 제공자를 연결할 수 있음
+model SocialConnection {
+  id         String   @id @default(cuid())
+  userId     String
+  provider   String   // "apple" | "google" | "kakao"
+  providerId String
+  linkedAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerId])
+  @@unique([userId, provider])
 }
 
 model CareCircle {

@@ -28,3 +28,20 @@ export function verifyAccess(token: string): TokenPayload {
 export function verifyRefresh(token: string): TokenPayload {
   return jwt.verify(token, refreshSecret()) as TokenPayload;
 }
+
+// ── 계정 연결 임시 토큰 (10분 유효) ──────────────────────────────────────────
+
+export interface LinkTokenPayload {
+  provider:   string;
+  providerId: string;
+  email?:     string;
+  name?:      string;
+}
+
+export function signLinkToken(payload: LinkTokenPayload): string {
+  return jwt.sign(payload, accessSecret(), { expiresIn: '10m' });
+}
+
+export function verifyLinkToken(token: string): LinkTokenPayload {
+  return jwt.verify(token, accessSecret()) as LinkTokenPayload;
+}
