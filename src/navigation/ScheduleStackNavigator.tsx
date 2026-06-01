@@ -12,6 +12,10 @@ import LoginScreen from '../app/auth/LoginScreen';
 import SignupScreen from '../app/auth/SignupScreen';
 import AccountScreen from '../app/settings/AccountScreen';
 import ForgotPasswordScreen from '../app/auth/ForgotPasswordScreen';
+import GuideListScreen from '../app/supplementGuide/GuideListScreen';
+import GuideDetailScreen from '../app/supplementGuide/GuideDetailScreen';
+import ScanScreen from '../app/scan/ScanScreen';
+import ScanResultScreen from '../app/scan/ScanResultScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
 
@@ -77,6 +81,26 @@ export default function ScheduleStackNavigator() {
         name="ForgotPassword"
         component={ForgotPasswordScreen}
         options={{ title: '비밀번호 찾기', headerBackTitle: '뒤로' }}
+      />
+      <Stack.Screen
+        name="GuideList"
+        component={GuideListScreen}
+        options={{ title: '영양제 복용 가이드', headerBackTitle: '뒤로' }}
+      />
+      <Stack.Screen
+        name="GuideDetail"
+        component={GuideDetailScreen}
+        options={{ title: '복용 정보', headerBackTitle: '뒤로' }}
+      />
+      <Stack.Screen
+        name="ScanNew"
+        component={ScanScreen}
+        options={{ title: '약봉투 스캔', headerBackTitle: '뒤로' }}
+      />
+      <Stack.Screen
+        name="ScanResult"
+        component={ScanResultScreen}
+        options={{ title: '인식 결과 확인', headerBackTitle: '뒤로' }}
       />
     </Stack.Navigator>
   );

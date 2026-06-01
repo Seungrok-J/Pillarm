@@ -364,6 +364,17 @@ export default function ScheduleFormScreen() {
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: '#fff' }} contentContainerStyle={{ padding: 20 }}>
+      {/* ── 약봉투 스캔 바로가기 ── */}
+      {!isEdit && (
+        <TouchableOpacity
+          style={scanBtnStyle}
+          onPress={() => navigation.navigate('ScanNew')}
+          accessibilityRole="button"
+        >
+          <Text style={scanBtnTextStyle}>📷 약봉투 스캔으로 자동 입력</Text>
+        </TouchableOpacity>
+      )}
+
       {/* ── 약 이름 (자동완성) ── */}
       <Text style={styles.label}>약 이름 *</Text>
       <MedicationSearchInput
@@ -550,6 +561,12 @@ export default function ScheduleFormScreen() {
     </ScrollView>
   );
 }
+
+const scanBtnStyle = {
+  backgroundColor: '#eff6ff', borderRadius: 12, borderWidth: 1, borderColor: '#bfdbfe',
+  paddingVertical: 12, alignItems: 'center' as const, marginBottom: 20,
+};
+const scanBtnTextStyle = { fontSize: 14, fontWeight: '600' as const, color: '#3b82f6' };
 
 const styles = {
   label: { fontSize: 15, fontWeight: '500' as const, marginBottom: 6, color: '#111827' },

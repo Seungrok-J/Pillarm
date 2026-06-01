@@ -1,0 +1,384 @@
+[
+  {
+    "id": "multivitamin",
+    "name": "종합비타민",
+    "nameEn": "Multivitamin",
+    "category": "vitamin_fat",
+    "emoji": "💊",
+    "timing": {
+      "type": "after_meal",
+      "minutesAfter": 30,
+      "detail": "식후 30분 이내"
+    },
+    "goodWith": ["물 한 잔과 함께"],
+    "avoidWith": ["공복 복용 — 메스꺼움·위장 자극 가능"],
+    "summary": "여러 비타민·미네랄을 한 번에 섭취할 수 있는 복합 영양제. 식후 복용으로 위장 부담을 줄이세요.",
+    "details": "종합비타민은 지용성 비타민(A·D·E·K)과 수용성 비타민(B군·C), 미네랄을 포함합니다. 지용성 비타민은 식이지방과 함께 섭취해야 흡수율이 높아지므로 식후 복용이 권장됩니다. 빈속에 먹으면 철분이나 아연 성분이 위를 자극해 메스꺼움이 생길 수 있습니다. 식품으로 섭취하는 영양소를 보완하는 목적으로 사용하세요.",
+    "sources": [
+      { "name": "NIH Office of Dietary Supplements", "url": "https://ods.od.nih.gov/factsheets/MVMS-Consumer/", "note": "종합비타민·미네랄 팩트시트" },
+      { "name": "식품의약품안전처", "url": "https://www.mfds.go.kr/brd/m_218/list.do", "note": "건강기능식품 정보" }
+    ]
+  },
+  {
+    "id": "vitamin-a",
+    "name": "비타민 A",
+    "nameEn": "Vitamin A",
+    "category": "vitamin_fat",
+    "emoji": "🟠",
+    "timing": {
+      "type": "after_meal",
+      "detail": "식후 (지방이 포함된 식사 후)"
+    },
+    "goodWith": ["지방이 포함된 식사와 함께 — 지용성이므로 흡수율 향상"],
+    "avoidWith": ["과다 복용 금지 — 지용성이라 체내에 축적되어 독성 발생 가능", "임신 중 고용량 레티놀 형태 주의"],
+    "summary": "시력·면역·피부 건강에 필수적인 지용성 비타민. 지방이 있는 식사 후 복용하세요.",
+    "details": "비타민 A는 레티놀(동물성)과 베타카로틴(식물성) 두 형태가 있습니다. 레티놀은 지용성이라 과다복용 시 간 독성, 두통, 기형 유발 위험이 있습니다. 베타카로틴은 필요량만 체내에서 전환되어 독성이 낮습니다. 성인 상한 섭취량(UL)은 레티놀 기준 3,000 μg RAE/일이며, 보충제보다는 당근·시금치 등 식품으로 섭취하는 것이 안전합니다.",
+    "sources": [
+      { "name": "NIH Office of Dietary Supplements", "url": "https://ods.od.nih.gov/factsheets/VitaminA-Consumer/" },
+      { "name": "서울아산병원 건강정보", "url": "https://www.amc.seoul.kr/asan/healthinfo/druginfo/drugInfoDetail.do" }
+    ]
+  },
+  {
+    "id": "vitamin-d",
+    "name": "비타민 D",
+    "nameEn": "Vitamin D",
+    "category": "vitamin_fat",
+    "emoji": "☀️",
+    "timing": {
+      "type": "after_meal",
+      "detail": "지방이 포함된 식사 직후 (아침·점심 식후 권장)"
+    },
+    "goodWith": ["마그네슘 — 비타민 D 활성화에 필요", "비타민 K2 — 칼슘이 혈관 대신 뼈로 가도록 유도"],
+    "avoidWith": ["고용량 장기 복용 시 고칼슘혈증 위험 — 의사 처방 없이 4,000 IU 초과 주의"],
+    "summary": "뼈·면역·근육 건강에 필수. 지방과 함께 복용해야 흡수율이 높아집니다.",
+    "details": "비타민 D는 햇빛을 받아 피부에서 합성되는 지용성 비타민으로, 음식만으로는 충분량 섭취가 어렵습니다. 칼슘 흡수를 촉진하고 면역 기능, 근육 기능에 관여합니다. 지용성이므로 지방이 포함된 식사(계란, 견과류 등) 후에 복용하면 흡수율이 최대 2배 높아집니다. 한국인 성인 권장량은 600 IU, 상한은 4,000 IU입니다.",
+    "sources": [
+      { "name": "NIH Office of Dietary Supplements", "url": "https://ods.od.nih.gov/factsheets/VitaminD-Consumer/" },
+      { "name": "국민건강보험공단 건강IN", "url": "https://www.nhis.or.kr/nhis/healthin/retrieveHealthInfoMain.do" }
+    ]
+  },
+  {
+    "id": "vitamin-e",
+    "name": "비타민 E",
+    "nameEn": "Vitamin E",
+    "category": "vitamin_fat",
+    "emoji": "🌿",
+    "timing": {
+      "type": "after_meal",
+      "detail": "식후 (지방과 함께)"
+    },
+    "goodWith": ["비타민 C — 항산화 효과 상호보완"],
+    "avoidWith": ["혈액희석제(와파린) 복용자 — 출혈 위험 증가, 반드시 의사 상담", "고용량(1,000 mg 이상) 장기 복용 주의"],
+    "summary": "강력한 항산화 비타민. 지용성이므로 식후 복용하며, 혈액희석제 복용자는 주의가 필요합니다.",
+    "details": "비타민 E는 세포막을 산화 손상으로부터 보호하는 지용성 비타민입니다. 견과류·식물성 기름·시금치에 풍부합니다. 항산화 작용으로 면역 기능을 돕고 혈관 건강에 기여합니다. 지용성이므로 과다복용 시 체내에 축적되어 출혈 경향이 증가할 수 있습니다. 성인 상한 섭취량은 1,000 mg/일입니다.",
+    "sources": [
+      { "name": "NIH Office of Dietary Supplements", "url": "https://ods.od.nih.gov/factsheets/VitaminE-Consumer/" }
+    ]
+  },
+  {
+    "id": "vitamin-k",
+    "name": "비타민 K",
+    "nameEn": "Vitamin K",
+    "category": "vitamin_fat",
+    "emoji": "🥬",
+    "timing": {
+      "type": "after_meal",
+      "detail": "식후 (지방과 함께, 매일 일정한 양)"
+    },
+    "goodWith": ["비타민 D3 — K2와 조합 시 칼슘의 뼈 침착 효율 향상"],
+    "avoidWith": ["와파린 등 항응고제 복용자 — 비타민 K가 약효를 감소시킬 수 있으므로 반드시 의사 상담", "섭취량을 갑자기 늘리거나 줄이지 마세요"],
+    "summary": "혈액 응고와 뼈 건강에 필수적인 지용성 비타민. 항응고제 복용자는 반드시 의사와 상담하세요.",
+    "details": "비타민 K는 K1(필로퀴논, 녹색 채소)과 K2(메나퀴논, 발효식품·동물성 식품) 두 종류가 있습니다. 혈액 응고 인자를 활성화하고, K2는 칼슘이 뼈에 효율적으로 침착되도록 돕습니다. 와파린(쿠마딘) 계열 항응고제 복용자는 비타민 K 섭취량 변화에 매우 민감하므로 일정하게 유지해야 합니다.",
+    "sources": [
+      { "name": "NIH Office of Dietary Supplements", "url": "https://ods.od.nih.gov/factsheets/VitaminK-Consumer/" },
+      { "name": "Mayo Clinic", "url": "https://www.mayoclinic.org/drugs-supplements-vitamin-k/art-20363484" }
+    ]
+  },
+  {
+    "id": "vitamin-c",
+    "name": "비타민 C",
+    "nameEn": "Vitamin C",
+    "category": "vitamin_water",
+    "emoji": "🍊",
+    "timing": {
+      "type": "after_meal",
+      "detail": "식후 또는 식사와 함께 (공복 복용 시 위장 자극 가능)"
+    },
+    "goodWith": ["철분(비헴철) — 비타민 C가 철분 흡수율을 2~3배 높임", "콜라겐 — 합성에 필수적"],
+    "avoidWith": ["고용량(2,000 mg 이상) 복용 시 신장결석·소화 장애 위험", "가열 조리 시 파괴 — 생으로 섭취 권장"],
+    "summary": "면역·콜라겐 합성·항산화에 필수적인 수용성 비타민. 철분 흡수를 크게 높여줍니다.",
+    "details": "비타민 C(아스코르브산)는 콜라겐 합성, 철분 흡수, 면역세포 기능에 핵심적입니다. 수용성이므로 과잉 섭취 시 소변으로 배출되지만, 2,000 mg 이상 고용량에서는 소화장애, 신장결석 위험이 있습니다. 철분 보충제나 식물성 철분 식품과 함께 섭취하면 흡수율이 크게 높아집니다. 성인 권장량 100 mg/일, 상한 2,000 mg/일.",
+    "sources": [
+      { "name": "NIH Office of Dietary Supplements", "url": "https://ods.od.nih.gov/factsheets/VitaminC-Consumer/" },
+      { "name": "식품의약품안전처", "url": "https://www.mfds.go.kr/brd/m_218/list.do" }
+    ]
+  },
+  {
+    "id": "vitamin-b1",
+    "name": "비타민 B1 (티아민)",
+    "nameEn": "Vitamin B1 (Thiamine)",
+    "category": "vitamin_water",
+    "emoji": "🌾",
+    "timing": {
+      "type": "after_meal",
+      "detail": "식사 중 또는 식후"
+    },
+    "goodWith": ["다른 B군 비타민과 함께 — 상호 작용으로 효율 향상"],
+    "avoidWith": ["커피·홍차 — 탄닌이 티아민 흡수 방해", "알코올 — 티아민 흡수와 활성화를 크게 저해"],
+    "summary": "탄수화물 에너지 대사에 필수적인 수용성 비타민. 커피·술과 함께 복용하면 흡수가 크게 줄어듭니다.",
+    "details": "비타민 B1(티아민)은 탄수화물을 에너지로 전환하는 효소 반응에 필수적입니다. 쌀·돼지고기·콩류에 풍부하며, 현미보다 흰쌀밥을 주식으로 하는 식단에서 부족해지기 쉽습니다. 알코올은 B1 흡수를 억제하고 배설을 증가시켜 음주량이 많은 사람은 결핍 위험이 높습니다. 수용성이므로 과잉 섭취 시 소변으로 배출됩니다.",
+    "sources": [
+      { "name": "NIH Office of Dietary Supplements", "url": "https://ods.od.nih.gov/factsheets/Thiamin-Consumer/" }
+    ]
+  },
+  {
+    "id": "vitamin-b12",
+    "name": "비타민 B12",
+    "nameEn": "Vitamin B12",
+    "category": "vitamin_water",
+    "emoji": "🔴",
+    "timing": {
+      "type": "anytime",
+      "detail": "공복 또는 식후 모두 가능 (위산이 있을 때 흡수 도움)"
+    },
+    "goodWith": ["칼슘 — 흡수에 도움", "엽산 — 상호보완적으로 빈혈 예방"],
+    "avoidWith": ["메트포르민(당뇨약) 장기 복용자 — B12 결핍 위험, 의사 상담 필요", "제산제·위산억제제 — 위산 감소로 흡수 저하"],
+    "summary": "신경·혈액·DNA 합성에 필수. 채식주의자와 노년층은 부족해지기 쉬우니 꼭 확인하세요.",
+    "details": "비타민 B12는 신경 기능, 적혈구 형성, DNA 합성에 관여합니다. 동물성 식품(고기·생선·유제품·달걀)에만 존재하여 완전 채식주의자는 보충이 필수입니다. 흡수에는 위 점막에서 분비되는 내인성 인자(intrinsic factor)가 필요해 노년층이나 위 수술 후에는 주사 형태가 필요할 수 있습니다. 결핍이 서서히 진행되어 증상이 늦게 나타납니다.",
+    "sources": [
+      { "name": "NIH Office of Dietary Supplements", "url": "https://ods.od.nih.gov/factsheets/VitaminB12-Consumer/" },
+      { "name": "Mayo Clinic", "url": "https://www.mayoclinic.org/drugs-supplements-vitamin-b12/art-20363663" }
+    ]
+  },
+  {
+    "id": "folate",
+    "name": "엽산 (비타민 B9)",
+    "nameEn": "Folate / Folic Acid",
+    "category": "vitamin_water",
+    "emoji": "🌱",
+    "timing": {
+      "type": "after_meal",
+      "detail": "식후 (공복 복용 시 메스꺼움 가능)"
+    },
+    "goodWith": ["비타민 B12 — 상호보완으로 빈혈·신경관 결손 예방 효과 향상"],
+    "avoidWith": ["알코올 — 엽산 흡수 저해 및 대사 방해", "메토트렉세이트 등 일부 약물과 상호작용 가능 — 의사 상담"],
+    "summary": "임신 초기에 특히 중요한 수용성 비타민. DNA 합성과 세포 분열에 필수적입니다.",
+    "details": "엽산(폴레이트)은 DNA 합성과 세포 분열, 아미노산 대사에 관여합니다. 임신 초기(수정 후 28일까지) 신경관 결손을 예방하기 위해 임신 계획 중인 여성에게 400~800 μg/일 보충이 권장됩니다. 시금치·브로콜리·콩류에 풍부하지만 열에 의해 파괴되기 쉽습니다. 보충제 형태인 폴릭산은 식품의 폴레이트보다 흡수율이 더 높습니다.",
+    "sources": [
+      { "name": "NIH Office of Dietary Supplements", "url": "https://ods.od.nih.gov/factsheets/Folate-Consumer/" },
+      { "name": "국민건강보험공단", "url": "https://www.nhis.or.kr/nhis/healthin/retrieveHealthInfoMain.do" }
+    ]
+  },
+  {
+    "id": "niacin",
+    "name": "나이아신 (비타민 B3)",
+    "nameEn": "Niacin (Vitamin B3)",
+    "category": "vitamin_water",
+    "emoji": "🟡",
+    "timing": {
+      "type": "with_meal",
+      "detail": "식사 중 복용 (공복 복용 시 홍조·따끔거림 강해짐)"
+    },
+    "goodWith": ["물 한 잔과 함께"],
+    "avoidWith": ["공복 복용 — 홍조(flushing), 가려움, 피부 따끔거림 심해짐", "알코올 — 부작용 강화", "고용량(1,000 mg 이상) — 간 독성 위험"],
+    "summary": "에너지 대사와 콜레스테롤 개선에 관여하는 비타민. 식사 중 복용으로 홍조 부작용을 줄이세요.",
+    "details": "나이아신은 에너지 대사, DNA 복구, 세포 신호 전달에 필수입니다. 고용량에서는 LDL(나쁜 콜레스테롤)을 낮추고 HDL(좋은 콜레스테롤)을 높이는 효과가 있지만, 홍조·간 독성 부작용이 있습니다. 서방형(extended-release) 제제는 홍조를 줄여주지만 간 독성 위험은 더 높을 수 있습니다. 성인 상한 섭취량은 35 mg/일(니코틴산 기준).",
+    "sources": [
+      { "name": "NIH Office of Dietary Supplements", "url": "https://ods.od.nih.gov/factsheets/Niacin-Consumer/" }
+    ]
+  },
+  {
+    "id": "calcium",
+    "name": "칼슘",
+    "nameEn": "Calcium",
+    "category": "mineral",
+    "emoji": "🦴",
+    "timing": {
+      "type": "after_meal",
+      "minutesAfter": 30,
+      "detail": "식후 소량씩 나눠서 (1회 500 mg 이하)"
+    },
+    "goodWith": ["비타민 D — 칼슘 흡수에 필수", "비타민 K2 — 칼슘을 뼈로 유도"],
+    "avoidWith": ["철분 — 흡수 경쟁, 2시간 이상 간격 두고 섭취", "아연 — 고용량 칼슘이 아연 흡수 방해", "커피·카페인 — 칼슘 배설 촉진", "고섬유질 식품(밀기울 등) — 흡수 저해"],
+    "summary": "뼈와 치아의 주성분. 한 번에 많이 먹으면 흡수율이 떨어지니 나눠서 복용하세요.",
+    "details": "칼슘은 뼈·치아 형성, 근육 수축, 신경 전달에 필수적입니다. 1회 복용량이 500 mg을 넘으면 흡수율이 급격히 낮아지므로 분할 복용이 권장됩니다. 탄산칼슘(calcium carbonate)은 위산 환경에서 잘 흡수되므로 식후 복용이 필수이고, 구연산칼슘(calcium citrate)은 공복에도 복용 가능합니다. 철분과 동시 복용은 둘 다의 흡수를 방해합니다.",
+    "sources": [
+      { "name": "NIH Office of Dietary Supplements", "url": "https://ods.od.nih.gov/factsheets/Calcium-Consumer/" },
+      { "name": "식품의약품안전처", "url": "https://www.mfds.go.kr/brd/m_218/list.do" }
+    ]
+  },
+  {
+    "id": "iron",
+    "name": "철분",
+    "nameEn": "Iron",
+    "category": "mineral",
+    "emoji": "🩸",
+    "timing": {
+      "type": "empty_stomach",
+      "minutesBefore": 30,
+      "detail": "공복 또는 식전 30~60분 (위산이 충분할 때)"
+    },
+    "goodWith": ["비타민 C — 비헴철 흡수율을 2~3배 향상", "오렌지주스와 함께 복용 효과적"],
+    "avoidWith": ["칼슘·유제품 — 흡수 경쟁 (2시간 이상 간격)", "커피·홍차·녹차 — 탄닌이 철분과 결합해 흡수 방해", "우유 — 칼슘이 철분 흡수 저해", "제산제·위산억제제 — 위산 감소로 흡수 저하", "통곡물·고섬유식품 — 피틴산이 흡수 저해"],
+    "summary": "빈혈 예방과 산소 운반에 필수적인 미네랄. 공복에 비타민 C와 함께 복용하면 흡수율이 크게 높아집니다.",
+    "details": "철분은 헤모글로빈·미오글로빈의 구성 성분으로 산소 운반에 핵심적입니다. 헴철(육류·생선)과 비헴철(식물성) 두 종류가 있으며 비헴철의 흡수율이 낮습니다. 비타민 C는 비헴철을 흡수 가능한 형태(Fe²⁺)로 환원시켜 흡수율을 크게 높입니다. 복용 후 변비·구역질이 생길 수 있으며, 변이 검어지는 것은 정상입니다. 식사와 함께 먹으면 부작용은 줄지만 흡수율도 낮아집니다.",
+    "sources": [
+      { "name": "NIH Office of Dietary Supplements", "url": "https://ods.od.nih.gov/factsheets/Iron-Consumer/" },
+      { "name": "Mayo Clinic", "url": "https://www.mayoclinic.org/drugs-supplements-iron-supplement-oral-route-parenteral-route/art-20363065" }
+    ]
+  },
+  {
+    "id": "magnesium",
+    "name": "마그네슘",
+    "nameEn": "Magnesium",
+    "category": "mineral",
+    "emoji": "💜",
+    "timing": {
+      "type": "bedtime",
+      "detail": "저녁 식후 또는 취침 1시간 전 (수면의 질 개선 목적)"
+    },
+    "goodWith": ["비타민 D — 마그네슘이 비타민 D 활성화에 필요", "칼슘과 2:1 비율(Ca:Mg) 권장"],
+    "avoidWith": ["고용량(350 mg 이상/일 보충제) — 설사·복통 가능", "신장 기능 저하자 — 고마그네슘혈증 위험"],
+    "summary": "300가지 이상의 효소 반응에 관여. 근육 이완, 수면 개선, 스트레스 완화에 도움을 줍니다.",
+    "details": "마그네슘은 에너지 생산, 단백질 합성, 근육·신경 기능, 혈당 조절에 관여합니다. 현대인은 가공식품 위주 식단으로 마그네슘 섭취가 부족하기 쉽습니다. 마그네슘 글리시네이트나 말레이트 형태는 흡수율이 높고 위장 부작용이 적습니다. 산화마그네슘은 흡수율은 낮지만 변비 개선에 효과적입니다. 취침 전 복용 시 수면의 질 개선과 야간 근육경련 완화에 도움이 됩니다.",
+    "sources": [
+      { "name": "NIH Office of Dietary Supplements", "url": "https://ods.od.nih.gov/factsheets/Magnesium-Consumer/" },
+      { "name": "국민건강보험공단", "url": "https://www.nhis.or.kr/nhis/healthin/retrieveHealthInfoMain.do" }
+    ]
+  },
+  {
+    "id": "zinc",
+    "name": "아연",
+    "nameEn": "Zinc",
+    "category": "mineral",
+    "emoji": "⚡",
+    "timing": {
+      "type": "after_meal",
+      "detail": "식후 1~2시간 (공복 복용 시 메스꺼움)"
+    },
+    "goodWith": ["비타민 C — 면역 시너지"],
+    "avoidWith": ["고용량(40 mg 이상/일 장기) — 구리 흡수 방해, 면역 기능 오히려 저하", "칼슘·철분 — 흡수 경쟁, 간격 두고 복용", "커피·차 — 흡수 저해"],
+    "summary": "면역·상처 치유·미각에 필수적인 미네랄. 공복 복용 시 메스꺼움이 심하므로 식후 복용하세요.",
+    "details": "아연은 300개 이상의 효소 활성에 필요하며, 면역세포 기능, 상처 치유, 단백질 합성, DNA 복구, 미각·후각 유지에 관여합니다. 굴·붉은 고기·가금류에 풍부하며, 식물성 식품의 아연은 피틴산에 의해 흡수율이 낮습니다. 아연은 구리와 흡수 경쟁을 하므로 고용량 장기 복용 시 구리 결핍이 생길 수 있어 아연:구리 = 8~15:1 비율의 제품이 권장됩니다.",
+    "sources": [
+      { "name": "NIH Office of Dietary Supplements", "url": "https://ods.od.nih.gov/factsheets/Zinc-Consumer/" }
+    ]
+  },
+  {
+    "id": "omega3",
+    "name": "오메가-3",
+    "nameEn": "Omega-3 Fatty Acids",
+    "category": "omega",
+    "emoji": "🐟",
+    "timing": {
+      "type": "with_meal",
+      "detail": "식사 중 또는 식사 직후 (지방과 함께 흡수 극대화)"
+    },
+    "goodWith": ["지방이 포함된 식사 — EPA·DHA는 지용성이라 지방과 함께 흡수율 향상"],
+    "avoidWith": ["혈액희석제(와파린·아스피린) 복용자 — 고용량에서 출혈 위험 증가, 의사 상담", "수술 2주 전 고용량 복용 중단 권고"],
+    "summary": "심혈관·뇌 건강·염증 조절에 필수적인 필수 지방산. 식사 중 복용이 흡수율을 높입니다.",
+    "details": "오메가-3는 EPA(에이코사펜타엔산)와 DHA(도코사헥사엔산)가 핵심 성분입니다. EPA는 염증 조절·심혈관 건강, DHA는 뇌·망막 발달에 중요합니다. 등 푸른 생선(고등어·연어·청어)에 풍부합니다. 복용 후 생선 냄새 트림이 불편하다면 장용 코팅 제품이나 냉동 보관 후 복용을 시도해 보세요. 총 EPA+DHA 기준 1~2 g/일 섭취가 일반적으로 권장됩니다.",
+    "sources": [
+      { "name": "NIH Office of Dietary Supplements", "url": "https://ods.od.nih.gov/factsheets/Omega3FattyAcids-Consumer/" },
+      { "name": "Mayo Clinic", "url": "https://www.mayoclinic.org/drugs-supplements-fish-oil/art-20364810" }
+    ]
+  },
+  {
+    "id": "probiotics",
+    "name": "프로바이오틱스",
+    "nameEn": "Probiotics",
+    "category": "probiotic",
+    "emoji": "🦠",
+    "timing": {
+      "type": "empty_stomach",
+      "minutesBefore": 30,
+      "detail": "식전 30분(공복) 또는 취침 직전 — 위산의 영향을 최소화"
+    },
+    "goodWith": ["프리바이오틱스(식이섬유) — 유익균의 먹이로 정착률 향상", "장용 코팅 제품은 식후 복용도 가능"],
+    "avoidWith": ["항생제 — 유익균을 죽이므로 항생제 복용 후 2시간 이상 간격", "뜨거운 음료 — 유산균 사멸 위험"],
+    "summary": "장 건강·면역·소화에 도움을 주는 살아있는 유익균. 위산이 적은 공복에 복용하면 정착률이 높아집니다.",
+    "details": "프로바이오틱스는 장 내 유익균 균형을 유지하고, 소화·면역 기능, 장-뇌 축(gut-brain axis)에 영향을 줍니다. 제품마다 균주 종류와 생균 수(CFU)가 다르며, 목적에 따라 적합한 균주가 다릅니다(예: 락토바실러스 람노서스 GG는 항생제 관련 설사 예방에 효과적). 냉장 보관이 필요한 제품은 온도 관리에 주의하세요. 항생제 복용 중에도 함께 섭취하되 2시간 이상 간격을 두세요.",
+    "sources": [
+      { "name": "NIH National Center for Complementary and Integrative Health", "url": "https://www.nccih.nih.gov/health/probiotics-what-you-need-to-know" },
+      { "name": "Mayo Clinic", "url": "https://www.mayoclinic.org/drugs-supplements-probiotics/art-20364074" }
+    ]
+  },
+  {
+    "id": "lutein",
+    "name": "루테인",
+    "nameEn": "Lutein",
+    "category": "other",
+    "emoji": "👁️",
+    "timing": {
+      "type": "after_meal",
+      "detail": "식후 (지용성이므로 지방과 함께 흡수율 향상)"
+    },
+    "goodWith": ["제아잔틴 — 황반변성 예방에 루테인과 상호보완", "지방이 포함된 식사 — 흡수율 향상"],
+    "avoidWith": ["과다 복용(20 mg 이상/일 장기) — 피부나 손바닥이 노랗게 변할 수 있음 (무해하지만 섭취량 조정 필요)"],
+    "summary": "눈 황반에 집중된 카로티노이드로, 청색광과 산화 스트레스로부터 망막을 보호합니다.",
+    "details": "루테인은 눈의 황반과 수정체에 집중 분포하는 카로티노이드 색소입니다. 청색광을 흡수하고 활성산소를 중화해 황반변성(AMD)과 백내장 예방에 도움을 줍니다. 케일·시금치·계란 노른자에 풍부합니다. 지용성이므로 지방이 포함된 식사나 올리브오일과 함께 섭취하면 흡수율이 높아집니다. 일반적으로 10~20 mg/일 섭취가 권장됩니다.",
+    "sources": [
+      { "name": "NIH Office of Dietary Supplements", "url": "https://ods.od.nih.gov/factsheets/Antioxidants-Consumer/" },
+      { "name": "American Optometric Association", "url": "https://www.aoa.org/healthy-eyes/caring-for-your-eyes/lutein" }
+    ]
+  },
+  {
+    "id": "collagen",
+    "name": "콜라겐",
+    "nameEn": "Collagen",
+    "category": "other",
+    "emoji": "✨",
+    "timing": {
+      "type": "empty_stomach",
+      "minutesBefore": 30,
+      "detail": "공복 또는 식전 30분 (단백질 소화효소와 경쟁 최소화)"
+    },
+    "goodWith": ["비타민 C — 콜라겐 합성에 필수 보조인자, 함께 복용 시 효과 상승"],
+    "avoidWith": ["특별한 금기는 없으나 해양 콜라겐은 갑각류·생선 알레르기 주의"],
+    "summary": "피부·관절·뼈의 주요 구조 단백질. 비타민 C와 함께 복용하면 체내 합성 효율이 높아집니다.",
+    "details": "가수분해 콜라겐(콜라겐 펩타이드)은 소화가 쉬운 저분자 형태입니다. 피부 탄력, 관절 연골 보호, 뼈 강도에 도움을 줄 수 있다는 연구가 있습니다. 콜라겐 합성에는 비타민 C가 필수적이므로 함께 복용하면 효과가 향상됩니다. 콜라겐 보충제의 임상적 효과는 연구마다 다르며, 균형 잡힌 식단(단백질, 비타민 C 충분 섭취)이 우선입니다.",
+    "sources": [
+      { "name": "Mayo Clinic", "url": "https://www.mayoclinic.org/healthy-lifestyle/nutrition-and-healthy-eating/expert-answers/collagen/faq-20375997" },
+      { "name": "서울아산병원 건강정보", "url": "https://www.amc.seoul.kr/asan/healthinfo/druginfo/drugInfoDetail.do" }
+    ]
+  },
+  {
+    "id": "coq10",
+    "name": "코엔자임 Q10",
+    "nameEn": "Coenzyme Q10 (CoQ10)",
+    "category": "other",
+    "emoji": "⚡",
+    "timing": {
+      "type": "after_meal",
+      "detail": "식후 (지용성이므로 지방과 함께)"
+    },
+    "goodWith": ["지방이 포함된 식사 — 지용성이라 흡수율 향상", "오메가-3와 함께 — 심혈관 시너지"],
+    "avoidWith": ["혈액희석제(와파린) — CoQ10이 약효에 영향 가능, 의사 상담", "혈압강하제 — 추가적인 혈압 저하 주의"],
+    "summary": "세포 에너지 생산(미토콘드리아)에 핵심적인 항산화 물질. 스타틴 계열 약 복용자에게 특히 권장됩니다.",
+    "details": "코엔자임 Q10은 세포 에너지(ATP) 생산에 필수적이며 강력한 항산화 작용을 합니다. 심장·근육·신장 등 에너지 소비가 많은 장기에 농도가 높습니다. 스타틴 계열 콜레스테롤약은 CoQ10 체내 합성을 억제하므로, 스타틴 복용자에게 100~200 mg/일 보충이 근육통 완화에 도움을 줄 수 있습니다. 유비퀴놀(환원형) 형태가 유비퀴논(산화형)보다 흡수율이 높습니다.",
+    "sources": [
+      { "name": "NIH National Center for Complementary and Integrative Health", "url": "https://www.nccih.nih.gov/health/coenzyme-q10" },
+      { "name": "Mayo Clinic", "url": "https://www.mayoclinic.org/drugs-supplements-coenzyme-q10/art-20362602" }
+    ]
+  },
+  {
+    "id": "milk-thistle",
+    "name": "밀크씨슬",
+    "nameEn": "Milk Thistle (Silymarin)",
+    "category": "other",
+    "emoji": "🌸",
+    "timing": {
+      "type": "before_meal",
+      "minutesBefore": 30,
+      "detail": "식전 20~30분 (일부 제품은 식후도 가능, 제품 지침 확인)"
+    },
+    "goodWith": ["물 한 잔과 함께"],
+    "avoidWith": ["에스트로겐 관련 약물(경구피임약 등) — 실리마린이 약물 대사에 영향 가능", "일부 항암제·면역억제제와 상호작용 가능 — 복용 전 의사 상담", "국화과 알레르기 주의"],
+    "summary": "간 보호 효능으로 알려진 허브 보충제. 간 질환자나 약물 복용자는 반드시 의사와 상담하세요.",
+    "details": "밀크씨슬의 활성 성분 실리마린(silymarin)은 간세포를 산화 손상으로부터 보호하고 간세포 재생을 촉진하는 것으로 알려져 있습니다. 알코올성 간질환, 지방간 개선에 일부 효과가 보고되어 있습니다. 실리마린은 CYP450 효소 계열에 영향을 줘 일부 약물(항암제, 면역억제제, 일부 항생제)의 대사에 영향을 줄 수 있습니다. 간 질환자라면 반드시 의사와 상의 후 복용하세요.",
+    "sources": [
+      { "name": "NIH National Center for Complementary and Integrative Health", "url": "https://www.nccih.nih.gov/health/milk-thistle" },
+      { "name": "Mayo Clinic", "url": "https://www.mayoclinic.org/drugs-supplements-milk-thistle/art-20362885" }
+    ]
+  }
+]

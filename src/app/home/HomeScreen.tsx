@@ -222,6 +222,16 @@ export default function HomeScreen() {
             >
               <Text style={styles.scheduleChipText}>일정 관리</Text>
             </TouchableOpacity>
+            {/* 영양제 가이드 바로가기 */}
+            <TouchableOpacity
+              testID="btn-home-guide"
+              onPress={() => navigation.navigate('GuideList')}
+              style={[styles.scheduleChip, styles.guideChip]}
+              accessibilityLabel="영양제 복용 가이드"
+              accessibilityRole="button"
+            >
+              <Text style={styles.scheduleChipText}>영양제 가이드 📖</Text>
+            </TouchableOpacity>
             {/* 포인트 배지 */}
             <TouchableOpacity
               testID="badge-points"
@@ -431,6 +441,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f3f4f6',
   },
   scheduleChipText: { fontSize: 12, fontWeight: '500', color: '#6b7280' },
+  guideChip: { borderColor: '#bfdbfe', backgroundColor: '#eff6ff' },
   pointBadgeRow: { flexDirection: 'row', gap: 6 },
   streakBadge: {
     backgroundColor: '#fff7ed',
