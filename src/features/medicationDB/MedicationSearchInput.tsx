@@ -20,31 +20,38 @@ interface Props {
 export default function MedicationSearchInput({
   value, onChange, onSelect, placeholder, testID,
 }: Props) {
-  const [results,  setResults]  = useState<MedicationSearchResult[]>([]);
-  const [loading,  setLoading]  = useState(false);
+  // 로컬 text state: TextInput을 직접 제어 — onChange(외부)와 handleSelect(선택) 모두 즉시 반영
+  const [text,     setText]    = useState(value);
+  const [results,  setResults] = useState<MedicationSearchResult[]>([]);
+  const [loading,  setLoading] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
-  const justSelectedRef    = useRef(false);
+
+  const justSelectedRef     = useRef(false);
   const pressingDropdownRef = useRef(false);
-  const toastOpacity   = useRef(new Animated.Value(0)).current;
+  const prevValueRef        = useRef(value);  // 외부 value 변경 감지용
+  const toastOpacity    = useRef(new Animated.Value(0)).current;
   const toastTranslateY = useRef(new Animated.Value(8)).current;
 
-  // ── 온라인 상태 감시 ─────────────────────────────────────────────────────────
+  // ── 외부 value 변경 시 로컬 text 동기화 (폼 초기화·수정 모드 진입 등) ─────────
+
+  useEffect(() => {
+    if (value !== prevValueRef.current) {
+      prevValueRef.current = value;
+      setText(value);
+    }
+  }, [value]);
+
+  // ── 온라인 상태 감시 ───────────────────────────────────────────────────────────
 
   useEffect(() => {
     let prevOnline = true;
-
-    NetInfo.fetch().then((s) => {
-      prevOnline = !!s.isConnected;
-      setIsOnline(prevOnline);
-    });
-
+    NetInfo.fetch().then((s) => { prevOnline = !!s.isConnected; setIsOnline(prevOnline); });
     const unsub = NetInfo.addEventListener((state) => {
       const connected = !!state.isConnected;
       if (prevOnline && !connected) fireOfflineToast();
       prevOnline = connected;
       setIsOnline(connected);
     });
-
     return () => unsub();
   }, []);
 
@@ -61,7 +68,7 @@ export default function MedicationSearchInput({
     ]).start();
   }
 
-  // ── 디바운스 검색 (lodash.debounce 300ms) ───────────────────────────────────
+  // ── 디바운스 검색 ─────────────────────────────────────────────────────────────
 
   const debouncedSearch = useMemo(
     () =>
@@ -78,31 +85,46 @@ export default function MedicationSearchInput({
     [],
   );
 
+  // ── 로컬 text 변경 시 검색 트리거 ─────────────────────────────────────────────
+
   useEffect(() => {
     if (justSelectedRef.current) {
       justSelectedRef.current = false;
       return;
     }
-    if (value.length < 2 || !isOnline) {
+    if (text.length < 2 || !isOnline) {
       debouncedSearch.cancel();
       setResults([]);
       setLoading(false);
       return;
     }
     setLoading(true);
-    debouncedSearch(value);
+    debouncedSearch(text);
     return () => { debouncedSearch.cancel(); };
-  }, [value, isOnline, debouncedSearch]);
+  }, [text, isOnline, debouncedSearch]);
 
   // ── 항목 선택 ────────────────────────────────────────────────────────────────
 
   function handleSelect(item: MedicationSearchResult) {
+    const selectedName = item.itemName ?? '';
     justSelectedRef.current = true;
+    pressingDropdownRef.current = false;
     debouncedSearch.cancel();
     setResults([]);
     setLoading(false);
-    onChange(item.itemName);
+    // 로컬 text 즉시 업데이트 → TextInput 즉시 반영 (외부 state 전파 지연 무관)
+    setText(selectedName);
+    prevValueRef.current = selectedName;
+    onChange(selectedName);
     onSelect(item);
+  }
+
+  // ── TextInput 변경 ────────────────────────────────────────────────────────────
+
+  function handleChangeText(t: string) {
+    setText(t);
+    prevValueRef.current = t;
+    onChange(t);
   }
 
   // ── 렌더 ────────────────────────────────────────────────────────────────────
@@ -114,13 +136,14 @@ export default function MedicationSearchInput({
         <TextInput
           testID={testID ?? 'input-med-name'}
           style={styles.input}
-          value={value}
-          onChangeText={onChange}
+          value={text}
+          onChangeText={handleChangeText}
           onBlur={() => {
+            // 500ms 대기 — onPressIn이 늦게 도착하는 디바이스에서도 안전하게 처리
             setTimeout(() => {
               if (!pressingDropdownRef.current) setResults([]);
               pressingDropdownRef.current = false;
-            }, 250);
+            }, 500);
           }}
           placeholder={placeholder ?? '예: 이부프로펜'}
           placeholderTextColor="#9ca3af"
@@ -136,14 +159,14 @@ export default function MedicationSearchInput({
         )}
       </View>
 
-      {/* 오프라인 힌트 — AC2: 직접 입력 모드 */}
+      {/* 오프라인 힌트 */}
       {!isOnline && (
         <Text testID="offline-hint" style={styles.offlineHint}>
           오프라인 상태 — 약 이름을 직접 입력해주세요
         </Text>
       )}
 
-      {/* 드롭다운 — AC1: 2글자 이상 + 결과 있을 때 */}
+      {/* 드롭다운 */}
       {isOnline && results.length > 0 && (
         <View testID="dropdown" style={styles.dropdown}>
           <FlatList
@@ -159,12 +182,8 @@ export default function MedicationSearchInput({
                 onPress={() => handleSelect(item)}
                 accessibilityRole="button"
               >
-                <Text style={styles.itemName} numberOfLines={1}>
-                  {item.itemName}
-                </Text>
-                <Text style={styles.itemEntp} numberOfLines={1}>
-                  {item.entpName}
-                </Text>
+                <Text style={styles.itemName} numberOfLines={1}>{item.itemName}</Text>
+                <Text style={styles.itemEntp} numberOfLines={1}>{item.entpName}</Text>
               </TouchableOpacity>
             )}
             ItemSeparatorComponent={() => <View style={styles.separator} />}
@@ -209,12 +228,7 @@ const styles = StyleSheet.create({
   },
   spinner: { marginLeft: 8 },
 
-  offlineHint: {
-    fontSize: 12,
-    color: '#f59e0b',
-    marginTop: 4,
-    marginLeft: 2,
-  },
+  offlineHint: { fontSize: 12, color: '#f59e0b', marginTop: 4, marginLeft: 2 },
 
   dropdown: {
     position: 'absolute',

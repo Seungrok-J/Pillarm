@@ -392,7 +392,7 @@ export default function SettingsScreen() {
             <>
               <TouchableOpacity
                 testID="btn-go-account"
-                style={styles.row}
+                style={[styles.row, styles.accountRow]}
                 onPress={() => navigation.navigate('Account')}
                 accessibilityRole="button"
               >
@@ -614,6 +614,7 @@ const styles = StyleSheet.create({
   hint:       { fontSize: 12, color: '#9ca3af', marginTop: 2 },
   chevron:    { fontSize: 20, color: '#9ca3af' },
   emailText:  { fontSize: 13, color: '#6b7280', flexShrink: 1, marginTop: 2 },
+  accountRow: { paddingVertical: 10 },
   logoutText: { color: '#ef4444' },
 
   // TimeInput
