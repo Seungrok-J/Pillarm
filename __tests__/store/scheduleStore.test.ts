@@ -8,6 +8,7 @@ jest.mock('../../src/db', () => ({
   getAllSchedules: jest.fn().mockResolvedValue([]),
   upsertSchedule: jest.fn().mockResolvedValue(undefined),
   deleteSchedule: jest.fn().mockResolvedValue(undefined),
+  deleteTodayAndFutureDoseEvents: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('../../src/notifications', () => ({
@@ -22,6 +23,7 @@ import type { Schedule } from '../../src/domain';
 const mockGetByMed = db.getSchedulesByMedication as jest.Mock;
 const mockUpsert = db.upsertSchedule as jest.Mock;
 const mockDelete = db.deleteSchedule as jest.Mock;
+const mockDeleteToday = db.deleteTodayAndFutureDoseEvents as jest.Mock;
 const mockCancelForSchedule = notifications.cancelForSchedule as jest.Mock;
 
 function makeSched(id = 'sched-1'): Schedule {
@@ -124,21 +126,23 @@ describe('deleteSchedule', () => {
     useScheduleStore.setState({ schedules: [sched] });
   });
 
-  it('cancelForSchedule → deleteSchedule(DB) 순서로 호출한다', async () => {
+  it('cancelForSchedule → deleteTodayAndFutureDoseEvents → deleteSchedule 순서로 호출한다', async () => {
     const callOrder: string[] = [];
     mockCancelForSchedule.mockImplementation(async () => { callOrder.push('cancel'); });
+    mockDeleteToday.mockImplementation(async () => { callOrder.push('deleteToday'); });
     mockDelete.mockImplementation(async () => { callOrder.push('delete'); });
 
     await useScheduleStore.getState().deleteSchedule('sched-1');
 
-    expect(callOrder).toEqual(['cancel', 'delete']);
+    expect(callOrder).toEqual(['cancel', 'deleteToday', 'delete']);
     expect(useScheduleStore.getState().schedules).toHaveLength(0);
   });
 
-  it('cancelForSchedule 에 scheduleId 가 전달된다', async () => {
+  it('cancelForSchedule 과 deleteTodayAndFutureDoseEvents 에 scheduleId 가 전달된다', async () => {
     await useScheduleStore.getState().deleteSchedule('sched-1');
 
     expect(mockCancelForSchedule).toHaveBeenCalledWith('sched-1');
+    expect(mockDeleteToday).toHaveBeenCalledWith('sched-1');
   });
 
   it('DB 오류 시 목록을 복원한다', async () => {

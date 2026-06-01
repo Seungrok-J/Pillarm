@@ -28,6 +28,25 @@ jest.mock('../../../src/sync/syncService', () => ({
   pullFromServer: jest.fn().mockResolvedValue(undefined),
 }));
 
+jest.mock('../../../src/db', () => ({
+  getUserSettings: jest.fn().mockResolvedValue({ quietHoursStart: '23:00', quietHoursEnd: '07:00', defaultSnoozeMinutes: 15, maxSnoozeCount: 3, missedToLateMinutes: 120, autoMarkMissedEnabled: true }),
+}));
+
+jest.mock('../../../src/notifications', () => ({
+  rescheduleAllSchedules: jest.fn().mockResolvedValue(undefined),
+}));
+
+jest.mock('../../../src/features/socialAuth', () => ({
+  isAppleAuthAvailable: jest.fn().mockReturnValue(false),
+  signInWithApple: jest.fn(),
+  signInWithGoogle: jest.fn(),
+  signInWithKakao: jest.fn(),
+}));
+
+jest.mock('../../../src/features/socialAuth/socialAuthApi', () => ({
+  confirmSocialLink: jest.fn(),
+}));
+
 jest.mock('../../../src/store/authStore', () => ({
   useAuthStore: () => ({ saveSession: mockSaveSession }),
 }));
@@ -38,9 +57,13 @@ import React from 'react';
 import { Alert } from 'react-native';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { authLogin } from '../../../src/features/careCircle/careCircleApi';
+import { signInWithGoogle } from '../../../src/features/socialAuth';
+import { confirmSocialLink } from '../../../src/features/socialAuth/socialAuthApi';
 import LoginScreen from '../../../src/app/auth/LoginScreen';
 
-const mockAuthLogin = authLogin as jest.Mock;
+const mockAuthLogin      = authLogin as jest.Mock;
+const mockSignInGoogle   = signInWithGoogle as jest.Mock;
+const mockConfirmLink    = confirmSocialLink as jest.Mock;
 
 const AUTH_RESPONSE = {
   accessToken:  'access-tok',
@@ -174,6 +197,60 @@ describe('LoginScreen', () => {
       const { getByTestId } = render(<LoginScreen />);
       fireEvent.press(getByTestId('btn-go-signup'));
       expect(mockNavigate).toHaveBeenCalledWith('Signup');
+    });
+  });
+
+  describe('AC6 — 소셜 로그인 requiresLink 처리', () => {
+    const LINK_REQUIRED = {
+      requiresLink:     true,
+      existingProvider: '구글',
+      newProvider:      '카카오',
+      email:            'test@example.com',
+      linkToken:        'link-tok-abc',
+    };
+    const AUTH_RESPONSE_SOCIAL = {
+      accessToken: 'access-2', refreshToken: 'refresh-2',
+      userId: 'user-2', name: '김철수', isNewUser: false,
+    };
+
+    it('requiresLink 응답 수신 시 Alert 이 표시된다', async () => {
+      const alertSpy = jest.spyOn(Alert, 'alert');
+      mockSignInGoogle.mockResolvedValue(LINK_REQUIRED);
+
+      const { getByTestId } = render(<LoginScreen />);
+      fireEvent.press(getByTestId('btn-google'));
+
+      await waitFor(() => {
+        expect(alertSpy).toHaveBeenCalledWith(
+          '이미 가입된 이메일',
+          expect.stringContaining('test@example.com'),
+          expect.arrayContaining([
+            expect.objectContaining({ text: '취소' }),
+            expect.objectContaining({ text: '연결하기' }),
+          ]),
+        );
+      });
+    });
+
+    it('연결하기 확인 시 confirmSocialLink 가 linkToken 으로 호출된다', async () => {
+      mockSignInGoogle.mockResolvedValue(LINK_REQUIRED);
+      mockConfirmLink.mockResolvedValue(AUTH_RESPONSE_SOCIAL);
+
+      let confirmCallback: (() => void) | undefined;
+      jest.spyOn(Alert, 'alert').mockImplementationOnce((_title, _msg, buttons) => {
+        confirmCallback = (buttons as any[])?.find((b: any) => b.text === '연결하기')?.onPress;
+      });
+
+      const { getByTestId } = render(<LoginScreen />);
+      fireEvent.press(getByTestId('btn-google'));
+
+      await waitFor(() => expect(Alert.alert).toHaveBeenCalled());
+      await confirmCallback?.();
+
+      await waitFor(() => {
+        expect(mockConfirmLink).toHaveBeenCalledWith('link-tok-abc');
+        expect(mockSaveSession).toHaveBeenCalled();
+      });
     });
   });
 });

@@ -8,6 +8,16 @@
  * AC5 — TimeInput 잘못된 형식 → 원래 값으로 복원
  */
 
+jest.mock('expo-constants', () => ({
+  default: { expoConfig: { version: '1.0.0' } },
+}));
+
+jest.mock('../../../src/store/authStore', () => ({
+  useAuthStore: () => ({
+    isLoggedIn: false, userEmail: null, userName: null, clearSession: jest.fn(),
+  }),
+}));
+
 jest.mock('@react-navigation/native', () => {
   const React = require('react');
   return {
