@@ -4,7 +4,6 @@ import { AppState, AppStateStatus } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
-import * as Notifications from 'expo-notifications';
 import { initializeKakaoSDK } from '@react-native-kakao/core';
 import { configureGoogle } from './src/features/socialAuth/googleAuth';
 import { getDatabase } from './src/db';
@@ -12,27 +11,8 @@ import { checkAndMarkMissed } from './src/notifications';
 import { useSettingsStore, useDoseEventStore } from './src/store';
 import { todayString } from './src/utils';
 import RootNavigator from './src/navigation';
-
-// 포그라운드 알림 핸들러: 이미 복용 완료된 이벤트는 알림을 표시하지 않음
-Notifications.setNotificationHandler({
-  handleNotification: async (notification) => {
-    const data = notification.request.content.data as Record<string, unknown>;
-    const doseEventId = data?.doseEventId as string | undefined;
-    if (doseEventId) {
-      try {
-        const db = await getDatabase();
-        const row = await db.getFirstAsync<{ status: string }>(
-          'SELECT status FROM dose_events WHERE id = ?',
-          doseEventId,
-        );
-        if (row?.status === 'taken' || row?.status === 'skipped') {
-          return { shouldShowAlert: false, shouldPlaySound: false, shouldSetBadge: false, shouldShowBanner: false, shouldShowList: false };
-        }
-      } catch {}
-    }
-    return { shouldShowAlert: true, shouldPlaySound: true, shouldSetBadge: true, shouldShowBanner: true, shouldShowList: true };
-  },
-});
+// permissions.ts 에서 setNotificationHandler + userId 필터링을 통합 관리
+import './src/notifications/permissions';
 
 // 네이티브 스플래시를 유지 — RootNavigator 마운트 후 hideAsync 호출
 SplashScreen.preventAutoHideAsync().catch(() => {});

@@ -10,17 +10,31 @@ import { socialLogin, type SocialAuthResponse, type SocialLinkRequired } from '.
 const IOS_CLIENT_ID = '131302702516-igvegcggjg5mk6pc8nfllaalda99scul.apps.googleusercontent.com';
 
 export function configureGoogle() {
+  const iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? IOS_CLIENT_ID;
   const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+
+  // webClientId 없이도 iosClientId만으로 동작 가능
+  // webClientId 있으면 idToken audience = 웹 클라이언트 ID (서버 검증 일치 필요)
   GoogleSignin.configure({
-    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? IOS_CLIENT_ID,
+    iosClientId,
     ...(webClientId ? { webClientId } : {}),
   });
+
+  console.log('[Google] configured — iosClientId prefix:', iosClientId.slice(0, 30));
+  console.log('[Google] webClientId:', webClientId ? 'SET' : 'NOT SET (iosClientId audience mode)');
 }
 
 export async function signInWithGoogle(): Promise<SocialAuthResponse | SocialLinkRequired> {
+  // 이미 로그인된 세션이 있으면 먼저 로그아웃 (세션 충돌 방지)
+  try {
+    const isSignedIn = await GoogleSignin.getCurrentUser();
+    if (isSignedIn) await GoogleSignin.signOut();
+  } catch {}
+
   if (Platform.OS === 'android') {
     await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
   }
+
   const userInfo = await GoogleSignin.signIn();
 
   if (userInfo.type === 'cancelled') {
