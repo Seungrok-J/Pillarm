@@ -43,16 +43,29 @@ router.post('/signup', async (req, res, next) => {
 
     const { email, password, name } = parsed.data;
 
-    const existing = await prisma.user.findUnique({ where: { email } });
+    const existing = await prisma.user.findUnique({
+      where: { email },
+      include: { socialConnections: true },
+    });
+
     if (existing) {
-      if (existing.provider) {
-        const pName = PROVIDER_NAMES[existing.provider] ?? existing.provider;
-        throw new AppError(
-          `이 이메일은 이미 ${pName} 계정으로 가입되어 있습니다. ${pName} 로그인을 이용해주세요.`,
-          409,
-        );
+      // 소셜 연결 감지 (User.provider 레거시 + SocialConnection 신규 테이블)
+      const linkedProviders = [
+        ...(existing.provider ? [existing.provider] : []),
+        ...existing.socialConnections.map((c) => c.provider),
+      ];
+
+      if (linkedProviders.length > 0) {
+        const primaryProvider = existing.provider ?? existing.socialConnections[0]?.provider ?? '';
+        const pName = PROVIDER_NAMES[primaryProvider] ?? primaryProvider;
+        // existingProvider 를 포함해 클라이언트가 적절한 버튼을 강조할 수 있도록
+        return res.status(409).json({
+          error: `이 이메일은 이미 ${pName} 계정으로 가입되어 있습니다. ${pName} 로그인을 이용해주세요.`,
+          existingProvider: primaryProvider,
+        });
       }
-      throw new AppError('이미 가입된 이메일입니다.', 409);
+
+      return res.status(409).json({ error: '이미 가입된 이메일입니다. 로그인을 이용해주세요.' });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
@@ -84,12 +97,16 @@ router.post('/login', async (req, res, next) => {
 
     const { email, password } = parsed.data;
 
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({
+      where: { email },
+      include: { socialConnections: true },
+    });
     if (!user) throw new AppError('이메일 또는 비밀번호가 올바르지 않습니다.', 401);
 
     if (!user.passwordHash) {
-      if (user.provider) {
-        const pName = PROVIDER_NAMES[user.provider] ?? user.provider;
+      const primaryProvider = user.provider ?? user.socialConnections[0]?.provider;
+      if (primaryProvider) {
+        const pName = PROVIDER_NAMES[primaryProvider] ?? primaryProvider;
         throw new AppError(
           `이 이메일은 ${pName} 계정으로 가입되어 있습니다. ${pName} 로그인을 이용해주세요.`,
           401,
