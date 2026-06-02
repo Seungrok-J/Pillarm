@@ -397,8 +397,8 @@ export default function SettingsScreen() {
                 accessibilityRole="button"
               >
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.label}>{userName || userEmail}</Text>
-                  {userName ? <Text style={styles.emailText}>{userEmail}</Text> : null}
+                  <Text style={styles.label}>{userName || '(이름 미설정)'}</Text>
+                  {userEmail ? <Text style={styles.emailText}>{userEmail}</Text> : null}
                 </View>
                 <Text style={styles.chevron}>›</Text>
               </TouchableOpacity>
