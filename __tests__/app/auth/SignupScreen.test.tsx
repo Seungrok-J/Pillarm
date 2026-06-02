@@ -1,12 +1,11 @@
 /**
- * SignupScreen 테스트
+ * SignupScreen 테스트 (이메일 로그인 전용 — 기존 계정 보유자용)
  *
- * AC1 — 필수 입력 미충족 시 가입 버튼 비활성화
- * AC2 — 비밀번호 < 8자 오류 힌트 표시
- * AC3 — 비밀번호 불일치 오류 힌트 표시
- * AC4 — authSignup 호출 → 세션 저장 → goBack 호출
- * AC5 — authSignup 실패 시 Alert 표시
- * AC6 — 로그인 화면 이동 버튼
+ * AC1 — 이메일/비밀번호 미입력 시 버튼 비활성화
+ * AC2 — 로그인 성공 → 세션 저장 → goBack
+ * AC3 — 로그인 실패 → Alert 표시
+ * AC4 — 비밀번호 찾기 버튼 → ForgotPassword 이동
+ * AC5 — 소셜 로그인으로 돌아가기 → goBack
  */
 
 const mockGoBack   = jest.fn();
@@ -17,7 +16,7 @@ jest.mock('@react-navigation/native', () => ({
 }));
 
 jest.mock('../../../src/features/careCircle/careCircleApi', () => ({
-  authSignup: jest.fn(),
+  authLogin: jest.fn(),
 }));
 
 jest.mock('../../../src/notifications/pushToken', () => ({
@@ -25,7 +24,15 @@ jest.mock('../../../src/notifications/pushToken', () => ({
 }));
 
 jest.mock('../../../src/sync/syncService', () => ({
-  initialPush: jest.fn().mockResolvedValue(undefined),
+  pullFromServer: jest.fn().mockResolvedValue(undefined),
+}));
+
+jest.mock('../../../src/db', () => ({
+  getUserSettings: jest.fn().mockResolvedValue({}),
+}));
+
+jest.mock('../../../src/notifications', () => ({
+  rescheduleAllSchedules: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('../../../src/store/authStore', () => ({
@@ -37,181 +44,109 @@ const mockSaveSession = jest.fn().mockResolvedValue(undefined);
 import React from 'react';
 import { Alert } from 'react-native';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import { authSignup } from '../../../src/features/careCircle/careCircleApi';
+import { authLogin } from '../../../src/features/careCircle/careCircleApi';
 import SignupScreen from '../../../src/app/auth/SignupScreen';
 
-const mockAuthSignup = authSignup as jest.Mock;
+const mockAuthLogin = authLogin as jest.Mock;
 
 const AUTH_RESPONSE = {
-  accessToken:  'access-tok',
-  refreshToken: 'refresh-tok',
-  userId:       'user-1',
-  name:         '홍길동',
+  accessToken: 'acc', refreshToken: 'ref',
+  userId: 'u1', name: '홍길동',
 };
-
-function fillForm(
-  getByTestId: ReturnType<typeof render>['getByTestId'],
-  overrides: { name?: string; email?: string; password?: string; confirm?: string } = {},
-) {
-  const { name = '홍길동', email = 'test@example.com', password = 'password123', confirm = 'password123' } = overrides;
-  if (name)     fireEvent.changeText(getByTestId('input-name'),     name);
-  if (email)    fireEvent.changeText(getByTestId('input-email'),    email);
-  if (password) fireEvent.changeText(getByTestId('input-password'), password);
-  if (confirm)  fireEvent.changeText(getByTestId('input-confirm'),  confirm);
-}
 
 beforeEach(() => {
   jest.clearAllMocks();
   mockSaveSession.mockResolvedValue(undefined);
 });
 
-describe('SignupScreen', () => {
+describe('SignupScreen (이메일 로그인)', () => {
   describe('AC1 — 버튼 비활성화', () => {
-    it('초기 상태에서 가입 버튼 비활성화', () => {
+    it('초기 상태에서 로그인 버튼이 비활성화', () => {
       const { getByTestId } = render(<SignupScreen />);
-      expect(getByTestId('btn-signup').props.accessibilityState?.disabled).toBe(true);
+      expect(getByTestId('btn-login').props.accessibilityState?.disabled).toBe(true);
     });
 
-    it('이름 미입력 시 버튼 비활성화', () => {
+    it('이메일만 입력하면 비활성화 유지', () => {
       const { getByTestId } = render(<SignupScreen />);
-      fillForm(getByTestId, { name: '' });
+      fireEvent.changeText(getByTestId('input-email'), 'test@example.com');
+      expect(getByTestId('btn-login').props.accessibilityState?.disabled).toBe(true);
+    });
+
+    it('이메일+비밀번호 모두 입력하면 활성화', () => {
+      const { getByTestId } = render(<SignupScreen />);
       fireEvent.changeText(getByTestId('input-email'),    'test@example.com');
       fireEvent.changeText(getByTestId('input-password'), 'password123');
-      fireEvent.changeText(getByTestId('input-confirm'),  'password123');
-      expect(getByTestId('btn-signup').props.accessibilityState?.disabled).toBe(true);
-    });
-
-    it('비밀번호 < 8자 시 버튼 비활성화', () => {
-      const { getByTestId } = render(<SignupScreen />);
-      fillForm(getByTestId, { password: 'short', confirm: 'short' });
-      expect(getByTestId('btn-signup').props.accessibilityState?.disabled).toBe(true);
-    });
-
-    it('비밀번호 불일치 시 버튼 비활성화', () => {
-      const { getByTestId } = render(<SignupScreen />);
-      fillForm(getByTestId, { password: 'password123', confirm: 'different1' });
-      expect(getByTestId('btn-signup').props.accessibilityState?.disabled).toBe(true);
-    });
-
-    it('모든 조건 충족 시 버튼 활성화', () => {
-      const { getByTestId } = render(<SignupScreen />);
-      fillForm(getByTestId);
-      expect(getByTestId('btn-signup').props.accessibilityState?.disabled).toBe(false);
+      expect(getByTestId('btn-login').props.accessibilityState?.disabled).toBe(false);
     });
   });
 
-  describe('AC2 — 비밀번호 길이 힌트', () => {
-    it('비밀번호 1~7자 입력 시 오류 힌트 표시', () => {
-      const { getByText, getByTestId } = render(<SignupScreen />);
-      fireEvent.changeText(getByTestId('input-password'), 'abc');
-      expect(getByText('비밀번호는 8자 이상이어야 합니다')).toBeTruthy();
-    });
+  describe('AC2 — 로그인 성공', () => {
+    it('authLogin 호출 후 세션 저장 → goBack', async () => {
+      mockAuthLogin.mockResolvedValue(AUTH_RESPONSE);
 
-    it('비밀번호 미입력 시 힌트 미표시', () => {
-      const { queryByText } = render(<SignupScreen />);
-      expect(queryByText('비밀번호는 8자 이상이어야 합니다')).toBeNull();
-    });
-  });
-
-  describe('AC3 — 비밀번호 불일치 힌트', () => {
-    it('비밀번호와 확인 불일치 시 힌트 표시', () => {
-      const { getByText, getByTestId } = render(<SignupScreen />);
+      const { getByTestId } = render(<SignupScreen />);
+      fireEvent.changeText(getByTestId('input-email'),    'test@example.com');
       fireEvent.changeText(getByTestId('input-password'), 'password123');
-      fireEvent.changeText(getByTestId('input-confirm'),  'different!');
-      expect(getByText('비밀번호가 일치하지 않습니다')).toBeTruthy();
-    });
-
-    it('비밀번호 일치 시 힌트 미표시', () => {
-      const { queryByText, getByTestId } = render(<SignupScreen />);
-      fireEvent.changeText(getByTestId('input-password'), 'password123');
-      fireEvent.changeText(getByTestId('input-confirm'),  'password123');
-      expect(queryByText('비밀번호가 일치하지 않습니다')).toBeNull();
-    });
-  });
-
-  describe('AC4 — 회원가입 성공', () => {
-    it('authSignup 호출 후 세션 저장 → goBack', async () => {
-      mockAuthSignup.mockResolvedValue(AUTH_RESPONSE);
-
-      const { getByTestId } = render(<SignupScreen />);
-      fillForm(getByTestId);
-      fireEvent.press(getByTestId('btn-signup'));
+      fireEvent.press(getByTestId('btn-login'));
 
       await waitFor(() => {
-        expect(mockAuthSignup).toHaveBeenCalledWith(
-          'test@example.com',
-          'password123',
-          '홍길동',
-          undefined,
+        expect(mockAuthLogin).toHaveBeenCalledWith(
+          'test@example.com', 'password123', undefined,
         );
-        expect(mockSaveSession).toHaveBeenCalledWith({
-          accessToken:  AUTH_RESPONSE.accessToken,
-          refreshToken: AUTH_RESPONSE.refreshToken,
-          userId:       AUTH_RESPONSE.userId,
-          userEmail:    'test@example.com',
-          userName:     AUTH_RESPONSE.name,
-        });
+        expect(mockSaveSession).toHaveBeenCalledWith(
+          expect.objectContaining({ accessToken: 'acc', userId: 'u1' }),
+        );
         expect(mockGoBack).toHaveBeenCalledTimes(1);
       });
     });
 
-    it('이메일은 소문자로 정규화하여 전달한다', async () => {
-      mockAuthSignup.mockResolvedValue(AUTH_RESPONSE);
+    it('이메일을 소문자로 정규화하여 전달한다', async () => {
+      mockAuthLogin.mockResolvedValue(AUTH_RESPONSE);
 
       const { getByTestId } = render(<SignupScreen />);
-      fillForm(getByTestId, { email: 'TEST@EXAMPLE.COM' });
-      fireEvent.press(getByTestId('btn-signup'));
+      fireEvent.changeText(getByTestId('input-email'),    'Test@Example.COM');
+      fireEvent.changeText(getByTestId('input-password'), 'password123');
+      fireEvent.press(getByTestId('btn-login'));
 
       await waitFor(() => {
-        expect(mockAuthSignup).toHaveBeenCalledWith(
-          'test@example.com',
-          expect.any(String),
-          expect.any(String),
-          undefined,
-        );
+        expect(mockAuthLogin).toHaveBeenCalledWith('test@example.com', 'password123', undefined);
       });
     });
   });
 
-  describe('AC5 — 회원가입 실패', () => {
+  describe('AC3 — 로그인 실패', () => {
     it('서버 에러 메시지를 Alert 으로 표시한다', async () => {
       const alertSpy = jest.spyOn(Alert, 'alert');
-      mockAuthSignup.mockRejectedValue({
-        response: { data: { error: '이미 사용 중인 이메일입니다' } },
+      mockAuthLogin.mockRejectedValue({
+        response: { data: { error: '이메일 또는 비밀번호가 올바르지 않습니다' } },
       });
 
       const { getByTestId } = render(<SignupScreen />);
-      fillForm(getByTestId);
-      fireEvent.press(getByTestId('btn-signup'));
+      fireEvent.changeText(getByTestId('input-email'),    'test@example.com');
+      fireEvent.changeText(getByTestId('input-password'), 'wrongpass');
+      fireEvent.press(getByTestId('btn-login'));
 
       await waitFor(() => {
         expect(alertSpy).toHaveBeenCalledWith(
-          '회원가입 실패',
-          '이미 사용 중인 이메일입니다',
+          '로그인 실패', '이메일 또는 비밀번호가 올바르지 않습니다',
         );
-      });
-      expect(mockGoBack).not.toHaveBeenCalled();
-    });
-
-    it('에러 응답에 메시지 없으면 기본 메시지 표시', async () => {
-      const alertSpy = jest.spyOn(Alert, 'alert');
-      mockAuthSignup.mockRejectedValue(new Error('Network Error'));
-
-      const { getByTestId } = render(<SignupScreen />);
-      fillForm(getByTestId);
-      fireEvent.press(getByTestId('btn-signup'));
-
-      await waitFor(() => {
-        expect(alertSpy).toHaveBeenCalledWith('회원가입 실패', '회원가입에 실패했습니다');
       });
     });
   });
 
-  describe('AC6 — 로그인 화면 이동', () => {
-    it('로그인 버튼 탭 → Login 화면으로 이동', () => {
-      const { getByTestId } = render(<SignupScreen />);
-      fireEvent.press(getByTestId('btn-go-login'));
-      expect(mockNavigate).toHaveBeenCalledWith('Login');
+  describe('AC4 — 비밀번호 찾기', () => {
+    it('비밀번호를 잊으셨나요? → ForgotPassword 이동', () => {
+      const { getByText } = render(<SignupScreen />);
+      fireEvent.press(getByText('비밀번호를 잊으셨나요?'));
+      expect(mockNavigate).toHaveBeenCalledWith('ForgotPassword');
+    });
+  });
+
+  describe('AC5 — 소셜 로그인으로 돌아가기', () => {
+    it('소셜 로그인으로 돌아가기 → goBack', () => {
+      const { getByText } = render(<SignupScreen />);
+      fireEvent.press(getByText('소셜 로그인으로 돌아가기'));
+      expect(mockGoBack).toHaveBeenCalledTimes(1);
     });
   });
 });

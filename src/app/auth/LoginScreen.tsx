@@ -1,15 +1,18 @@
+/**
+ * LoginScreen — 소셜 로그인 전용 진입 화면
+ * 신규/기존 모두 소셜 계정으로 시작. 기존 이메일 계정 보유자는 하단 링크로 이동.
+ */
+
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity,
-  ActivityIndicator, StyleSheet, KeyboardAvoidingView,
-  Platform, ScrollView, Alert,
+  View, Text, TouchableOpacity,
+  ActivityIndicator, StyleSheet, Alert,
+  ScrollView,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RootStackParamList } from '../../navigation';
 import { useAuthStore } from '../../store/authStore';
-import { authLogin } from '../../features/careCircle/careCircleApi';
-import { getExpoPushToken } from '../../notifications/pushToken';
 import { initialPush, pullFromServer } from '../../sync/syncService';
 import { getUserSettings } from '../../db';
 import { rescheduleAllSchedules } from '../../notifications';
@@ -18,58 +21,23 @@ import {
   signInWithApple,
   signInWithGoogle,
   signInWithKakao,
-  type SocialAuthResponse,
 } from '../../features/socialAuth';
 import {
   confirmSocialLink,
+  type SocialAuthResponse,
   type SocialLinkRequired,
 } from '../../features/socialAuth/socialAuthApi';
 
-type Nav = StackNavigationProp<RootStackParamList, 'Login'>;
+type Nav = StackNavigationProp<RootStackParamList>;
 
 export default function LoginScreen() {
-  const navigation = useNavigation<Nav>();
+  const navigation  = useNavigation<Nav>();
   const { saveSession } = useAuthStore();
 
-  const [email, setEmail]           = useState('');
-  const [password, setPassword]     = useState('');
-  const [loading, setLoading]       = useState(false);
+  const [loading,         setLoading]         = useState(false);
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
 
-  // ── 이메일 로그인 ─────────────────────────────────────────────────────────────
-
-  async function handleLogin() {
-    if (!email.trim() || !password) return;
-    setLoading(true);
-    try {
-      const fcmToken = await getExpoPushToken();
-      const data = await authLogin(email.trim().toLowerCase(), password, fcmToken ?? undefined);
-      await saveSession({
-        accessToken:  data.accessToken,
-        refreshToken: data.refreshToken,
-        userId:       data.userId,
-        userEmail:    email.trim().toLowerCase(),
-        userName:     data.name ?? null,
-      });
-      pullFromServer(data.userId)
-        .then(() => getUserSettings())
-        .then((s) => rescheduleAllSchedules(s))
-        .catch(() => {});
-      navigation.goBack();
-    } catch (err: unknown) {
-      const e = err as { response?: { status?: number; data?: { error?: string } } };
-      const msg = e.response?.data?.error ?? '로그인에 실패했습니다';
-      // 소셜 계정 충돌: 어떤 소셜로 로그인해야 하는지 안내
-      const title = e.response?.status === 401 && msg.includes('로그인을 이용해주세요')
-        ? '로그인 방식 확인'
-        : '로그인 실패';
-      Alert.alert(title, msg);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // ── 소셜 로그인 공통 처리 ──────────────────────────────────────────────────────
+  // ── 소셜 로그인 공통 처리 ──────────────────────────────────────────────────
 
   async function handleSocialLogin(
     providerName: string,
@@ -80,7 +48,6 @@ export default function LoginScreen() {
     try {
       const result = await loginFn();
 
-      // 동일 이메일 계정 존재 → 연결 확인 다이얼로그
       if ('requiresLink' in result && result.requiresLink) {
         const link = result as unknown as SocialLinkRequired;
         setLoading(false);
@@ -116,8 +83,8 @@ export default function LoginScreen() {
       const code = (err as { code?: string })?.code;
       if (code === 'ERR_REQUEST_CANCELED' || code === 'SIGN_IN_CANCELLED') return;
 
-      const e = err as { code?: string; message?: string; response?: { status?: number; data?: { error?: string } } };
-      const msg = e.response?.data?.error ?? e.message ?? `${providerName} 로그인에 실패했습니다`;
+      const msg = (err as { response?: { data?: { error?: string } }; message?: string })
+        ?.response?.data?.error ?? (err as Error)?.message ?? `${providerName} 로그인에 실패했습니다`;
       Alert.alert('로그인 실패', msg);
     } finally {
       setLoading(false);
@@ -145,197 +112,120 @@ export default function LoginScreen() {
     navigation.goBack();
   }
 
-  // ── 렌더 ──────────────────────────────────────────────────────────────────────
+  // ── 렌더 ────────────────────────────────────────────────────────────────────
 
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <View style={styles.header}>
-          <Text style={styles.logo}>💊</Text>
-          <Text style={styles.title}>필람에 오신 걸 환영해요</Text>
-          <Text style={styles.sub}>로그인하면 보호자 공유 기능을 사용할 수 있어요</Text>
-        </View>
+    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      <View style={styles.header}>
+        <Text style={styles.logo}>💊</Text>
+        <Text style={styles.title}>필람에 오신 걸 환영해요</Text>
+        <Text style={styles.sub}>소셜 계정으로 간편하게 시작하세요</Text>
+      </View>
 
-        {/* 이메일 로그인 */}
-        <View style={styles.form}>
-          <Text style={styles.label}>이메일</Text>
-          <TextInput
-            testID="input-email"
-            style={styles.input}
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoComplete="email"
-            placeholder="hello@example.com"
-            placeholderTextColor="#9ca3af"
-          />
-
-          <Text style={[styles.label, { marginTop: 16 }]}>비밀번호</Text>
-          <TextInput
-            testID="input-password"
-            style={styles.input}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            autoComplete="password"
-            placeholder="8자 이상"
-            placeholderTextColor="#9ca3af"
-          />
-
+      {/* 소셜 로그인 버튼 */}
+      <View style={styles.socialGroup}>
+        {isAppleAuthAvailable() && (
           <TouchableOpacity
-            testID="btn-login"
-            style={[styles.primaryBtn, (!email || !password || loading) && styles.btnDisabled]}
-            onPress={handleLogin}
-            disabled={!email || !password || loading}
-            accessibilityLabel="로그인"
-            accessibilityRole="button"
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.primaryBtnText}>로그인</Text>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            testID="btn-forgot-password"
-            style={styles.forgotBtn}
-            onPress={() => navigation.navigate('ForgotPassword')}
-            accessibilityRole="button"
-          >
-            <Text style={styles.forgotBtnText}>비밀번호를 잊으셨나요?</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* 구분선 */}
-        <View style={styles.dividerRow}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>또는</Text>
-          <View style={styles.dividerLine} />
-        </View>
-
-        {/* 소셜 로그인 버튼 */}
-        <View style={styles.socialGroup}>
-          {isAppleAuthAvailable() && (
-            <TouchableOpacity
-              testID="btn-apple"
-              style={[styles.socialBtn, styles.appleBtn]}
-              onPress={() => handleSocialLogin('Apple', signInWithApple)}
-              disabled={loading}
-              accessibilityRole="button"
-              accessibilityLabel="Apple로 계속하기"
-            >
-              <Text style={styles.appleBtnText}> Apple로 계속하기</Text>
-            </TouchableOpacity>
-          )}
-
-          <TouchableOpacity
-            testID="btn-google"
-            style={[styles.socialBtn, styles.googleBtn]}
-            onPress={() => handleSocialLogin('Google', signInWithGoogle)}
+            testID="btn-apple"
+            style={[styles.socialBtn, styles.appleBtn]}
+            onPress={() => handleSocialLogin('Apple', signInWithApple)}
             disabled={loading}
             accessibilityRole="button"
-            accessibilityLabel="Google로 계속하기"
+            accessibilityLabel="Apple로 계속하기"
           >
-            <Text style={styles.googleBtnText}>G  Google로 계속하기</Text>
+            {loadingProvider === 'Apple'
+              ? <ActivityIndicator color="#fff" />
+              : <Text style={styles.appleBtnText}> Apple로 계속하기</Text>
+            }
           </TouchableOpacity>
-
-          <TouchableOpacity
-            testID="btn-kakao"
-            style={[styles.socialBtn, styles.kakaoBtn]}
-            onPress={() => handleSocialLogin('카카오', signInWithKakao)}
-            disabled={loading}
-            accessibilityRole="button"
-            accessibilityLabel="카카오로 계속하기"
-          >
-            <Text style={styles.kakaoBtnText}>💬  카카오로 계속하기</Text>
-          </TouchableOpacity>
-
-        </View>
-
-        {loadingProvider && (
-          <View style={styles.loadingOverlay}>
-            <View style={styles.loadingBox}>
-              <ActivityIndicator size="large" color="#3b82f6" />
-              <Text style={styles.loadingText}>{loadingProvider}로 로그인 중...</Text>
-            </View>
-          </View>
         )}
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>아직 계정이 없으신가요?</Text>
-          <TouchableOpacity testID="btn-go-signup" onPress={() => navigation.navigate('Signup')}>
-            <Text style={styles.linkText}>회원가입</Text>
-          </TouchableOpacity>
+        <TouchableOpacity
+          testID="btn-google"
+          style={[styles.socialBtn, styles.googleBtn]}
+          onPress={() => handleSocialLogin('Google', signInWithGoogle)}
+          disabled={loading}
+          accessibilityRole="button"
+          accessibilityLabel="Google로 계속하기"
+        >
+          {loadingProvider === 'Google'
+            ? <ActivityIndicator color="#374151" />
+            : <Text style={styles.googleBtnText}>G  Google로 계속하기</Text>
+          }
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          testID="btn-kakao"
+          style={[styles.socialBtn, styles.kakaoBtn]}
+          onPress={() => handleSocialLogin('카카오', signInWithKakao)}
+          disabled={loading}
+          accessibilityRole="button"
+          accessibilityLabel="카카오로 계속하기"
+        >
+          {loadingProvider === '카카오'
+            ? <ActivityIndicator color="#191919" />
+            : <Text style={styles.kakaoBtnText}>💬  카카오로 계속하기</Text>
+          }
+        </TouchableOpacity>
+      </View>
+
+      {/* 로딩 오버레이 */}
+      {loadingProvider && (
+        <View style={styles.loadingOverlay}>
+          <View style={styles.loadingBox}>
+            <ActivityIndicator size="large" color="#3b82f6" />
+            <Text style={styles.loadingText}>{loadingProvider}로 로그인 중...</Text>
+          </View>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      )}
+
+      {/* 이메일 계정 보유자 링크 */}
+      <View style={styles.emailLoginRow}>
+        <Text style={styles.emailLoginHint}>이전에 이메일로 가입하셨나요?</Text>
+        <TouchableOpacity
+          testID="btn-go-signup"
+          onPress={() => navigation.navigate('Signup')}
+        >
+          <Text style={styles.emailLoginLink}>이메일로 로그인</Text>
+        </TouchableOpacity>
+      </View>
+
+      <Text style={styles.terms}>
+        계속 진행하면 필람의{' '}
+        <Text style={styles.termsLink}>서비스 이용약관</Text>
+        {' '}및{' '}
+        <Text style={styles.termsLink}>개인정보 처리방침</Text>
+        에 동의하는 것으로 간주합니다.
+      </Text>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  flex:      { flex: 1, backgroundColor: '#fff' },
-  container: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 40 },
-
-  header:  { alignItems: 'center', marginBottom: 40 },
-  logo:    { fontSize: 48, marginBottom: 12 },
-  title:   { fontSize: 22, fontWeight: '700', color: '#111827', textAlign: 'center' },
-  sub:     { fontSize: 14, color: '#6b7280', textAlign: 'center', marginTop: 8, lineHeight: 20 },
-
-  form:  {},
-  label: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 6 },
-  input: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: '#111827',
-    backgroundColor: '#f9fafb',
+  container: {
+    flexGrow: 1, backgroundColor: '#fff',
+    justifyContent: 'center', paddingHorizontal: 28, paddingVertical: 48,
   },
 
-  primaryBtn: {
-    marginTop: 24,
-    backgroundColor: '#3b82f6',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  btnDisabled:    { opacity: 0.5 },
-  primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-
-  forgotBtn:     { marginTop: 16, alignItems: 'center' },
-  forgotBtnText: { fontSize: 14, color: '#6b7280' },
-
-  dividerRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 24 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: '#e5e7eb' },
-  dividerText: { marginHorizontal: 12, fontSize: 13, color: '#9ca3af' },
+  header: { alignItems: 'center', marginBottom: 44 },
+  logo:   { fontSize: 56, marginBottom: 16 },
+  title:  { fontSize: 24, fontWeight: '800', color: '#111827', textAlign: 'center' },
+  sub:    { fontSize: 15, color: '#6b7280', marginTop: 8, textAlign: 'center' },
 
   socialGroup: { gap: 12 },
   socialBtn: {
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    borderWidth: 1,
+    borderRadius: 14, paddingVertical: 16,
+    alignItems: 'center', borderWidth: 1,
   },
 
   appleBtn:     { backgroundColor: '#000', borderColor: '#000' },
-  appleBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  appleBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 
   googleBtn:     { backgroundColor: '#fff', borderColor: '#d1d5db' },
-  googleBtnText: { color: '#111827', fontSize: 15, fontWeight: '600' },
+  googleBtnText: { color: '#111827', fontSize: 16, fontWeight: '600' },
 
   kakaoBtn:     { backgroundColor: '#FEE500', borderColor: '#FEE500' },
-  kakaoBtnText: { color: '#191919', fontSize: 15, fontWeight: '600' },
-
-  footer:     { flexDirection: 'row', justifyContent: 'center', marginTop: 32, gap: 6 },
-  footerText: { fontSize: 14, color: '#6b7280' },
-  linkText:   { fontSize: 14, color: '#3b82f6', fontWeight: '600' },
+  kakaoBtnText: { color: '#191919', fontSize: 16, fontWeight: '600' },
 
   loadingOverlay: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
@@ -349,4 +239,14 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 12, elevation: 8,
   },
   loadingText: { fontSize: 15, color: '#374151', fontWeight: '600' },
+
+  emailLoginRow: {
+    flexDirection: 'row', justifyContent: 'center',
+    alignItems: 'center', marginTop: 36, gap: 6,
+  },
+  emailLoginHint: { fontSize: 13, color: '#9ca3af' },
+  emailLoginLink: { fontSize: 13, color: '#6b7280', fontWeight: '600', textDecorationLine: 'underline' },
+
+  terms:     { fontSize: 11, color: '#d1d5db', textAlign: 'center', marginTop: 28, lineHeight: 17 },
+  termsLink: { color: '#9ca3af' },
 });

@@ -32,9 +32,15 @@ function refreshExpiry(): Date {
   return new Date(Date.now() + REFRESH_TTL_MS);
 }
 
-// ── POST /auth/signup ────────────────────────────────────────────────────────
+// ── POST /auth/signup — 이메일 가입 비활성화 (소셜 로그인 전용) ────────────────
 
-router.post('/signup', async (req, res, next) => {
+router.post('/signup', async (_req, res) => {
+  res.status(410).json({
+    error: '이메일 가입은 더 이상 지원되지 않습니다. 소셜 로그인(Apple·Google·카카오)을 이용해주세요.',
+  });
+});
+
+router.post('/signup-disabled', async (req, res, next) => {
   try {
     const parsed = signupSchema.safeParse(req.body);
     if (!parsed.success) {

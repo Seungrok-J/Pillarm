@@ -420,7 +420,10 @@ export default function SettingsScreen() {
                 onPress={() => navigation.navigate('Login')}
                 accessibilityRole="button"
               >
-                <Text style={styles.label}>로그인</Text>
+                <View style={styles.labelBlock}>
+                  <Text style={styles.label}>소셜 로그인으로 시작하기</Text>
+                  <Text style={styles.hint}>Apple · Google · 카카오</Text>
+                </View>
                 <Text style={styles.chevron}>›</Text>
               </TouchableOpacity>
               <View style={styles.divider} />
@@ -430,7 +433,10 @@ export default function SettingsScreen() {
                 onPress={() => navigation.navigate('Signup')}
                 accessibilityRole="button"
               >
-                <Text style={styles.label}>회원가입</Text>
+                <View style={styles.labelBlock}>
+                  <Text style={styles.label}>이메일로 로그인</Text>
+                  <Text style={styles.hint}>이전에 이메일로 가입한 계정</Text>
+                </View>
                 <Text style={styles.chevron}>›</Text>
               </TouchableOpacity>
             </>

@@ -65,12 +65,12 @@ export default function ScheduleStackNavigator() {
       <Stack.Screen
         name="Login"
         component={LoginScreen}
-        options={{ title: '로그인', headerBackTitle: '뒤로' }}
+        options={{ title: '시작하기', headerBackTitle: '뒤로' }}
       />
       <Stack.Screen
         name="Signup"
         component={SignupScreen}
-        options={{ title: '회원가입', headerBackTitle: '뒤로' }}
+        options={{ title: '이메일로 로그인', headerBackTitle: '뒤로' }}
       />
       <Stack.Screen
         name="Account"

@@ -94,7 +94,24 @@
       "Bash(npm --version)",
       "Bash(python -c \"import sys,json; p=json.load\\(sys.stdin\\); print\\('expo:', p.get\\('dependencies',{}\\).get\\('expo',''\\)\\); print\\('rn:', p.get\\('dependencies',{}\\).get\\('react-native',''\\)\\)\")",
       "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('iOS buildNumber:', d['expo']['ios']['buildNumber']\\); print\\('Android versionCode:', d['expo']['android']['versionCode']\\); print\\('version:', d['expo']['version']\\)\")",
-      "Bash(dir C:\\\\Users\\\\jsl\\\\Desktop\\\\필람\\(Pillarm\\)\\\\src\\\\features\\\\socialAuth *)"
+      "Bash(dir C:\\\\Users\\\\jsl\\\\Desktop\\\\필람\\(Pillarm\\)\\\\src\\\\features\\\\socialAuth *)",
+      "Bash(eas env:list)",
+      "Bash(eas env:list --environment production)",
+      "Bash(eas env:list --environment preview)",
+      "Bash(eas env:list --environment development)",
+      "Bash(eas env:list --environment development --include-sensitive)",
+      "Bash(eas env:create --environment production --name EXPO_PUBLIC_SERVER_URL --value \"https://pillarm-production.up.railway.app\" --visibility secret --non-interactive)",
+      "Bash(eas env:create --environment production --name EXPO_PUBLIC_SERVER_URL --value \"https://pillarm-production.up.railway.app\" --visibility sensitive --non-interactive)",
+      "Bash(eas env:create --environment production --name EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID --value \"131302702516-igvegcggjg5mk6pc8nfllaalda99scul.apps.googleusercontent.com\" --visibility sensitive --non-interactive)",
+      "Bash(eas env:create --environment production --name EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID --value \"131302702516-83s151jjadkcqrhdrh054b3986brte5r.apps.googleusercontent.com\" --visibility sensitive --non-interactive)",
+      "Bash(eas env:create --environment production --name EXPO_PUBLIC_MFDS_API_KEY --value \"5b72e7fcfacbd3302ebbca00305c9bfaac2b91101ef8398b4c377bbe14355093\" --visibility sensitive --non-interactive)",
+      "Bash(eas env:list --environment production --include-sensitive)",
+      "Bash(eas env:delete --environment development --name EXPO_PUBLIC_NAVER_CLIENT_ID --non-interactive)",
+      "Bash(eas env:delete --environment development --name EXPO_PUBLIC_NAVER_CLIENT_SECRET --non-interactive)",
+      "Bash(eas env:delete --environment development --name EXPO_PUBLIC_SERVER_URL --non-interactive)",
+      "Bash(eas env:delete --environment development --name EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID --non-interactive)",
+      "Bash(eas env:delete --environment development --name EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID --non-interactive)",
+      "Bash(eas env:delete --help)"
     ]
   }
 }
