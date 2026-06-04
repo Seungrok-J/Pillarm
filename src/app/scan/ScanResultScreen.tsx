@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
   StyleSheet, Alert,
@@ -9,6 +9,7 @@ import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RouteProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../../navigation';
 import type { MedicationScanResult } from '../../features/medicationScan/scanUtils';
+import { DOSAGE_UNITS } from '../../features/medicationScan/scanUtils';
 import { generateId, todayString } from '../../utils';
 import { upsertMedication, upsertSchedule } from '../../db';
 import { scheduleForSchedule } from '../../notifications';
@@ -31,6 +32,27 @@ export default function ScanResultScreen() {
 
   const userId   = useAuthStore.getState().userId ?? 'local';
   const settings = useSettingsStore.getState().settings;
+
+  // 저장 완료 전 뒤로가기 방지
+  const savedRef = useRef(false);
+  useEffect(() => {
+    return navigation.addListener('beforeRemove', (e) => {
+      if (savedRef.current) return;
+      e.preventDefault();
+      Alert.alert(
+        '스캔 결과가 사라집니다',
+        '지금 나가면 인식된 약 정보가 모두 사라집니다.\n정말 나가시겠어요?',
+        [
+          { text: '계속 등록', style: 'cancel' },
+          {
+            text: '나가기',
+            style: 'destructive',
+            onPress: () => navigation.dispatch(e.data.action),
+          },
+        ],
+      );
+    });
+  }, [navigation]);
 
   const currentItem = items[tabIndex];
 
@@ -119,6 +141,7 @@ export default function ScanResultScreen() {
         }
       }
 
+      savedRef.current = true;
       Alert.alert(
         '일정 등록 완료',
         `${toCreate.length}개 약 일정이 등록되었습니다.`,
@@ -178,19 +201,28 @@ export default function ScanResultScreen() {
               placeholder="숫자"
               editable={!isSkipped}
             />
-            <TextInput
-              style={[styles.input, { width: 80 }]}
-              value={currentItem.dosageUnit ?? ''}
-              onChangeText={(v) => updateField('dosageUnit', v || undefined)}
-              placeholder="단위"
-              editable={!isSkipped}
-            />
+            {DOSAGE_UNITS.map((unit) => (
+              <TouchableOpacity
+                key={unit}
+                style={[
+                  styles.unitBtn,
+                  currentItem.dosageUnit === unit && styles.unitBtnActive,
+                  isSkipped && { opacity: 0.4 },
+                ]}
+                onPress={() => !isSkipped && updateField('dosageUnit', currentItem.dosageUnit === unit ? undefined : unit)}
+              >
+                <Text style={[styles.unitBtnText, currentItem.dosageUnit === unit && styles.unitBtnTextActive]}>
+                  {unit}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
 
           {/* 복용 시간 */}
           <FieldLabel label="복용 시간" />
           <View style={styles.timesRow}>
-            {['08:00', '10:00', '12:00', '13:00', '18:00', '20:00', '22:00'].map((t) => {
+            {['06:00','07:00','08:00','09:00','10:00','11:00','12:00','13:00',
+              '14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00','22:00','23:00'].map((t) => {
               const selected = currentItem.suggestedTimes.includes(t);
               return (
                 <TouchableOpacity
@@ -198,7 +230,9 @@ export default function ScanResultScreen() {
                   style={[styles.timePill, selected && styles.timePillActive]}
                   onPress={() => !isSkipped && toggleTime(t)}
                 >
-                  <Text style={[styles.timePillText, selected && styles.timePillTextActive]}>{t}</Text>
+                  <Text style={[styles.timePillText, selected && styles.timePillTextActive]}>
+                    {t.slice(0, 2)}시
+                  </Text>
                 </TouchableOpacity>
               );
             })}
@@ -295,10 +329,15 @@ const styles = StyleSheet.create({
   },
   row: { flexDirection: 'row', alignItems: 'center' },
 
-  timesRow:          { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
-  timePill:          { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
+  unitBtn:          { paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb', marginLeft: 6 },
+  unitBtnActive:    { backgroundColor: '#3b82f6', borderColor: '#3b82f6' },
+  unitBtnText:      { fontSize: 14, fontWeight: '600', color: '#6b7280' },
+  unitBtnTextActive:{ color: '#fff' },
+
+  timesRow:          { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 },
+  timePill:          { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
   timePillActive:    { backgroundColor: '#3b82f6', borderColor: '#3b82f6' },
-  timePillText:      { fontSize: 13, fontWeight: '500', color: '#6b7280' },
+  timePillText:      { fontSize: 12, fontWeight: '500', color: '#6b7280' },
   timePillTextActive:{ color: '#fff' },
 
   segBtn:        { flex: 1, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingVertical: 10, alignItems: 'center', marginRight: 6, backgroundColor: '#f9fafb' },

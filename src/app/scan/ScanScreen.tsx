@@ -10,6 +10,7 @@ import * as ImagePicker from 'expo-image-picker';
 import type { RootStackParamList } from '../../navigation';
 import { prepareImageBase64 } from '../../features/medicationScan/scanUtils';
 import { scanMedicationImage } from '../../features/medicationScan/scanApi';
+import { useSettingsStore } from '../../store';
 
 type Nav = StackNavigationProp<RootStackParamList>;
 
@@ -48,7 +49,8 @@ export default function ScanScreen() {
 
       setLoading(true);
       const base64 = await prepareImageBase64(result.assets[0].uri);
-      const scanResults = await scanMedicationImage(base64);
+      const settings = useSettingsStore.getState().settings;
+      const scanResults = await scanMedicationImage(base64, settings);
       navigation.replace('ScanResult', { results: scanResults });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '오류가 발생했습니다';

@@ -1,6 +1,6 @@
 import { api } from '../careCircle/careCircleApi';
-import type { MedicationScanResult } from './scanUtils';
-import { suggestTimes } from './scanUtils';
+import type { MedicationScanResult, MealSettings, MealSlot } from './scanUtils';
+import { suggestTimesFromMeals, normalizeUnit } from './scanUtils';
 
 interface RawScanItem {
   medicationName: string;
@@ -10,6 +10,8 @@ interface RawScanItem {
   dosePerIntake?: string | null;
   durationDays?:  number | null;
   withFood?:      'before' | 'after' | 'none' | null;
+  mealSlots?:     string[] | null;
+  withFoodMinutes?: number | null;
   note?:          string | null;
 }
 
@@ -19,7 +21,8 @@ interface ScanResponse {
 }
 
 export async function scanMedicationImage(
-  base64Image: string,
+  base64Image:  string,
+  mealSettings: MealSettings | null = null,
 ): Promise<MedicationScanResult[]> {
   const { data } = await api.post<ScanResponse>('/ai/scan-medication', {
     image: base64Image,
@@ -32,12 +35,17 @@ export async function scanMedicationImage(
   return data.results.map((r) => ({
     medicationName: r.medicationName,
     dosageValue:    r.dosageValue ?? undefined,
-    dosageUnit:     r.dosageUnit ?? undefined,
+    dosageUnit:     normalizeUnit(r.dosageUnit ?? undefined),
     timesPerDay:    r.timesPerDay ?? undefined,
     dosePerIntake:  r.dosePerIntake ?? undefined,
     durationDays:   r.durationDays ?? undefined,
     withFood:       r.withFood ?? undefined,
-    suggestedTimes: suggestTimes(r.timesPerDay ?? undefined),
+    suggestedTimes: suggestTimesFromMeals(
+      r.mealSlots as MealSlot[] | null,
+      r.withFoodMinutes ?? null,
+      r.timesPerDay ?? undefined,
+      mealSettings,
+    ),
     note:           r.note ?? undefined,
   }));
 }
