@@ -14,7 +14,7 @@
     },
     "ios": {
       "bundleIdentifier": "com.seungrokj.pillarm",
-      "buildNumber": "13",
+      "buildNumber": "15",
       "supportsTablet": false,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
@@ -45,6 +45,9 @@
     "plugins": [
       "expo-sqlite",
       "expo-notifications",
+      ["expo-camera", {
+        "cameraPermission": "보호 그룹 초대 QR 코드를 스캔하기 위해 카메라 접근 권한이 필요합니다."
+      }],
       "expo-apple-authentication",
       [
         "@react-native-google-signin/google-signin",

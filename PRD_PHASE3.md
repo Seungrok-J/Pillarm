@@ -3,7 +3,7 @@
 > **전제 조건:** Phase 2가 완료되어 보호자 공유·포인트·AI 코칭이 실기기에서 정상 동작해야 한다.  
 > **목표:** 소셜 간편 로그인 추가, Railway 서버 배포, App Store 우선 배포 후 Google Play 배포
 >
-> **진행 상태 (2026-06-01):** iOS build 12 TestFlight 제출 완료. Google 로그인 디버깅 중. Android 빌드 대기.
+> **진행 상태 (2026-06-02):** iOS build 15 TestFlight 제출 완료. 소셜 로그인 전체 정상. pillarm.app 도메인 연결 완료. Android 빌드 대기.
 
 ---
 
@@ -14,7 +14,7 @@
 | 제공자 | 상태 | 비고 |
 |--------|------|------|
 | Apple | ✅ 완료 | 실기기 정상 동작 확인 |
-| Google | 🔧 디버깅 중 | Railway GOOGLE_CLIENT_ID / GOOGLE_IOS_CLIENT_ID 설정 필요, 서버 검증 로직 개선 완료 |
+| Google | ✅ 완료 | Railway GOOGLE_CLIENT_ID / GOOGLE_IOS_CLIENT_ID 설정 후 정상 동작 확인 |
 | 카카오 | ✅ 완료 | 실기기 정상 동작 확인 |
 | 네이버 | ❌ 제거됨 | 복잡도 대비 사용자 효용 낮아 2026-05-26 제거 |
 
@@ -22,7 +22,7 @@
 
 | 항목 | 상태 |
 |------|------|
-| iOS build 12 (v1.0.0) | ✅ TestFlight 제출 완료 (2026-06-01) |
+| iOS build 15 (v1.0.0) | ✅ TestFlight 제출 완료 (2026-06-02) |
 | Android build | 📋 미시작 (iOS 안정화 후 진행 예정) |
 | Google Play Console | 📋 미등록 |
 | App Store 정식 심사 | 📋 테스트 완료 후 제출 예정 |
@@ -48,6 +48,19 @@
 | Google 서버 검증 강화 | `GOOGLE_CLIENT_ID` + `GOOGLE_IOS_CLIENT_ID` 두 audience 모두 허용 |
 | 날짜 일관성 수정 | 한국 자정~오전9시 날짜 불일치 (UTC vs 로컬) 해소 |
 | 소유권 검증 추가 | PUT /sync 엔드포인트에서 userId 소유권 검증 → 타인 레코드 403 |
+
+### 주요 개선 사항 (2026-06-02 기준, build 15)
+
+| 항목 | 내용 |
+|------|------|
+| 커스텀 도메인 | `pillarm.app` 연결 — 초대 링크·개인정보처리방침 URL 반영 |
+| QR 스캔 활성화 | `expo-camera` 설치로 보호 그룹 참여 QR 스캔 기능 동작 |
+| 설정 화면 개편 | 계정 섹션 최상단 이동, 보호자 공유 우선순위 상향, 개발자 정보 제거 |
+| 간편로그인 텍스트 | "소셜 로그인으로 시작하기" → "간편로그인으로 시작하기" |
+| 약봉투 스캔 개선 | 용량 단위 드롭다운(정/mg/ml), 복용 시간 버튼 06~23시 전체 확장, 식사 시간 설정 반영 |
+| 홈 배너 그룹핑 | 동일 시간대 2개 이상 약 → "비타민 외 N건" 형식 표시 |
+| 수정 화면 검색 버그 수정 | 일정 수정 진입 시 기존 약 이름으로 자동 검색되던 문제 해결 |
+| 스캔 결과 이탈 경고 | 스캔 결과 화면에서 뒤로가기 시 확인 Alert 추가 |
 
 ---
 
@@ -179,8 +192,9 @@ src/features/socialAuth/
 - [x] EAS Build 설정 및 app.json 플러그인 등록
 - [x] Apple 로그인 실기기 정상 동작 확인
 - [x] 카카오 로그인 실기기 정상 동작 확인
-- [ ] Google 로그인 실기기 정상 동작 확인 (Railway 환경변수 설정 후 재테스트 필요)
+- [x] Google 로그인 실기기 정상 동작 확인
 - [x] 이메일/비밀번호 계정과 동일 이메일 소셜 로그인 시 409 처리
+- [x] 이메일 로그인 화면(SignupScreen·ForgotPasswordScreen) 완전 제거
 - [x] 소셜 전용 계정 비밀번호 변경 메뉴 미노출
 - [x] 로그아웃 시 알림 전체 취소
 - [x] 로그인 후 스케줄 알림 재등록
@@ -221,7 +235,7 @@ restartPolicyMaxRetries = 10
 | Bundle ID | `com.seungrokj.pillarm` |
 | Apple Team ID | `9AU7GMJTRW` |
 | App Store Connect App ID | `6770390217` |
-| 현재 iOS buildNumber | `12` |
+| 현재 iOS buildNumber | `15` |
 | 현재 Android versionCode | `10` |
 
 ### EAS Secrets (등록 완료)
@@ -243,8 +257,8 @@ restartPolicyMaxRetries = 10
 |------|------|
 | Apple Developer 계정 승인 | ✅ (2026-05-18) |
 | App Store Connect 앱 등록 | ✅ 앱 이름: 필람 - 약 복용 알림 |
-| 개인정보 처리방침 | ✅ `https://seungrok-j.github.io/Pillarm/privacy-policy.html` |
-| TestFlight 내부 테스트 | 🔧 진행 중 (build 12) |
+| 개인정보 처리방침 | ✅ `https://pillarm.app/privacy-policy.html` |
+| TestFlight 내부 테스트 | 🔧 진행 중 (build 15) |
 | 스크린샷 준비 | 📋 미완료 |
 | App Store 정식 심사 제출 | 📋 미완료 |
 
@@ -283,7 +297,7 @@ restartPolicyMaxRetries = 10
 - [x] 소셜 로그인 구현 (Apple / Google / Kakao)
 - [x] EAS Build 설정 완료
 - [x] Railway 서버 배포
-- [x] iOS TestFlight build 12 제출
+- [x] iOS TestFlight build 15 제출
 - [x] 개인정보 처리방침 공개
 - [ ] Google 로그인 실기기 테스트 통과
 - [ ] App Store 정식 출시
