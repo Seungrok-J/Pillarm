@@ -29,6 +29,7 @@ export default function MedicationSearchInput({
   const justSelectedRef     = useRef(false);
   const pressingDropdownRef = useRef(false);
   const prevValueRef        = useRef(value);  // 외부 value 변경 감지용
+  const hasInteractedRef    = useRef(false);  // 사용자가 직접 타이핑한 경우만 true
   const toastOpacity    = useRef(new Animated.Value(0)).current;
   const toastTranslateY = useRef(new Animated.Value(8)).current;
 
@@ -37,6 +38,7 @@ export default function MedicationSearchInput({
   useEffect(() => {
     if (value !== prevValueRef.current) {
       prevValueRef.current = value;
+      hasInteractedRef.current = false; // 외부 변경은 사용자 타이핑이 아님
       setText(value);
     }
   }, [value]);
@@ -88,6 +90,12 @@ export default function MedicationSearchInput({
   // ── 로컬 text 변경 시 검색 트리거 ─────────────────────────────────────────────
 
   useEffect(() => {
+    // mount 또는 외부 value 주입 시에는 검색하지 않음
+    if (!hasInteractedRef.current) {
+      setResults([]);
+      setLoading(false);
+      return;
+    }
     if (justSelectedRef.current) {
       justSelectedRef.current = false;
       return;
@@ -122,6 +130,7 @@ export default function MedicationSearchInput({
   // ── TextInput 변경 ────────────────────────────────────────────────────────────
 
   function handleChangeText(t: string) {
+    hasInteractedRef.current = true;
     setText(t);
     prevValueRef.current = t;
     onChange(t);

@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 import { useFocusEffect } from '@react-navigation/native';
 import { useDoseEventStore, usePointStore } from '../../store';
+import { useAuthStore } from '../../store/authStore';
 import {
   calculateWeeklyStats,
   calculateMissedPatterns,
@@ -222,22 +223,24 @@ export default function StatsScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  const { fetchByDateRange }     = useDoseEventStore();
-  const { streak } = usePointStore();
+  const { fetchByDateRange }         = useDoseEventStore();
+  const { streak, fetchBalance }     = usePointStore();
+  const { userId }                   = useAuthStore();
 
   const range = tab === 'week' ? getWeekRange() : getMonthRange();
 
-  // 탭 포커스 시마다 재조회
+  // 탭 포커스 or 계정 전환 시 재조회 (userId 변경 감지 포함)
   useFocusEffect(
     useCallback(() => {
       const r = tab === 'week' ? getWeekRange() : getMonthRange();
       setIsLoading(true);
+      fetchBalance();
       fetchByDateRange(r.start, r.end).then((result) => {
         setEvents(result);
         setIsLoading(false);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [tab]),
+    }, [tab, userId]),
   );
 
   async function handleRefresh() {

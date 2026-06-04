@@ -11,32 +11,33 @@ function currentUserId() {
 }
 
 interface PointState {
-  balance: number;
-  streak:  number;
-  history: PointLedger[];
-  /**
-   * 잔액과 streak 를 함께 갱신한다.
-   * 홈 화면의 포인트·streak 배지가 이 액션으로 최신 상태를 유지한다.
-   */
+  balance:      number;
+  streak:       number;
+  history:      PointLedger[];
+  _lastUserId:  string | null;
   fetchBalance: () => Promise<void>;
   fetchHistory: () => Promise<void>;
 }
 
-export const usePointStore = create<PointState>((set) => ({
-  balance: 0,
-  streak:  0,
-  history: [],
+export const usePointStore = create<PointState>((set, get) => ({
+  balance:     0,
+  streak:      0,
+  history:     [],
+  _lastUserId: null,
 
   fetchBalance: async () => {
     try {
       const uid = currentUserId();
+      const userChanged = get()._lastUserId !== uid;
+      if (userChanged) set({ balance: 0, streak: 0, _lastUserId: uid });
+
       const from = new Date();
       from.setDate(from.getDate() - 90);
       const [balance, events] = await Promise.all([
         getBalance(uid),
         getDoseEventsByDateRange(toLocalISOString(from), toLocalISOString(new Date()), uid),
       ]);
-      set({ balance, streak: getCurrentStreak(events) });
+      set({ balance, streak: getCurrentStreak(events), _lastUserId: uid });
     } catch {
       // 잔액 조회 실패 시 기존 값 유지
     }
@@ -44,7 +45,10 @@ export const usePointStore = create<PointState>((set) => ({
 
   fetchHistory: async () => {
     try {
-      const history = await getHistory(currentUserId());
+      const uid = currentUserId();
+      const userChanged = get()._lastUserId !== uid;
+      if (userChanged) set({ history: [], _lastUserId: uid });
+      const history = await getHistory(uid);
       set({ history });
     } catch {
       // 히스토리 조회 실패 시 기존 값 유지

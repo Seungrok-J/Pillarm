@@ -15,7 +15,7 @@ import {
   type ApiCareCircle, type ApiCareMember,
 } from './careCircleApi';
 
-const JOIN_WEB_URL = 'https://seungrok-j.github.io/Pillarm/join';
+const JOIN_WEB_URL = 'https://pillarm.app/join';
 
 type Nav = StackNavigationProp<RootStackParamList>;
 

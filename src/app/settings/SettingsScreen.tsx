@@ -27,7 +27,7 @@ import type { UserSettings } from '../../domain';
 type Nav = StackNavigationProp<RootStackParamList>;
 
 const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0';
-const PRIVACY_URL = 'https://seungrok-j.github.io/Pillarm/privacy-policy.html';
+const PRIVACY_URL = 'https://pillarm.app/privacy-policy.html';
 const CONTACT_EMAIL = 'seungrokjeong@gmail.com';
 const IOS_APP_ID = '6770390217';
 const ANDROID_PACKAGE = 'com.seungrokj.pillarm';
@@ -230,6 +230,49 @@ export default function SettingsScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#3b82f6" />
         }
       >
+        {/* ── 계정 ─────────────────────────────────────────────────── */}
+        <Text style={styles.sectionTitle}>계정</Text>
+        <View style={styles.section}>
+          {isLoggedIn ? (
+            <>
+              <TouchableOpacity
+                testID="btn-go-account"
+                style={[styles.row, styles.accountRow]}
+                onPress={() => navigation.navigate('Account')}
+                accessibilityRole="button"
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.label}>{userName || '(이름 미설정)'}</Text>
+                  {userEmail ? <Text style={styles.emailText}>{userEmail}</Text> : null}
+                </View>
+                <Text style={styles.chevron}>›</Text>
+              </TouchableOpacity>
+              <View style={styles.divider} />
+              <TouchableOpacity
+                testID="btn-logout"
+                style={styles.row}
+                onPress={clearSession}
+                accessibilityRole="button"
+              >
+                <Text style={[styles.label, styles.logoutText]}>로그아웃</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <TouchableOpacity
+              testID="btn-go-login"
+              style={styles.row}
+              onPress={() => navigation.navigate('Login')}
+              accessibilityRole="button"
+            >
+              <View style={styles.labelBlock}>
+                <Text style={styles.label}>간편로그인으로 시작하기</Text>
+                <Text style={styles.hint}>Apple · Google · 카카오</Text>
+              </View>
+              <Text style={styles.chevron}>›</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
         {/* ── 알림 설정 ────────────────────────────────────────────── */}
         <View style={styles.sectionTitleRow}>
           <Text style={styles.sectionTitleInRow}>알림 설정</Text>
@@ -347,20 +390,6 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* ── 복용 일정 ────────────────────────────────────────────── */}
-        <Text style={styles.sectionTitle}>복용 일정</Text>
-        <View style={styles.section}>
-          <TouchableOpacity
-            testID="btn-schedule-manage"
-            style={styles.row}
-            onPress={() => navigation.navigate('ScheduleManage')}
-            accessibilityRole="button"
-          >
-            <Text style={styles.label}>복용 일정 관리</Text>
-            <Text style={styles.chevron}>›</Text>
-          </TouchableOpacity>
-        </View>
-
         {/* ── 보호자 공유 ──────────────────────────────────────────── */}
         <Text style={styles.sectionTitle}>보호자 공유</Text>
         <View style={styles.section}>
@@ -385,62 +414,18 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* ── 계정 ─────────────────────────────────────────────────── */}
-        <Text style={styles.sectionTitle}>계정</Text>
+        {/* ── 복용 일정 ────────────────────────────────────────────── */}
+        <Text style={styles.sectionTitle}>복용 일정</Text>
         <View style={styles.section}>
-          {isLoggedIn ? (
-            <>
-              <TouchableOpacity
-                testID="btn-go-account"
-                style={[styles.row, styles.accountRow]}
-                onPress={() => navigation.navigate('Account')}
-                accessibilityRole="button"
-              >
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.label}>{userName || '(이름 미설정)'}</Text>
-                  {userEmail ? <Text style={styles.emailText}>{userEmail}</Text> : null}
-                </View>
-                <Text style={styles.chevron}>›</Text>
-              </TouchableOpacity>
-              <View style={styles.divider} />
-              <TouchableOpacity
-                testID="btn-logout"
-                style={styles.row}
-                onPress={clearSession}
-                accessibilityRole="button"
-              >
-                <Text style={[styles.label, styles.logoutText]}>로그아웃</Text>
-              </TouchableOpacity>
-            </>
-          ) : (
-            <>
-              <TouchableOpacity
-                testID="btn-go-login"
-                style={styles.row}
-                onPress={() => navigation.navigate('Login')}
-                accessibilityRole="button"
-              >
-                <View style={styles.labelBlock}>
-                  <Text style={styles.label}>소셜 로그인으로 시작하기</Text>
-                  <Text style={styles.hint}>Apple · Google · 카카오</Text>
-                </View>
-                <Text style={styles.chevron}>›</Text>
-              </TouchableOpacity>
-              <View style={styles.divider} />
-              <TouchableOpacity
-                testID="btn-go-signup"
-                style={styles.row}
-                onPress={() => navigation.navigate('Signup')}
-                accessibilityRole="button"
-              >
-                <View style={styles.labelBlock}>
-                  <Text style={styles.label}>이메일로 로그인</Text>
-                  <Text style={styles.hint}>이전에 이메일로 가입한 계정</Text>
-                </View>
-                <Text style={styles.chevron}>›</Text>
-              </TouchableOpacity>
-            </>
-          )}
+          <TouchableOpacity
+            testID="btn-schedule-manage"
+            style={styles.row}
+            onPress={() => navigation.navigate('ScheduleManage')}
+            accessibilityRole="button"
+          >
+            <Text style={styles.label}>복용 일정 관리</Text>
+            <Text style={styles.chevron}>›</Text>
+          </TouchableOpacity>
         </View>
 
         {/* ── 도움말 및 지원 ────────────────────────────────────────── */}
@@ -510,11 +495,6 @@ export default function SettingsScreen() {
           <View style={styles.row}>
             <Text style={styles.label}>버전</Text>
             <Text style={styles.fixedValue}>{APP_VERSION}</Text>
-          </View>
-          <View style={styles.divider} />
-          <View style={styles.row}>
-            <Text style={styles.label}>개발자</Text>
-            <Text style={styles.fixedValue}>정승록</Text>
           </View>
         </View>
 

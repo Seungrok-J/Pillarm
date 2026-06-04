@@ -62,7 +62,7 @@ jest.mock('../../../src/utils', () => ({
 // ── Imports ───────────────────────────────────────────────────────────────────
 
 import * as db from '../../../src/db';
-import { useDoseEventStore, useMedicationStore } from '../../../src/store';
+import { useDoseEventStore, useMedicationStore, usePointStore } from '../../../src/store';
 import StatsScreen from '../../../src/app/stats/StatsScreen';
 import type { DoseEvent } from '../../../src/domain';
 
@@ -101,10 +101,13 @@ afterAll(() => {
 
 // ── beforeEach ────────────────────────────────────────────────────────────────
 
+const mockFetchBalance = jest.fn().mockResolvedValue(undefined);
+
 beforeEach(() => {
   jest.clearAllMocks();
   useDoseEventStore.setState({ todayEvents: [], isLoading: false, error: null });
   useMedicationStore.setState({ medications: [], isLoading: false, error: null });
+  usePointStore.setState({ balance: 0, streak: 0, history: [], _lastUserId: null, fetchBalance: mockFetchBalance, fetchHistory: jest.fn() });
   mockGetDoseEventsByDateRange.mockResolvedValue([makeEvent()]);
 });
 

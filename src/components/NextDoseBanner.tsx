@@ -25,9 +25,11 @@ export default function NextDoseBanner({ events, medicationNames }: Props) {
   }, []);
 
   // 가장 가까운 scheduled / late 이벤트
-  const next = events
+  const pending = events
     .filter((e) => e.status === 'scheduled' || e.status === 'late')
-    .sort((a, b) => a.plannedAt.localeCompare(b.plannedAt))[0];
+    .sort((a, b) => a.plannedAt.localeCompare(b.plannedAt));
+
+  const next = pending[0];
 
   if (!next) {
     return (
@@ -37,15 +39,20 @@ export default function NextDoseBanner({ events, medicationNames }: Props) {
     );
   }
 
-  const name = medicationNames[next.medicationId] ?? '약';
-  const time = next.plannedAt.slice(11, 16);
+  const timeSlot = next.plannedAt.slice(11, 16);
+  const sameSlot = pending.filter((e) => e.plannedAt.slice(11, 16) === timeSlot);
+  const firstName = medicationNames[next.medicationId] ?? '약';
+  const displayName = sameSlot.length > 1
+    ? `${firstName} 외 ${sameSlot.length - 1}건`
+    : firstName;
+
   const remaining = formatRemaining(new Date(next.plannedAt).getTime() - now);
 
   return (
     <View testID="banner-next-dose" style={[styles.banner, styles.nextBanner]}>
       <Text style={styles.nextLabel}>다음 복용</Text>
-      <Text testID="banner-med-name" style={styles.nextName}>{name}</Text>
-      <Text testID="banner-time" style={styles.nextTime}>{time}</Text>
+      <Text testID="banner-med-name" style={styles.nextName}>{displayName}</Text>
+      <Text testID="banner-time" style={styles.nextTime}>{timeSlot}</Text>
       <Text testID="banner-remaining" style={styles.remaining}>({remaining})</Text>
     </View>
   );

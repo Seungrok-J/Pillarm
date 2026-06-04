@@ -18,7 +18,7 @@ function makeEvent(overrides: Partial<DoseEvent> = {}): DoseEvent {
   };
 }
 
-const MED_NAMES: Record<string, string> = { 'med-1': '이부프로펜' };
+const MED_NAMES: Record<string, string> = { 'med-1': '이부프로펜', 'med-2': '비타민C' };
 
 describe('NextDoseBanner', () => {
   it('다음 복용 이벤트가 없으면 완료 배너를 표시한다', () => {
@@ -55,5 +55,26 @@ describe('NextDoseBanner', () => {
   it('medicationNames 에 없는 ID 면 "약" 으로 표시한다', () => {
     const { getByTestId } = render(<NextDoseBanner events={[makeEvent()]} medicationNames={{}} />);
     expect(getByTestId('banner-med-name').props.children).toBe('약');
+  });
+
+  it('같은 시간대에 2개 이상이면 "이름 외 N건" 형식으로 표시한다', () => {
+    const sameTime = new Date(Date.now() + 7_200_000).toISOString();
+    const evt1 = makeEvent({ id: 'evt-1', medicationId: 'med-1', plannedAt: sameTime });
+    const evt2 = makeEvent({ id: 'evt-2', medicationId: 'med-2', plannedAt: sameTime });
+    const { getByTestId } = render(
+      <NextDoseBanner events={[evt1, evt2]} medicationNames={MED_NAMES} />,
+    );
+    expect(getByTestId('banner-med-name').props.children).toBe('이부프로펜 외 1건');
+  });
+
+  it('다른 시간대 이벤트는 그룹핑하지 않는다', () => {
+    const t1 = new Date(Date.now() + 3_600_000).toISOString(); // 1시간 후
+    const t2 = new Date(Date.now() + 7_200_000).toISOString(); // 2시간 후
+    const evt1 = makeEvent({ id: 'evt-1', medicationId: 'med-1', plannedAt: t1 });
+    const evt2 = makeEvent({ id: 'evt-2', medicationId: 'med-2', plannedAt: t2 });
+    const { getByTestId } = render(
+      <NextDoseBanner events={[evt1, evt2]} medicationNames={MED_NAMES} />,
+    );
+    expect(getByTestId('banner-med-name').props.children).toBe('이부프로펜');
   });
 });

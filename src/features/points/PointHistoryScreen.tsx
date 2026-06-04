@@ -12,6 +12,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RootStackParamList } from '../../navigation';
 import { usePointStore } from '../../store';
+import { useAuthStore } from '../../store/authStore';
 import type { PointLedger, PointReason } from '../../domain';
 
 type Nav = StackNavigationProp<RootStackParamList>;
@@ -48,13 +49,15 @@ function fmtDate(iso: string): string {
 export default function PointHistoryScreen() {
   const navigation = useNavigation<Nav>();
   const { balance, history, fetchBalance, fetchHistory } = usePointStore();
+  const { userId } = useAuthStore();
   const [refreshing, setRefreshing] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       fetchBalance();
       fetchHistory();
-    }, []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [userId]),
   );
 
   async function handleRefresh() {

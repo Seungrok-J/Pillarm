@@ -4,6 +4,7 @@ import {
   ActivityIndicator, StyleSheet, Alert, ScrollView,
   KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { Ionicons, AntDesign } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
@@ -28,11 +29,18 @@ function formatDate(iso: string): string {
   return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일`;
 }
 
-const PROVIDER_META: Record<string, { label: string; emoji: string }> = {
-  apple:  { label: 'Apple',  emoji: '' },
-  google: { label: 'Google', emoji: 'G' },
-  kakao:  { label: '카카오', emoji: '💬' },
+const PROVIDER_META: Record<string, { label: string }> = {
+  apple:  { label: 'Apple'  },
+  google: { label: 'Google' },
+  kakao:  { label: '카카오' },
 };
+
+function ProviderIcon({ provider }: { provider: string }) {
+  if (provider === 'apple')  return <Ionicons name="logo-apple" size={20} color="#fff" />;
+  if (provider === 'google') return <AntDesign name="google"    size={18} color="#4285F4" />;
+  if (provider === 'kakao')  return <Text style={{ fontSize: 16, color: '#191919', fontWeight: '700' }}>K</Text>;
+  return null;
+}
 
 export default function AccountScreen() {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
@@ -298,9 +306,7 @@ export default function AccountScreen() {
                         <View style={styles.providerRow}>
                           <View style={styles.providerLeft}>
                             <View style={[styles.providerIconBox, p === 'apple' && styles.appleBox, p === 'google' && styles.googleBox, p === 'kakao' && styles.kakaoBox]}>
-                              <Text style={[styles.providerIcon, p === 'apple' && { color: '#fff' }]}>
-                                {meta.emoji}
-                              </Text>
+                              <ProviderIcon provider={p} />
                             </View>
                             <View>
                               <Text style={styles.providerName}>{meta.label}</Text>
@@ -431,7 +437,6 @@ const styles = StyleSheet.create({
   appleBox:  { backgroundColor: '#000' },
   googleBox: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e5e7eb' },
   kakaoBox:  { backgroundColor: '#FEE500' },
-  providerIcon:   { fontSize: 18, fontWeight: '700', color: '#374151' },
   providerName:   { fontSize: 15, fontWeight: '600', color: '#111827' },
   connectedLabel: { fontSize: 12, color: '#16a34a', marginTop: 1 },
 
