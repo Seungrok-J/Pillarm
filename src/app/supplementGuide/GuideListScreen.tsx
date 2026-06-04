@@ -126,16 +126,18 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
 
-  tabScroll: { backgroundColor: '#fff' },
-  tabContent: { paddingHorizontal: 12, paddingVertical: 10, gap: 8, alignItems: 'center' },
+  tabScroll: { backgroundColor: '#fff', height: 60 },
+  tabContent: { paddingHorizontal: 12, paddingVertical: 10, gap: 8, alignItems: 'flex-start' },
   tab: {
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
     backgroundColor: '#f3f4f6',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   tabActive:     { backgroundColor: '#3b82f6' },
-  tabText:       { fontSize: 13, fontWeight: '500', color: '#6b7280', lineHeight: 18 },
+  tabText:       { fontSize: 13, fontWeight: '500', color: '#6b7280' },
   tabTextActive: { color: '#fff', fontWeight: '600' },
 
   listContent: { padding: 16, paddingBottom: 40 },
