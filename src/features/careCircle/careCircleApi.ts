@@ -45,7 +45,7 @@ api.interceptors.response.use(
 
     // Auth endpoints return 401 for wrong credentials/account conflicts — pass through as-is
     const url = original?.url ?? '';
-    if (/\/auth\/(login|signup|reset-password|social)/.test(url)) {
+    if (/\/auth\/(social)/.test(url)) {
       return Promise.reject(error);
     }
 
@@ -89,34 +89,6 @@ api.interceptors.response.use(
   },
 );
 
-// ── Auth ─────────────────────────────────────────────────────────────────────
-
-export interface AuthResponse {
-  accessToken:  string;
-  refreshToken: string;
-  userId:       string;
-  name?:        string;
-}
-
-export async function authSignup(
-  email: string,
-  password: string,
-  name?: string,
-  fcmToken?: string,
-): Promise<AuthResponse> {
-  const res = await api.post<AuthResponse>('/auth/signup', { email, password, name, fcmToken });
-  return res.data;
-}
-
-export async function authLogin(
-  email: string,
-  password: string,
-  fcmToken?: string,
-): Promise<AuthResponse> {
-  const res = await api.post<AuthResponse>('/auth/login', { email, password, fcmToken });
-  return res.data;
-}
-
 // ── Auth Profile ─────────────────────────────────────────────────────────────
 
 export interface UserProfile {
@@ -130,8 +102,6 @@ export interface UserProfile {
 export const getMyProfile    = () => api.get<UserProfile>('/auth/me').then((r) => r.data);
 export const updateMyName    = (name: string) => api.patch<UserProfile>('/auth/me', { name }).then((r) => r.data);
 export const deleteMyAccount = () => api.delete('/auth/me');
-export const resetPassword   = (email: string, name: string, newPassword: string) =>
-  api.post<{ message: string }>('/auth/reset-password', { email, name, newPassword }).then((r) => r.data);
 
 // ── CareCircle 타입 ───────────────────────────────────────────────────────────
 

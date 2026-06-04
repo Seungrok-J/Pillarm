@@ -1,6 +1,5 @@
 /**
  * LoginScreen — 소셜 로그인 전용 진입 화면
- * 신규/기존 모두 소셜 계정으로 시작. 기존 이메일 계정 보유자는 하단 링크로 이동.
  */
 
 import React, { useState } from 'react';
@@ -119,7 +118,7 @@ export default function LoginScreen() {
       <View style={styles.header}>
         <Text style={styles.logo}>💊</Text>
         <Text style={styles.title}>필람에 오신 걸 환영해요</Text>
-        <Text style={styles.sub}>소셜 계정으로 간편하게 시작하세요</Text>
+        <Text style={styles.sub}>간편로그인으로 시작하세요</Text>
       </View>
 
       {/* 소셜 로그인 버튼 */}
@@ -179,17 +178,6 @@ export default function LoginScreen() {
         </View>
       )}
 
-      {/* 이메일 계정 보유자 링크 */}
-      <View style={styles.emailLoginRow}>
-        <Text style={styles.emailLoginHint}>이전에 이메일로 가입하셨나요?</Text>
-        <TouchableOpacity
-          testID="btn-go-signup"
-          onPress={() => navigation.navigate('Signup')}
-        >
-          <Text style={styles.emailLoginLink}>이메일로 로그인</Text>
-        </TouchableOpacity>
-      </View>
-
       <Text style={styles.terms}>
         계속 진행하면 필람의{' '}
         <Text style={styles.termsLink}>서비스 이용약관</Text>
@@ -239,13 +227,6 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 12, elevation: 8,
   },
   loadingText: { fontSize: 15, color: '#374151', fontWeight: '600' },
-
-  emailLoginRow: {
-    flexDirection: 'row', justifyContent: 'center',
-    alignItems: 'center', marginTop: 36, gap: 6,
-  },
-  emailLoginHint: { fontSize: 13, color: '#9ca3af' },
-  emailLoginLink: { fontSize: 13, color: '#6b7280', fontWeight: '600', textDecorationLine: 'underline' },
 
   terms:     { fontSize: 11, color: '#d1d5db', textAlign: 'center', marginTop: 28, lineHeight: 17 },
   termsLink: { color: '#9ca3af' },

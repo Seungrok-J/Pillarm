@@ -9,9 +9,7 @@ import CareCircleScreen from '../features/careCircle/CareCircleScreen';
 import JoinCareCircleScreen from '../features/careCircle/JoinCareCircleScreen';
 import CareMonitorScreen from '../features/careCircle/CareMonitorScreen';
 import LoginScreen from '../app/auth/LoginScreen';
-import SignupScreen from '../app/auth/SignupScreen';
 import AccountScreen from '../app/settings/AccountScreen';
-import ForgotPasswordScreen from '../app/auth/ForgotPasswordScreen';
 import GuideListScreen from '../app/supplementGuide/GuideListScreen';
 import GuideDetailScreen from '../app/supplementGuide/GuideDetailScreen';
 import ScanScreen from '../app/scan/ScanScreen';
@@ -68,19 +66,9 @@ export default function ScheduleStackNavigator() {
         options={{ title: '시작하기', headerBackTitle: '뒤로' }}
       />
       <Stack.Screen
-        name="Signup"
-        component={SignupScreen}
-        options={{ title: '이메일로 로그인', headerBackTitle: '뒤로' }}
-      />
-      <Stack.Screen
         name="Account"
         component={AccountScreen}
         options={{ title: '내 계정', headerBackTitle: '뒤로' }}
-      />
-      <Stack.Screen
-        name="ForgotPassword"
-        component={ForgotPasswordScreen}
-        options={{ title: '비밀번호 찾기', headerBackTitle: '뒤로' }}
       />
       <Stack.Screen
         name="GuideList"

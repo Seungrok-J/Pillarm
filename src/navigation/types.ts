@@ -9,10 +9,8 @@ export type RootStackParamList = {
   CareCircle:     undefined;
   JoinCareCircle: { code?: string } | undefined;
   CareMonitor:    { circleId: string; patientId: string; patientName?: string };
-  Login:          undefined;
-  Signup:         undefined;
-  Account:        undefined;
-  ForgotPassword: undefined;
+  Login:   undefined;
+  Account: undefined;
   // Phase 4
   GuideList:      undefined;
   GuideDetail:    { id: string };
@@ -28,7 +26,3 @@ export type BottomTabParamList = {
   Settings: undefined;
 };
 
-export type AuthStackParamList = {
-  Login:  undefined;
-  Signup: undefined;
-};

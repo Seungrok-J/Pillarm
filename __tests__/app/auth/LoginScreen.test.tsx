@@ -1,13 +1,12 @@
 /**
  * LoginScreen 테스트 (소셜 로그인 전용)
  *
- * AC1 — 소셜 버튼 3개(Apple은 iOS 한정)가 렌더된다
+ * AC1 — 소셜 버튼(Google·카카오)이 렌더된다
  * AC2 — Google 로그인 성공 → 세션 저장 → goBack
  * AC3 — 카카오 로그인 성공 → 세션 저장
  * AC4 — 소셜 로그인 취소(cancelled) → Alert 없음
  * AC5 — requiresLink 응답 → 연결 Alert 표시
  * AC6 — 연결하기 확인 → confirmSocialLink 호출
- * AC7 — 이메일로 로그인 링크 → Signup 화면 이동
  */
 
 const mockGoBack   = jest.fn();
@@ -84,10 +83,6 @@ describe('LoginScreen', () => {
       expect(getByTestId('btn-kakao')).toBeTruthy();
     });
 
-    it('이메일로 로그인 링크가 렌더된다', () => {
-      const { getByTestId } = render(<LoginScreen />);
-      expect(getByTestId('btn-go-signup')).toBeTruthy();
-    });
   });
 
   describe('AC2 — Google 로그인 성공', () => {
@@ -178,11 +173,4 @@ describe('LoginScreen', () => {
     });
   });
 
-  describe('AC7 — 이메일로 로그인 링크', () => {
-    it('이메일로 로그인 버튼 탭 → Signup 화면 이동', () => {
-      const { getByTestId } = render(<LoginScreen />);
-      fireEvent.press(getByTestId('btn-go-signup'));
-      expect(mockNavigate).toHaveBeenCalledWith('Signup');
-    });
-  });
 });
