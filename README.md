@@ -8,8 +8,8 @@
 |-------|------|------|
 | 1 — MVP | 약 등록·알림·복용 체크·통계 | ✅ 완료 |
 | 2 — 확장 | 보호자 공유·포인트·AI 코칭·약 DB | ✅ 완료 |
-| 3 — 배포 | 소셜 로그인·EAS 빌드·스토어 배포 | 🔧 진행 중 (iOS build 12 TestFlight) |
-| 4 — 스캔 | 약봉투 촬영 → AI 자동 일정 생성 | 📋 계획 중 |
+| 3 — 배포 | 소셜 로그인·EAS 빌드·스토어 배포 | 🔧 진행 중 (iOS build 15 TestFlight) |
+| 4 — 스캔 | 약봉투 촬영 → AI 자동 일정 생성 | 🔧 진행 중 |
 
 ---
 
@@ -91,6 +91,7 @@ EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=<Web OAuth 클라이언트 ID>
 | `APPLE_CLIENT_ID` | 필수 | `com.seungrokj.pillarm` |
 | `GOOGLE_CLIENT_ID` | 필수 | Google 웹 OAuth 클라이언트 ID |
 | `GOOGLE_IOS_CLIENT_ID` | 필수 | Google iOS OAuth 클라이언트 ID |
+| `ANTHROPIC_API_KEY` | 필수 | 약봉투 스캔 AI (Claude Vision) |
 | `FIREBASE_PROJECT_ID` | 선택 | FCM 보호자 알림 활성화 시 필수 |
 | `FIREBASE_CLIENT_EMAIL` | 선택 | Firebase 서비스 계정 이메일 |
 | `FIREBASE_PRIVATE_KEY` | 선택 | Firebase 서비스 계정 프라이빗 키 |
@@ -121,15 +122,16 @@ npm run dev     # 포트 3000
 - **기기 교체 데이터 복원** — 로그인 시 서버 데이터 자동 복원
 
 ### Phase 3 — 소셜 로그인 & 배포 🔧 진행 중
-- **소셜 로그인** — Apple(iOS 전용) · Google · 카카오
+- **소셜 로그인** — Apple(iOS 전용) · Google · 카카오 (이메일 로그인 완전 제거)
+- **pillarm.app 도메인** — 초대 링크·개인정보처리방침 URL 반영
 - **알림 로그인 연동** — 로그아웃 시 알림 전체 취소, 로그인 시 재스케줄, 계정별 알림 분리
-- **일정 삭제 개선** — 삭제 시 오늘 미완료 이벤트 함께 제거
 - **EAS Build** — iOS/Android 프로덕션 빌드 자동화
 - **Railway 서버 배포** — `https://pillarm-production.up.railway.app`
-- **iOS TestFlight** — build 12 (v1.0.0) 제출 완료
+- **iOS TestFlight** — build 15 (v1.0.0) 제출 완료
 
-### Phase 4 — 약봉투 스캔 📋 계획 중
-- **약봉투 촬영 → 자동 일정 생성** — 카메라로 조제약 봉투 촬영 시 AI가 약 이름·용량·복용 횟수·기간·식전후를 인식하여 일정 초안 자동 생성
+### Phase 4 — 약봉투 스캔 🔧 진행 중
+- **약봉투 촬영 → 자동 일정 생성** — 카메라로 조제약 봉투 촬영 시 Claude Vision AI가 약 이름·용량·복용 횟수·기간·식전후를 인식하여 일정 초안 자동 생성
+- 식사 시간 설정 기반 복용 시간 자동 계산, 용량 단위(정/mg/ml) 버튼 선택
 - 자세한 내용: `PRD_PHASE4.md` 참조
 
 ---
@@ -153,13 +155,15 @@ npm run dev     # 포트 3000
 ```
 pillarm/
 ├── src/
-│   ├── app/              # 화면 컴포넌트 (home, schedule, history, stats, settings, auth)
+│   ├── app/              # 화면 컴포넌트 (home, schedule, history, stats, settings, auth, scan)
 │   ├── components/       # 공통 UI 컴포넌트
 │   ├── db/               # SQLite 마이그레이션 & 쿼리
 │   ├── domain/           # 엔터티 타입
 │   ├── features/
 │   │   ├── careCircle/   # 보호자 공유 API & UI
 │   │   ├── medicationDB/ # 식약처 API 자동완성
+│   │   ├── medicationScan/ # 약봉투 스캔 (Claude Vision AI)
+│   │   ├── supplementGuide/ # 영양제 복용 가이드 데이터
 │   │   ├── points/       # 포인트·리워드
 │   │   ├── aiCoaching/   # AI 코칭
 │   │   └── socialAuth/   # 소셜 로그인 (Apple·Google·Kakao)
@@ -170,7 +174,7 @@ pillarm/
 │   └── utils/
 ├── server/               # 백엔드 (Express + Prisma, Railway 배포)
 │   ├── src/
-│   │   ├── routes/       # auth, socialAuth, careCircle, doseSync, sync
+│   │   ├── routes/       # auth, socialAuth, careCircle, doseSync, sync, aiScan
 │   │   ├── services/     # fcmService, missedDoseNotifier
 │   │   ├── middleware/   # requireAuth, errorHandler
 │   │   └── lib/          # prisma, jwt
@@ -204,6 +208,16 @@ eas build --platform ios --profile production --auto-submit
 eas build --platform android --profile production
 ```
 
+### 주요 빌드 정보
+
+| 항목 | 값 |
+|------|-----|
+| Bundle ID | `com.seungrokj.pillarm` |
+| Apple Team ID | `9AU7GMJTRW` |
+| App Store Connect ID | `6770390217` |
+| 현재 iOS buildNumber | `15` |
+| Android versionCode | `10` (예정) |
+
 ---
 
 ## 보안 참고 사항
@@ -212,3 +226,4 @@ eas build --platform android --profile production
 - 모든 `/care-circles/*` 엔드포인트는 JWT 인증 필수
 - `/sync` PUT 엔드포인트에서 기존 레코드 소유권(userId) 검증 → 타인 데이터 덮어쓰기 차단
 - 보호자는 자신이 속한 서클의 데이터만 조회 가능 (비구성원 → 403)
+- 소셜 로그인 동일 이메일 중복 시 409 처리 + 연결 확인 Alert
