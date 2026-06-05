@@ -54,6 +54,19 @@ export default function ScanScreen() {
       navigation.replace('ScanResult', { results: scanResults });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '오류가 발생했습니다';
+
+      if (msg === 'no_refresh' || msg.includes('no_refresh')) {
+        Alert.alert(
+          '로그인이 필요합니다',
+          '세션이 만료되었습니다.\n다시 로그인 후 스캔해주세요.',
+          [
+            { text: '취소', style: 'cancel' },
+            { text: '로그인하기', onPress: () => navigation.navigate('Login') },
+          ],
+        );
+        return;
+      }
+
       Alert.alert('인식 실패', msg, [
         { text: '다시 시도', style: 'cancel' },
         {

@@ -26,6 +26,8 @@ export async function scanMedicationImage(
 ): Promise<MedicationScanResult[]> {
   const { data } = await api.post<ScanResponse>('/ai/scan-medication', {
     image: base64Image,
+  }, {
+    timeout: 60_000,
   });
 
   if (!data.results?.length) {
