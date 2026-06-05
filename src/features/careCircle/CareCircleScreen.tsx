@@ -262,7 +262,7 @@ export default function CareCircleScreen() {
             accessibilityRole="button"
           >
             {inviteLoading
-              ? <ActivityIndicator size="small" color="#3b82f6" />
+              ? <ActivityIndicator size="small" color="#fff" />
               : <Text style={styles.inviteBtnText}>+ 초대하기</Text>
             }
           </TouchableOpacity>

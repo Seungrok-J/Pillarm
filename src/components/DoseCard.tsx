@@ -303,17 +303,24 @@ export default function DoseCard({
           onRequestClose={() => setShowMemoSheet(false)}
           testID="modal-memo-sheet"
         >
-          <TouchableOpacity
-            style={styles.backdrop}
-            activeOpacity={1}
-            onPress={() => setShowMemoSheet(false)}
-          >
+          <View style={styles.backdrop}>
             <KeyboardAvoidingView
               behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
               style={styles.sheetWrapper}
             >
-              <TouchableOpacity activeOpacity={1} style={styles.sheet}>
-                <Text style={styles.sheetTitle}>메모 추가 (선택사항)</Text>
+              <View style={styles.sheet}>
+                <View style={styles.sheetHeader}>
+                  <Text style={styles.sheetTitle}>메모 추가 (선택사항)</Text>
+                  <TouchableOpacity
+                    testID="btn-close-memo"
+                    style={styles.sheetCloseBtn}
+                    onPress={() => setShowMemoSheet(false)}
+                    accessibilityLabel="닫기"
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.sheetCloseTxt}>✕</Text>
+                  </TouchableOpacity>
+                </View>
 
                 <TextInput
                   testID="input-memo"
@@ -371,9 +378,9 @@ export default function DoseCard({
                     <Text style={styles.saveTxt}>저장</Text>
                   </TouchableOpacity>
                 </View>
-              </TouchableOpacity>
+              </View>
             </KeyboardAvoidingView>
-          </TouchableOpacity>
+          </View>
         </Modal>
       )}
     </View>
@@ -476,11 +483,29 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 36,
   },
+  sheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
   sheetTitle: {
     fontSize: 16,
     fontWeight: '700',
     color: '#111827',
-    marginBottom: 12,
+  },
+  sheetCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f3f4f6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sheetCloseTxt: {
+    fontSize: 14,
+    color: '#6b7280',
+    fontWeight: '600',
   },
   memoInput: {
     borderWidth: 1,
