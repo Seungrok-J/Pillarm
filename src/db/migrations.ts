@@ -145,6 +145,15 @@ export const MIGRATIONS: Migration[] = [
       ALTER TABLE user_settings ADD COLUMN meal_time_dinner    TEXT NOT NULL DEFAULT '17:00';
     `,
   },
+
+  // ── v6: 포(packet) 그룹화 — 약봉투 스캔에서 여러 약을 한 포로 묶기 ───────────
+  {
+    version: 6,
+    sql: `
+      ALTER TABLE schedules   ADD COLUMN packet_id TEXT;
+      ALTER TABLE dose_events ADD COLUMN packet_id TEXT;
+    `,
+  },
 ];
 
 export async function runMigrations(db: MigrationDb): Promise<void> {

@@ -29,8 +29,13 @@ import { rescheduleSnooze } from '../../notifications';
 import { updateDoseEventMemo } from '../../db';
 import { todayString } from '../../utils';
 import DoseCard from '../../components/DoseCard';
+import PacketCard from '../../components/PacketCard';
 import NextDoseBanner from '../../components/NextDoseBanner';
 import type { DoseEvent } from '../../domain';
+
+type PacketGroup = { kind: 'packet'; packetId: string; plannedAt: string; events: DoseEvent[] };
+type SingleEvent = { kind: 'single'; event: DoseEvent };
+type ListItem = PacketGroup | SingleEvent;
 
 type Nav = StackNavigationProp<RootStackParamList>;
 
@@ -51,7 +56,7 @@ const FALLBACK_SETTINGS = {
 export default function HomeScreen() {
   const navigation = useNavigation<Nav>();
 
-  const { todayEvents, isLoading, fetchTodayEvents, markTaken, markSkipped, snooze } =
+  const { todayEvents, isLoading, fetchTodayEvents, markTaken, markPacketTaken, markSkipped, snooze } =
     useDoseEventStore((s) => s);
   const { medications, fetchMedications } = useMedicationStore((s) => s);
   const settings = useSettingsStore((s) => s.settings) ?? FALLBACK_SETTINGS;
@@ -145,6 +150,34 @@ export default function HomeScreen() {
     [todayEvents],
   );
 
+  // 포 그룹화: packetId + plannedAt 기준으로 묶음, 나머지는 개별 카드
+  const listItems = useMemo<ListItem[]>(() => {
+    const packetMap = new Map<string, DoseEvent[]>();
+    const result: ListItem[] = [];
+
+    for (const event of sortedEvents) {
+      if (event.packetId) {
+        const key = `${event.packetId}|${event.plannedAt}`;
+        if (!packetMap.has(key)) packetMap.set(key, []);
+        packetMap.get(key)!.push(event);
+      }
+    }
+
+    const addedPacketKeys = new Set<string>();
+    for (const event of sortedEvents) {
+      if (event.packetId) {
+        const key = `${event.packetId}|${event.plannedAt}`;
+        if (!addedPacketKeys.has(key)) {
+          addedPacketKeys.add(key);
+          result.push({ kind: 'packet', packetId: event.packetId, plannedAt: event.plannedAt, events: packetMap.get(key)! });
+        }
+      } else {
+        result.push({ kind: 'single', event });
+      }
+    }
+    return result;
+  }, [sortedEvents]);
+
   const hasEvents = todayEvents.length > 0;
   const allDone =
     hasEvents &&
@@ -161,6 +194,25 @@ export default function HomeScreen() {
       if (streakAwarded) setShowStreakModal(true);
     } catch {
       // 낙관적 업데이트 롤백은 store 에서 처리됨
+    }
+  }
+
+  async function handleTakePacket(ids: string[]) {
+    try {
+      const { streakAwarded, pointsAwarded } = await markPacketTaken(ids);
+      triggerToast(pointsAwarded ? '+10 포인트! 🎉' : '오늘 포인트 한도를 채웠어요 💊');
+      await fetchBalance();
+      if (streakAwarded) setShowStreakModal(true);
+    } catch {
+      // store에서 낙관적 업데이트 롤백 처리
+    }
+  }
+
+  async function handleSkipPacket(ids: string[]) {
+    try {
+      await Promise.all(ids.map((id) => markSkipped(id)));
+    } catch {
+      // store error로 전파됨
     }
   }
 
@@ -275,27 +327,43 @@ export default function HomeScreen() {
       {isLoading ? (
         <ActivityIndicator testID="loading-indicator" style={{ marginTop: 40 }} />
       ) : (
-        <FlatList<DoseEvent>
+        <FlatList<ListItem>
           testID="list-events"
-          data={sortedEvents}
-          keyExtractor={(item) => item.id}
+          data={listItems}
+          keyExtractor={(item) =>
+            item.kind === 'packet'
+              ? `packet-${item.packetId}-${item.plannedAt}`
+              : item.event.id
+          }
           contentContainerStyle={styles.listContent}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#3b82f6" />
           }
-          renderItem={({ item }) => (
-            <DoseCard
-              event={item}
-              medicationName={medicationNames[item.medicationId] ?? item.medicationId}
-              medicationColor={medicationColors[item.medicationId]}
-              onTake={handleTake}
-              onSnooze={handleSnooze}
-              onSkip={handleSkip}
-              onAfterTake={handleAfterTake}
-              now={now}
-              graceMinutes={settings.missedToLateMinutes}
-            />
-          )}
+          renderItem={({ item }) => {
+            if (item.kind === 'packet') {
+              return (
+                <PacketCard
+                  events={item.events}
+                  medicationNames={medicationNames}
+                  onTakePacket={handleTakePacket}
+                  onSkipPacket={handleSkipPacket}
+                />
+              );
+            }
+            return (
+              <DoseCard
+                event={item.event}
+                medicationName={medicationNames[item.event.medicationId] ?? item.event.medicationId}
+                medicationColor={medicationColors[item.event.medicationId]}
+                onTake={handleTake}
+                onSnooze={handleSnooze}
+                onSkip={handleSkip}
+                onAfterTake={handleAfterTake}
+                now={now}
+                graceMinutes={settings.missedToLateMinutes}
+              />
+            );
+          }}
           ListEmptyComponent={
             <Text testID="txt-empty" style={styles.emptyText}>
               오늘 예정된 복용이 없습니다

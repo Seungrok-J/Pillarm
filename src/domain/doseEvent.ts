@@ -12,6 +12,7 @@ export interface DoseEvent {
   source: DoseSource;
   note?: string;
   photoPath?: string;
+  packetId?: string;
   createdAt: string;
   updatedAt: string;
 }

@@ -25,6 +25,7 @@ interface DoseEventState {
   fetchTodayEvents: (dateStr: string) => Promise<void>;
   fetchByDateRange: (startIso: string, endIso: string) => Promise<DoseEvent[]>;
   markTaken: (id: string) => Promise<{ streakAwarded: boolean; pointsAwarded: boolean }>;
+  markPacketTaken: (ids: string[]) => Promise<{ streakAwarded: boolean; pointsAwarded: boolean }>;
   markSkipped: (id: string) => Promise<void>;
   /** snoozeCount를 1 증가시키고 plannedAt을 snoozeMinutes 후로 업데이트합니다. 3회 고정 초과 시 false 반환. */
   snooze: (id: string, snoozeMinutes: number) => Promise<boolean>;
@@ -107,6 +108,50 @@ export const useDoseEventStore = create<DoseEventState>((set, get) => ({
         const updated = allEvents.find((e) => e.id === id);
         if (updated) pushDoseEvent(updated).catch(() => {});
         uploadTodaySnapshot(currentUserId(), allEvents).catch(() => {});
+      }
+      return { streakAwarded, pointsAwarded };
+    } catch (e) {
+      set({ todayEvents: prev, error: (e as Error).message });
+      throw e;
+    }
+  },
+
+  markPacketTaken: async (ids) => {
+    const now = toLocalISOString(new Date());
+    const prev = get().todayEvents;
+    set((state) => ({
+      todayEvents: state.todayEvents.map((e) =>
+        ids.includes(e.id) ? { ...e, status: 'taken' as const, takenAt: now, updatedAt: now } : e,
+      ),
+      error: null,
+    }));
+    try {
+      await Promise.all(ids.map((id) => updateDoseEventStatus(id, 'taken', now)));
+      ids.forEach((id) => cancelNotificationForDoseEvent(id).catch(() => {}));
+
+      // 포인트·스트릭은 첫 번째 이벤트 기준 1회만 지급
+      const graceMinutes = useSettingsStore.getState().settings?.missedToLateMinutes ?? 120;
+      const uid = currentUserId();
+      const firstEvent = get().todayEvents.find((e) => ids[0] === e.id);
+      let pointsAwarded = false;
+      let streakAwarded = false;
+      if (firstEvent) {
+        const takenEvent: DoseEvent = { ...firstEvent, status: 'taken', takenAt: now };
+        let pointsEntry: Awaited<ReturnType<typeof awardDoseTaken>> = null;
+        let streakEntry: { delta: number } | null = null;
+        await Promise.all([
+          awardDoseTaken(takenEvent, graceMinutes, uid).then((e) => { pointsEntry = e; }).catch(() => {}),
+          awardStreakBonus(uid).then((e) => { streakEntry = e; }).catch(() => {}),
+        ]);
+        pointsAwarded = pointsEntry !== null;
+        streakAwarded = streakEntry !== null;
+        await usePointStore.getState().fetchBalance();
+      }
+
+      if (isSyncEnabled()) {
+        const allEvents = get().todayEvents;
+        allEvents.filter((e) => ids.includes(e.id)).forEach((e) => pushDoseEvent(e).catch(() => {}));
+        uploadTodaySnapshot(uid, allEvents).catch(() => {});
       }
       return { streakAwarded, pointsAwarded };
     } catch (e) {

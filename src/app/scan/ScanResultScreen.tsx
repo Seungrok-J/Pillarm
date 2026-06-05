@@ -28,6 +28,9 @@ export default function ScanResultScreen() {
   const [items, setItems] = useState<MedicationScanResult[]>(params.results);
   const [tabIndex, setTabIndex] = useState(0);
   const [skipped, setSkipped] = useState<Set<number>>(new Set());
+  const [packetItems, setPacketItems] = useState<Set<number>>(
+    () => new Set(params.results.map((_, i) => i)),
+  );
   const [saving, setSaving] = useState(false);
 
   const userId   = useAuthStore.getState().userId ?? 'local';
@@ -88,10 +91,14 @@ export default function ScanResultScreen() {
       return;
     }
 
+    // 2개 이상 체크된 경우에만 포 그룹 생성
+    const activePacketIndices = [...packetItems].filter((i) => !skipped.has(i));
+    const sharedPacketId = activePacketIndices.length >= 2 ? generateId() : undefined;
+
     setSaving(true);
     try {
-      for (const item of toCreate) {
-        if (!item.medicationName.trim()) continue;
+      for (const [origIdx, item] of items.entries()) {
+        if (skipped.has(origIdx) || !item.medicationName.trim()) continue;
 
         const today = todayString();
         const endDate = item.durationDays
@@ -119,6 +126,10 @@ export default function ScanResultScreen() {
           userId,
         );
 
+        const packetId = sharedPacketId && activePacketIndices.includes(origIdx)
+          ? sharedPacketId
+          : undefined;
+
         const schedule = {
           id:           scheduleId,
           medicationId,
@@ -129,6 +140,7 @@ export default function ScanResultScreen() {
           withFood:     item.withFood ?? ('none' as const),
           graceMinutes: 120,
           isActive:     true,
+          packetId,
           createdAt:    now,
           updatedAt:    now,
         };
@@ -280,6 +292,51 @@ export default function ScanResultScreen() {
             {isSkipped ? '이 약 포함하기' : '이 약 건너뛰기'}
           </Text>
         </TouchableOpacity>
+
+        {/* 포 그룹화 */}
+        {items.length >= 2 && (
+          <View style={styles.packetSection}>
+            <View style={styles.packetTitleRow}>
+              <Text style={styles.packetTitle}>💊 한 포로 묶기</Text>
+              <Text style={styles.packetHint}>
+                체크된 약은 홈에서 한 번에 복용 체크돼요
+              </Text>
+            </View>
+            {items.map((item, i) => {
+              const isItemSkipped = skipped.has(i);
+              const inPacket = packetItems.has(i);
+              return (
+                <TouchableOpacity
+                  key={i}
+                  style={[styles.packetRow, isItemSkipped && styles.packetRowDisabled]}
+                  onPress={() => {
+                    if (isItemSkipped) return;
+                    setPacketItems((prev) => {
+                      const next = new Set(prev);
+                      next.has(i) ? next.delete(i) : next.add(i);
+                      return next;
+                    });
+                  }}
+                  disabled={isItemSkipped}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.checkbox, inPacket && !isItemSkipped && styles.checkboxChecked]}>
+                    {inPacket && !isItemSkipped && <Text style={styles.checkmark}>✓</Text>}
+                  </View>
+                  <Text style={[styles.packetItemName, isItemSkipped && styles.packetItemDisabled]} numberOfLines={1}>
+                    {item.medicationName || `약 ${i + 1}`}
+                  </Text>
+                  {isItemSkipped && <Text style={styles.skippedLabel}>건너뜀</Text>}
+                </TouchableOpacity>
+              );
+            })}
+            {[...packetItems].filter((i) => !skipped.has(i)).length < 2 && (
+              <Text style={styles.packetWarning}>
+                2개 이상 선택해야 포로 묶입니다
+              </Text>
+            )}
+          </View>
+        )}
       </ScrollView>
 
       {/* 하단 버튼 */}
@@ -349,6 +406,41 @@ const styles = StyleSheet.create({
 
   skipBtn:     { alignSelf: 'center', marginTop: 16 },
   skipBtnText: { fontSize: 14, color: '#ef4444', fontWeight: '500' },
+
+  packetSection: {
+    marginTop: 20,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1.5,
+    borderColor: '#e0eaff',
+  },
+  packetTitleRow: { marginBottom: 12 },
+  packetTitle:    { fontSize: 15, fontWeight: '700', color: '#111827', marginBottom: 4 },
+  packetHint:     { fontSize: 12, color: '#6b7280' },
+  packetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#f3f4f6',
+  },
+  packetRowDisabled: { opacity: 0.4 },
+  checkbox: {
+    width: 22, height: 22, borderRadius: 6,
+    borderWidth: 2, borderColor: '#d1d5db',
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#f9fafb',
+  },
+  checkboxChecked: {
+    backgroundColor: '#3b82f6', borderColor: '#3b82f6',
+  },
+  checkmark:         { fontSize: 13, color: '#fff', fontWeight: '800' },
+  packetItemName:    { flex: 1, fontSize: 14, fontWeight: '500', color: '#374151' },
+  packetItemDisabled:{ color: '#9ca3af' },
+  skippedLabel:      { fontSize: 11, color: '#9ca3af', fontWeight: '500' },
+  packetWarning:     { fontSize: 12, color: '#f59e0b', marginTop: 8, textAlign: 'center' },
 
   footer: {
     position: 'absolute', bottom: 0, left: 0, right: 0,

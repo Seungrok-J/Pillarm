@@ -29,8 +29,8 @@ export async function updateDoseEventStatus(
 export async function insertDoseEvent(event: DoseEvent, userId: string): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
-    `INSERT INTO dose_events (id, schedule_id, medication_id, planned_at, status, taken_at, snooze_count, source, note, photo_path, user_id, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO dose_events (id, schedule_id, medication_id, planned_at, status, taken_at, snooze_count, source, note, photo_path, packet_id, user_id, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     event.id,
     event.scheduleId,
     event.medicationId,
@@ -41,6 +41,7 @@ export async function insertDoseEvent(event: DoseEvent, userId: string): Promise
     event.source,
     event.note ?? null,
     event.photoPath ?? null,
+    event.packetId ?? null,
     userId,
     event.createdAt,
     event.updatedAt,
@@ -129,13 +130,14 @@ export async function upsertDoseEvent(
   const db = await getDatabase();
   await db.runAsync(
     `INSERT INTO dose_events
-       (id, schedule_id, medication_id, planned_at, status, taken_at, snooze_count, source, note, user_id, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       (id, schedule_id, medication_id, planned_at, status, taken_at, snooze_count, source, note, packet_id, user_id, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET
        status       = excluded.status,
        taken_at     = excluded.taken_at,
        snooze_count = excluded.snooze_count,
        note         = excluded.note,
+       packet_id    = excluded.packet_id,
        updated_at   = excluded.updated_at`,
     event.id,
     event.scheduleId,
@@ -146,6 +148,7 @@ export async function upsertDoseEvent(
     event.snoozeCount,
     event.source,
     event.note ?? null,
+    event.packetId ?? null,
     userId,
     event.createdAt,
     event.updatedAt,
@@ -186,6 +189,7 @@ function rowToDoseEvent(row: Record<string, unknown>): DoseEvent {
     source: row['source'] as DoseEvent['source'],
     note: row['note'] as string | undefined,
     photoPath: row['photo_path'] as string | undefined,
+    packetId: (row['packet_id'] as string | null) ?? undefined,
     createdAt: row['created_at'] as string,
     updatedAt: row['updated_at'] as string,
   };

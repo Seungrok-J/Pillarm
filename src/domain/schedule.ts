@@ -12,6 +12,7 @@ export interface Schedule {
   withFood: WithFood;
   graceMinutes: number;
   isActive: boolean;
+  packetId?: string;
   createdAt: string;
   updatedAt: string;
 }
