@@ -24,7 +24,12 @@ export default function App() {
   // ── DB 초기화 & 설정 로드 ────────────────────────────────────────────────
   useEffect(() => {
     (async () => {
-      try { await initializeKakaoSDK('8dc3f74482bc4d09a9c1c8502acf99c4'); } catch (e) { console.warn('[App] initKakao:', e); }
+      const kakaoKey = process.env.EXPO_PUBLIC_KAKAO_APP_KEY;
+      if (kakaoKey) {
+        try { await initializeKakaoSDK(kakaoKey); } catch (e) { console.warn('[App] initKakao:', e); }
+      } else {
+        console.warn('[App] EXPO_PUBLIC_KAKAO_APP_KEY 환경변수가 설정되지 않았습니다');
+      }
       try { configureGoogle(); } catch (e) { console.warn('[App] configureGoogle:', e); }
 
       try {

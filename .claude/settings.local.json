@@ -111,7 +111,9 @@
       "Bash(eas env:delete --environment development --name EXPO_PUBLIC_SERVER_URL --non-interactive)",
       "Bash(eas env:delete --environment development --name EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID --non-interactive)",
       "Bash(eas env:delete --environment development --name EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID --non-interactive)",
-      "Bash(eas env:delete --help)"
+      "Bash(eas env:delete --help)",
+      "Bash(git pull *)",
+      "Bash(git stash *)"
     ]
   }
 }

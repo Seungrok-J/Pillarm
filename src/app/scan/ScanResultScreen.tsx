@@ -33,9 +33,6 @@ export default function ScanResultScreen() {
   );
   const [saving, setSaving] = useState(false);
 
-  const userId   = useAuthStore.getState().userId ?? 'local';
-  const settings = useSettingsStore.getState().settings;
-
   // 저장 완료 전 뒤로가기 방지
   const savedRef = useRef(false);
   useEffect(() => {
@@ -85,6 +82,9 @@ export default function ScanResultScreen() {
   }
 
   async function handleCreate() {
+    const userId   = useAuthStore.getState().userId ?? 'local';
+    const settings = useSettingsStore.getState().settings;
+
     const toCreate = items.filter((_, i) => !skipped.has(i));
     if (toCreate.length === 0) {
       Alert.alert('알림', '건너뛰지 않은 약이 없습니다.');

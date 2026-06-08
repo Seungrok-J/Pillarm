@@ -12,3 +12,7 @@ coverage/
 web-build/
 .env
 .env.local
+.env.*
+server/.env
+server/.env.local
+server/.env.*
