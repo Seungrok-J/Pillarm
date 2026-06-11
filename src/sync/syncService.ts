@@ -4,6 +4,7 @@ import { getAllSchedules, upsertSchedule } from '../db/schedules';
 import { getDoseEventsByDateRange, upsertDoseEvent } from '../db/doseEvents';
 import { api } from '../features/careCircle/careCircleApi';
 import { useAuthStore } from '../store/authStore';
+import { useNetworkStore } from '../store/networkStore';
 import { useMedicationStore } from '../store/medicationStore';
 import { todayString } from '../utils';
 
@@ -19,6 +20,22 @@ export function isSyncEnabled(): boolean {
   return useAuthStore.getState().isLoggedIn;
 }
 
+/**
+ * 재연결 시 호출 — pending 플래그가 있으면 initialPush 재시도.
+ * App.tsx의 NetInfo 리스너에서 isOnline 전환 시 호출한다.
+ */
+export async function retrySyncIfPending(): Promise<void> {
+  const { isLoggedIn, userId } = useAuthStore.getState();
+  const { hasPendingSync, clearPendingSync } = useNetworkStore.getState();
+  if (!isLoggedIn || !userId || !hasPendingSync) return;
+  try {
+    await initialPush(userId);
+    await clearPendingSync();
+  } catch {
+    // 여전히 실패하면 pending 유지
+  }
+}
+
 /** 로그인 직후 로컬 데이터 전체를 서버로 업로드 */
 export async function initialPush(userId: string): Promise<void> {
   const since = new Date();
@@ -32,11 +49,17 @@ export async function initialPush(userId: string): Promise<void> {
 
   if (!medications.length && !schedules.length && !doseEvents.length) return;
 
-  await api.post('/sync/push', {
-    medications,
-    schedules,
-    doseEvents: doseEvents.map(toDoseEventPayload),
-  });
+  try {
+    await api.post('/sync/push', {
+      medications,
+      schedules,
+      doseEvents: doseEvents.map(toDoseEventPayload),
+    });
+  } catch (err) {
+    // 오프라인이거나 서버 오류 → pending 마킹 후 재연결 시 재시도
+    await useNetworkStore.getState().markPendingSync();
+    throw err;
+  }
 }
 
 export async function pushMedication(medication: Medication): Promise<void> {

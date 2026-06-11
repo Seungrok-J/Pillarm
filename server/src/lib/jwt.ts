@@ -1,8 +1,9 @@
 import jwt from 'jsonwebtoken';
 
 export interface TokenPayload {
-  userId: string;
-  email: string;
+  userId:  string;
+  email:   string;
+  isAdmin?: boolean;
 }
 
 // Read at call time so test setup can override process.env before first use

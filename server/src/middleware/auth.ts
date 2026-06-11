@@ -24,3 +24,14 @@ export function requireAuth(req: Request, _res: Response, next: NextFunction): v
     next(new AppError('Invalid or expired token', 401));
   }
 }
+
+/** requireAuth를 먼저 통과한 뒤 isAdmin 여부를 검증한다 */
+export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
+  requireAuth(req, res, (err?: unknown) => {
+    if (err) return next(err);
+    if (!req.user?.isAdmin) {
+      return next(new AppError('Admin access required', 403));
+    }
+    next();
+  });
+}

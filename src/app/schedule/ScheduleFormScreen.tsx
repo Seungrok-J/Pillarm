@@ -191,6 +191,7 @@ const FALLBACK_SETTINGS = {
   mealTimeBreakfast: '09:00',
   mealTimeLunch: '12:00',
   mealTimeDinner: '17:00',
+  fontScale: 1.0,
 };
 
 interface FormErrors {

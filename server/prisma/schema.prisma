@@ -42,6 +42,8 @@ model User {
   providerId   String?
   /// FCM 등록 토큰 (로그인 시 앱에서 업데이트)
   fcmToken     String?
+  /// 관리자 여부 — DB에서 직접 설정
+  isAdmin      Boolean  @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -195,6 +197,14 @@ model DoseEvent {
   updatedAt    String
 
   user User @relation("UserDoseEvents", fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// 관리자가 서버에서 on/off 토글할 수 있는 기능 플래그
+model FeatureFlag {
+  key         String   @id
+  enabled     Boolean  @default(false)
+  description String   @default("")
+  updatedAt   DateTime @updatedAt
 }
 
 /// 6자리 일회용 초대 코드 (24h TTL)

@@ -4,7 +4,7 @@ import {
   statusCodes,
 } from '@react-native-google-signin/google-signin';
 import { getExpoPushToken } from '../../notifications/pushToken';
-import { socialLogin, type SocialAuthResponse, type SocialLinkRequired } from './socialAuthApi';
+import { socialLogin, type SocialAuthResponse, type SocialLinkRequired, type DeviceConflict } from './socialAuthApi';
 
 // env var가 undefined여도 크래시 방지용 폴백
 const IOS_CLIENT_ID = '131302702516-igvegcggjg5mk6pc8nfllaalda99scul.apps.googleusercontent.com';
@@ -24,7 +24,7 @@ export function configureGoogle() {
   console.log('[Google] webClientId:', webClientId ? 'SET' : 'NOT SET (iosClientId audience mode)');
 }
 
-export async function signInWithGoogle(): Promise<SocialAuthResponse | SocialLinkRequired> {
+export async function signInWithGoogle(): Promise<SocialAuthResponse | SocialLinkRequired | DeviceConflict> {
   // 이미 로그인된 세션이 있으면 먼저 로그아웃 (세션 충돌 방지)
   try {
     const isSignedIn = await GoogleSignin.getCurrentUser();

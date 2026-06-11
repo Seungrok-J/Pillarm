@@ -75,9 +75,10 @@ describe('userSettings DB', () => {
         maxSnoozeCount: 5,
         missedToLateMinutes: 60,
         autoMarkMissedEnabled: false,
-  mealTimeBreakfast: '08:00',
-  mealTimeLunch: '12:00',
-  mealTimeDinner: '19:00',
+        mealTimeBreakfast: '08:00',
+        mealTimeLunch: '12:00',
+        mealTimeDinner: '19:00',
+        fontScale: 1.0,
       });
       expect(db.runAsync).toHaveBeenCalledTimes(1);
       expect(db.runAsync.mock.calls[0][0]).toContain('ON CONFLICT(user_id) DO UPDATE SET');
@@ -91,9 +92,10 @@ describe('userSettings DB', () => {
         maxSnoozeCount: 3,
         missedToLateMinutes: 120,
         autoMarkMissedEnabled: false,
-  mealTimeBreakfast: '08:00',
-  mealTimeLunch: '12:00',
-  mealTimeDinner: '19:00',
+        mealTimeBreakfast: '08:00',
+        mealTimeLunch: '12:00',
+        mealTimeDinner: '19:00',
+        fontScale: 1.0,
       });
       expect(db.runAsync.mock.calls[0]).toContain(0);
     });

@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
-  StyleSheet, Alert,
+  StyleSheet, Alert, Modal, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RouteProp } from '@react-navigation/native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import type { RootStackParamList } from '../../navigation';
 import type { MedicationScanResult } from '../../features/medicationScan/scanUtils';
 import { DOSAGE_UNITS } from '../../features/medicationScan/scanUtils';
@@ -15,15 +16,134 @@ import { upsertMedication, upsertSchedule } from '../../db';
 import { scheduleForSchedule } from '../../notifications';
 import { useAuthStore } from '../../store/authStore';
 import { useSettingsStore } from '../../store';
+import TimePickerList from '../../components/TimePickerList';
 
 type Nav   = StackNavigationProp<RootStackParamList>;
 type Route = RouteProp<RootStackParamList, 'ScanResult'>;
 
 const WITH_FOOD_LABELS = { before: '식전', after: '식후', none: '무관' } as const;
 
+// ── 날짜 헬퍼 ─────────────────────────────────────────────────────────────────
+
+function toLocalDateString(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function addDays(dateStr: string, days: number): string {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + days);
+  return toLocalDateString(d);
+}
+
+function formatDisplayDate(dateStr: string): string {
+  const [y, m, day] = dateStr.split('-');
+  return `${y}년 ${Number(m)}월 ${Number(day)}일`;
+}
+
+// ── DatePickerField ──────────────────────────────────────────────────────────
+
+interface DatePickerFieldProps {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  minimumDate?: Date;
+  disabled?: boolean;
+}
+
+function DatePickerField({ value, onChange, placeholder, minimumDate, disabled }: DatePickerFieldProps) {
+  const [show,     setShow]     = useState(false);
+  const [tempDate, setTempDate] = useState<Date>(new Date());
+
+  function openPicker() {
+    if (disabled) return;
+    setTempDate(value ? new Date(value + 'T00:00:00') : new Date());
+    setShow(true);
+  }
+
+  const pickerNode = (
+    <DateTimePicker
+      value={tempDate}
+      mode="date"
+      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+      locale="ko-KR"
+      minimumDate={minimumDate}
+      onChange={(_, selected) => {
+        if (Platform.OS === 'android') {
+          setShow(false);
+          if (selected) onChange(toLocalDateString(selected));
+        } else {
+          if (selected) setTempDate(selected);
+        }
+      }}
+    />
+  );
+
+  return (
+    <>
+      <TouchableOpacity
+        style={[dpStyles.btn, disabled && { opacity: 0.5 }]}
+        onPress={openPicker}
+      >
+        <Text style={value ? dpStyles.valueTxt : dpStyles.placeholderTxt}>
+          {value ? formatDisplayDate(value) : placeholder}
+        </Text>
+        <Text style={dpStyles.icon}>📅</Text>
+      </TouchableOpacity>
+
+      {Platform.OS === 'ios' ? (
+        <Modal visible={show} transparent animationType="slide" onRequestClose={() => setShow(false)}>
+          <View style={dpStyles.overlay}>
+            <View style={dpStyles.sheet}>
+              <View style={dpStyles.toolbar}>
+                <TouchableOpacity onPress={() => setShow(false)}>
+                  <Text style={dpStyles.cancelTxt}>취소</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => { onChange(toLocalDateString(tempDate)); setShow(false); }}>
+                  <Text style={dpStyles.confirmTxt}>확인</Text>
+                </TouchableOpacity>
+              </View>
+              {pickerNode}
+            </View>
+          </View>
+        </Modal>
+      ) : (
+        show && pickerNode
+      )}
+    </>
+  );
+}
+
+const dpStyles = {
+  btn: {
+    flexDirection: 'row' as const, alignItems: 'center' as const,
+    justifyContent: 'space-between' as const,
+    borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8,
+    paddingHorizontal: 12, paddingVertical: 12,
+    backgroundColor: '#fff', marginBottom: 4,
+  },
+  valueTxt:       { fontSize: 15, color: '#111827' },
+  placeholderTxt: { fontSize: 15, color: '#9ca3af' },
+  icon:           { fontSize: 18 },
+  overlay:        { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' as const },
+  sheet:          { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 36 },
+  toolbar:        {
+    flexDirection: 'row' as const, justifyContent: 'space-between' as const,
+    paddingHorizontal: 20, paddingVertical: 14,
+    borderBottomWidth: 1, borderBottomColor: '#f3f4f6',
+  },
+  cancelTxt:  { fontSize: 16, color: '#6b7280' },
+  confirmTxt: { fontSize: 16, color: '#3b82f6', fontWeight: '600' as const },
+};
+
+// ── 메인 화면 ─────────────────────────────────────────────────────────────────
+
 export default function ScanResultScreen() {
   const navigation = useNavigation<Nav>();
   const { params } = useRoute<Route>();
+  const settings = useSettingsStore.getState().settings;
 
   const [items, setItems] = useState<MedicationScanResult[]>(params.results);
   const [tabIndex, setTabIndex] = useState(0);
@@ -32,6 +152,17 @@ export default function ScanResultScreen() {
     () => new Set(params.results.map((_, i) => i)),
   );
   const [saving, setSaving] = useState(false);
+
+  // 각 약별 날짜 상태 (startDate, endDate)
+  const today = todayString();
+  const [startDates, setStartDates] = useState<string[]>(() =>
+    params.results.map(() => today),
+  );
+  const [endDates, setEndDates] = useState<string[]>(() =>
+    params.results.map((item) =>
+      item.durationDays ? addDays(today, item.durationDays - 1) : '',
+    ),
+  );
 
   // 저장 완료 전 뒤로가기 방지
   const savedRef = useRef(false);
@@ -65,14 +196,6 @@ export default function ScanResultScreen() {
     );
   }
 
-  function toggleTime(t: string) {
-    const times = currentItem.suggestedTimes;
-    const next  = times.includes(t)
-      ? times.filter((x) => x !== t)
-      : [...times, t].sort();
-    updateField('suggestedTimes', next);
-  }
-
   function toggleSkip() {
     setSkipped((prev) => {
       const s = new Set(prev);
@@ -81,9 +204,21 @@ export default function ScanResultScreen() {
     });
   }
 
+  // durationDays 변경 시 endDate 자동 업데이트
+  function handleDurationChange(idx: number, days: number | undefined) {
+    setItems((prev) =>
+      prev.map((item, i) => (i === idx ? { ...item, durationDays: days } : item)),
+    );
+    setEndDates((prev) => {
+      const next = [...prev];
+      next[idx] = days ? addDays(startDates[idx], days - 1) : '';
+      return next;
+    });
+  }
+
   async function handleCreate() {
     const userId   = useAuthStore.getState().userId ?? 'local';
-    const settings = useSettingsStore.getState().settings;
+    const s = useSettingsStore.getState().settings;
 
     const toCreate = items.filter((_, i) => !skipped.has(i));
     if (toCreate.length === 0) {
@@ -91,7 +226,6 @@ export default function ScanResultScreen() {
       return;
     }
 
-    // 2개 이상 체크된 경우에만 포 그룹 생성
     const activePacketIndices = [...packetItems].filter((i) => !skipped.has(i));
     const sharedPacketId = activePacketIndices.length >= 2 ? generateId() : undefined;
 
@@ -100,14 +234,8 @@ export default function ScanResultScreen() {
       for (const [origIdx, item] of items.entries()) {
         if (skipped.has(origIdx) || !item.medicationName.trim()) continue;
 
-        const today = todayString();
-        const endDate = item.durationDays
-          ? (() => {
-              const d = new Date(today + 'T00:00:00');
-              d.setDate(d.getDate() + item.durationDays! - 1);
-              return d.toISOString().slice(0, 10);
-            })()
-          : undefined;
+        const sd = startDates[origIdx] || today;
+        const ed = endDates[origIdx] || undefined;
 
         const medicationId = generateId();
         const scheduleId   = generateId();
@@ -134,8 +262,8 @@ export default function ScanResultScreen() {
           id:           scheduleId,
           medicationId,
           scheduleType: 'fixed' as const,
-          startDate:    today,
-          endDate,
+          startDate:    sd,
+          endDate:      ed,
           times:        item.suggestedTimes.length > 0 ? item.suggestedTimes : ['08:00'],
           withFood:     item.withFood ?? ('none' as const),
           graceMinutes: 120,
@@ -147,9 +275,9 @@ export default function ScanResultScreen() {
 
         await upsertSchedule(schedule, userId);
 
-        if (settings) {
+        if (s) {
           const med = { id: medicationId, name: item.medicationName.trim(), isActive: true, createdAt: now, updatedAt: now };
-          await scheduleForSchedule(schedule, med, settings);
+          await scheduleForSchedule(schedule, med, s);
         }
       }
 
@@ -170,18 +298,43 @@ export default function ScanResultScreen() {
 
   const isSkipped = skipped.has(tabIndex);
 
+  const mealTimes = settings
+    ? [
+        { label: '아침', time: settings.mealTimeBreakfast },
+        { label: '점심', time: settings.mealTimeLunch },
+        { label: '저녁', time: settings.mealTimeDinner },
+      ]
+    : [
+        { label: '아침', time: '09:00' },
+        { label: '점심', time: '12:00' },
+        { label: '저녁', time: '18:00' },
+      ];
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['bottom']}>
-      {/* 탭 */}
+      {/* 탭 — 글자 잘림 없게 minWidth 기반 */}
       {items.length > 1 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabScroll} contentContainerStyle={styles.tabContent}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.tabScroll}
+          contentContainerStyle={styles.tabContent}
+        >
           {items.map((item, i) => (
             <TouchableOpacity
               key={i}
-              style={[styles.tab, tabIndex === i && styles.tabActive, skipped.has(i) && styles.tabSkipped]}
+              style={[
+                styles.tab,
+                tabIndex === i && styles.tabActive,
+                skipped.has(i) && styles.tabSkipped,
+              ]}
               onPress={() => setTabIndex(i)}
             >
-              <Text style={[styles.tabText, tabIndex === i && styles.tabTextActive]} numberOfLines={1}>
+              <Text
+                style={[styles.tabText, tabIndex === i && styles.tabTextActive]}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
                 {skipped.has(i) ? '✕ ' : ''}{item.medicationName || `약 ${i + 1}`}
               </Text>
             </TouchableOpacity>
@@ -190,8 +343,8 @@ export default function ScanResultScreen() {
       )}
 
       <ScrollView contentContainerStyle={styles.content}>
-
         <View style={[styles.fieldGroup, isSkipped && styles.dimmed]}>
+
           {/* 약 이름 */}
           <FieldLabel label="약 이름 *" />
           <TextInput
@@ -230,35 +383,85 @@ export default function ScanResultScreen() {
             ))}
           </View>
 
-          {/* 복용 시간 */}
+          {/* 복용 시간 — 일정추가 화면과 동일 스타일 */}
           <FieldLabel label="복용 시간" />
-          <View style={styles.timesRow}>
-            {['06:00','07:00','08:00','09:00','10:00','11:00','12:00','13:00',
-              '14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00','22:00','23:00'].map((t) => {
-              const selected = currentItem.suggestedTimes.includes(t);
+          {/* 식사 시간 단축 선택 */}
+          <View style={styles.mealRow}>
+            {mealTimes.map(({ label, time }) => {
+              const selected = currentItem.suggestedTimes.includes(time);
               return (
                 <TouchableOpacity
-                  key={t}
-                  style={[styles.timePill, selected && styles.timePillActive]}
-                  onPress={() => !isSkipped && toggleTime(t)}
+                  key={label}
+                  style={[styles.mealBtn, selected && styles.mealBtnActive, isSkipped && { opacity: 0.4 }]}
+                  onPress={() => {
+                    if (isSkipped) return;
+                    const times = currentItem.suggestedTimes;
+                    const next  = selected
+                      ? times.filter((t) => t !== time)
+                      : [...times, time].sort();
+                    updateField('suggestedTimes', next);
+                  }}
                 >
-                  <Text style={[styles.timePillText, selected && styles.timePillTextActive]}>
-                    {t.slice(0, 2)}시
-                  </Text>
+                  <Text style={[styles.mealTxt, selected && styles.mealTxtActive]}>{label}</Text>
+                  <Text style={[styles.mealTime, selected && styles.mealTimeActive]}>{time}</Text>
                 </TouchableOpacity>
               );
             })}
           </View>
+          {/* 시간 드럼롤 선택기 */}
+          {!isSkipped && (
+            <TimePickerList
+              times={currentItem.suggestedTimes}
+              onAdd={(t) => {
+                const times = currentItem.suggestedTimes;
+                if (!times.includes(t)) {
+                  updateField('suggestedTimes', [...times, t].sort());
+                }
+              }}
+              onRemove={(t) => {
+                updateField('suggestedTimes', currentItem.suggestedTimes.filter((x) => x !== t));
+              }}
+            />
+          )}
 
           {/* 복용 기간 */}
           <FieldLabel label="복용 기간 (일)" />
           <TextInput
             style={styles.input}
             value={currentItem.durationDays != null ? String(currentItem.durationDays) : ''}
-            onChangeText={(v) => updateField('durationDays', v ? Number(v) : undefined)}
+            onChangeText={(v) => handleDurationChange(tabIndex, v ? Number(v) : undefined)}
             keyboardType="numeric"
             placeholder="예: 5 (비워두면 상시)"
             editable={!isSkipped}
+          />
+
+          {/* 시작일 / 종료일 */}
+          <FieldLabel label="시작일" />
+          <DatePickerField
+            value={startDates[tabIndex]}
+            onChange={(v) => {
+              setStartDates((prev) => { const n = [...prev]; n[tabIndex] = v; return n; });
+              if (endDates[tabIndex] && endDates[tabIndex] < v) {
+                setEndDates((prev) => {
+                  const n = [...prev];
+                  n[tabIndex] = currentItem.durationDays
+                    ? addDays(v, currentItem.durationDays - 1)
+                    : v;
+                  return n;
+                });
+              }
+            }}
+            placeholder="시작일 선택"
+            disabled={isSkipped}
+          />
+
+          <FieldLabel label="종료일" />
+          <DatePickerField
+            value={endDates[tabIndex]}
+            onChange={(v) => setEndDates((prev) => { const n = [...prev]; n[tabIndex] = v; return n; })}
+            placeholder="종료일 선택 (비워두면 상시)"
+            minimumDate={startDates[tabIndex] ? new Date(startDates[tabIndex] + 'T00:00:00') : undefined}
+            disabled={isSkipped}
           />
 
           {/* 식전/식후 */}
@@ -365,13 +568,13 @@ function FieldLabel({ label }: { label: string }) {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#f9fafb' },
 
-  tabScroll:   { backgroundColor: '#fff', maxHeight: 52, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  tabContent:  { paddingHorizontal: 12, paddingVertical: 10, gap: 8 },
-  tab:         { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: '#f3f4f6', maxWidth: 150 },
-  tabActive:   { backgroundColor: '#3b82f6' },
-  tabSkipped:  { backgroundColor: '#e5e7eb', opacity: 0.6 },
-  tabText:     { fontSize: 13, fontWeight: '500', color: '#6b7280' },
-  tabTextActive: { color: '#fff', fontWeight: '600' },
+  tabScroll:      { backgroundColor: '#fff', maxHeight: 52, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  tabContent:     { paddingHorizontal: 12, paddingVertical: 8, gap: 8 },
+  tab:            { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: '#f3f4f6', minWidth: 60 },
+  tabActive:      { backgroundColor: '#3b82f6' },
+  tabSkipped:     { backgroundColor: '#e5e7eb', opacity: 0.6 },
+  tabText:        { fontSize: 13, fontWeight: '500', color: '#6b7280' },
+  tabTextActive:  { color: '#fff', fontWeight: '600' },
 
   content:    { padding: 20, paddingBottom: 120 },
   fieldGroup: { backgroundColor: '#fff', borderRadius: 16, padding: 16, gap: 4 },
@@ -386,20 +589,23 @@ const styles = StyleSheet.create({
   },
   row: { flexDirection: 'row', alignItems: 'center' },
 
-  unitBtn:          { paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb', marginLeft: 6 },
-  unitBtnActive:    { backgroundColor: '#3b82f6', borderColor: '#3b82f6' },
-  unitBtnText:      { fontSize: 14, fontWeight: '600', color: '#6b7280' },
-  unitBtnTextActive:{ color: '#fff' },
+  unitBtn:           { paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb', marginLeft: 6 },
+  unitBtnActive:     { backgroundColor: '#3b82f6', borderColor: '#3b82f6' },
+  unitBtnText:       { fontSize: 14, fontWeight: '600', color: '#6b7280' },
+  unitBtnTextActive: { color: '#fff' },
 
-  timesRow:          { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 },
-  timePill:          { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
-  timePillActive:    { backgroundColor: '#3b82f6', borderColor: '#3b82f6' },
-  timePillText:      { fontSize: 12, fontWeight: '500', color: '#6b7280' },
-  timePillTextActive:{ color: '#fff' },
+  // 식사 시간 단축 버튼 (일정추가 화면과 동일)
+  mealRow:       { flexDirection: 'row', gap: 8, marginBottom: 10, marginTop: 4 },
+  mealBtn:       { flex: 1, paddingVertical: 10, borderWidth: 1, borderColor: '#d1d5db', borderRadius: 10, alignItems: 'center', gap: 2 },
+  mealBtnActive: { backgroundColor: '#eff6ff', borderColor: '#3b82f6' },
+  mealTxt:       { fontSize: 13, fontWeight: '600', color: '#374151' },
+  mealTxtActive: { fontSize: 13, fontWeight: '600', color: '#3b82f6' },
+  mealTime:      { fontSize: 11, color: '#9ca3af' },
+  mealTimeActive:{ fontSize: 11, color: '#3b82f6' },
 
-  segBtn:        { flex: 1, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingVertical: 10, alignItems: 'center', marginRight: 6, backgroundColor: '#f9fafb' },
-  segBtnActive:  { backgroundColor: '#3b82f6', borderColor: '#3b82f6' },
-  segBtnText:    { fontSize: 14, fontWeight: '500', color: '#6b7280' },
+  segBtn:           { flex: 1, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingVertical: 10, alignItems: 'center', marginRight: 6, backgroundColor: '#f9fafb' },
+  segBtnActive:     { backgroundColor: '#3b82f6', borderColor: '#3b82f6' },
+  segBtnText:       { fontSize: 14, fontWeight: '500', color: '#6b7280' },
   segBtnTextActive: { color: '#fff', fontWeight: '700' },
 
   noteText: { fontSize: 13, color: '#6b7280', lineHeight: 20, marginTop: 4 },
@@ -408,34 +614,22 @@ const styles = StyleSheet.create({
   skipBtnText: { fontSize: 14, color: '#ef4444', fontWeight: '500' },
 
   packetSection: {
-    marginTop: 20,
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1.5,
-    borderColor: '#e0eaff',
+    marginTop: 20, backgroundColor: '#fff', borderRadius: 16,
+    padding: 16, borderWidth: 1.5, borderColor: '#e0eaff',
   },
   packetTitleRow: { marginBottom: 12 },
   packetTitle:    { fontSize: 15, fontWeight: '700', color: '#111827', marginBottom: 4 },
   packetHint:     { fontSize: 12, color: '#6b7280' },
   packetRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#f3f4f6',
   },
   packetRowDisabled: { opacity: 0.4 },
   checkbox: {
-    width: 22, height: 22, borderRadius: 6,
-    borderWidth: 2, borderColor: '#d1d5db',
-    alignItems: 'center', justifyContent: 'center',
-    backgroundColor: '#f9fafb',
+    width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: '#d1d5db',
+    alignItems: 'center', justifyContent: 'center', backgroundColor: '#f9fafb',
   },
-  checkboxChecked: {
-    backgroundColor: '#3b82f6', borderColor: '#3b82f6',
-  },
+  checkboxChecked:   { backgroundColor: '#3b82f6', borderColor: '#3b82f6' },
   checkmark:         { fontSize: 13, color: '#fff', fontWeight: '800' },
   packetItemName:    { flex: 1, fontSize: 14, fontWeight: '500', color: '#374151' },
   packetItemDisabled:{ color: '#9ca3af' },
@@ -444,10 +638,8 @@ const styles = StyleSheet.create({
 
   footer: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: '#fff',
-    borderTopWidth: 1, borderTopColor: '#f3f4f6',
-    paddingHorizontal: 20, paddingVertical: 14, paddingBottom: 24,
-    gap: 8,
+    backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f3f4f6',
+    paddingHorizontal: 20, paddingVertical: 14, paddingBottom: 24, gap: 8,
   },
   footerHint:    { fontSize: 13, color: '#9ca3af', textAlign: 'center' },
   createBtn:     { backgroundColor: '#3b82f6', borderRadius: 14, paddingVertical: 16, alignItems: 'center' },

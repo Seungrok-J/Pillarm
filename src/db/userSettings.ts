@@ -13,6 +13,7 @@ const DEFAULTS: UserSettings = {
   mealTimeBreakfast: '09:00',
   mealTimeLunch: '12:00',
   mealTimeDinner: '17:00',
+  fontScale: 1.0,
 };
 
 export async function getUserSettings(): Promise<UserSettings> {
@@ -31,8 +32,8 @@ export async function getUserSettings(): Promise<UserSettings> {
 export async function saveUserSettings(settings: UserSettings): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
-    `INSERT INTO user_settings (user_id, time_zone, quiet_hours_start, quiet_hours_end, default_snooze_minutes, max_snooze_count, missed_to_late_minutes, auto_mark_missed_enabled, meal_time_breakfast, meal_time_lunch, meal_time_dinner)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO user_settings (user_id, time_zone, quiet_hours_start, quiet_hours_end, default_snooze_minutes, max_snooze_count, missed_to_late_minutes, auto_mark_missed_enabled, meal_time_breakfast, meal_time_lunch, meal_time_dinner, font_scale)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(user_id) DO UPDATE SET
        time_zone = excluded.time_zone,
        quiet_hours_start = excluded.quiet_hours_start,
@@ -43,7 +44,8 @@ export async function saveUserSettings(settings: UserSettings): Promise<void> {
        auto_mark_missed_enabled = excluded.auto_mark_missed_enabled,
        meal_time_breakfast = excluded.meal_time_breakfast,
        meal_time_lunch = excluded.meal_time_lunch,
-       meal_time_dinner = excluded.meal_time_dinner`,
+       meal_time_dinner = excluded.meal_time_dinner,
+       font_scale = excluded.font_scale`,
     settings.userId,
     settings.timeZone,
     settings.quietHoursStart ?? null,
@@ -55,6 +57,7 @@ export async function saveUserSettings(settings: UserSettings): Promise<void> {
     settings.mealTimeBreakfast,
     settings.mealTimeLunch,
     settings.mealTimeDinner,
+    settings.fontScale ?? 1.0,
   );
 }
 
@@ -71,5 +74,6 @@ function rowToSettings(row: Record<string, unknown>): UserSettings {
     mealTimeBreakfast: (row['meal_time_breakfast'] as string | null) ?? '09:00',
     mealTimeLunch:     (row['meal_time_lunch']     as string | null) ?? '12:00',
     mealTimeDinner:    (row['meal_time_dinner']    as string | null) ?? '17:00',
+    fontScale:         (row['font_scale']          as number | null) ?? 1.0,
   };
 }

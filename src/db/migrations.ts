@@ -154,6 +154,12 @@ export const MIGRATIONS: Migration[] = [
       ALTER TABLE dose_events ADD COLUMN packet_id TEXT;
     `,
   },
+
+  // ── v7: 글씨 크기 설정 ────────────────────────────────────────────────────────
+  {
+    version: 7,
+    sql: `ALTER TABLE user_settings ADD COLUMN font_scale REAL NOT NULL DEFAULT 1.0;`,
+  },
 ];
 
 export async function runMigrations(db: MigrationDb): Promise<void> {

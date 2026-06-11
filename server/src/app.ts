@@ -5,6 +5,7 @@ import careCircleRouter from './routes/careCircle';
 import doseSyncRouter from './routes/doseSync';
 import syncRouter from './routes/sync';
 import aiScanRouter from './routes/aiScan';
+import adminRouter from './routes/admin';
 import { errorHandler } from './middleware/errorHandler';
 
 const app = express();
@@ -18,6 +19,7 @@ app.use('/care-circles', careCircleRouter);
 app.use('/care-circles', doseSyncRouter);
 app.use('/sync', syncRouter);
 app.use('/ai/scan-medication', aiScanRouter);
+app.use('/admin', adminRouter);
 
 app.use(errorHandler);
 

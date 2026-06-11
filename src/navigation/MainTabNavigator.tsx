@@ -6,7 +6,7 @@ import HomeScreen from '../app/home/HomeScreen';
 import HistoryScreen from '../app/history/HistoryScreen';
 import StatsScreen from '../app/stats/StatsScreen';
 import SettingsScreen from '../app/settings/SettingsScreen';
-import PointHistoryScreen from '../features/points/PointHistoryScreen';
+import CareCircleScreen from '../features/careCircle/CareCircleScreen';
 import { useThemeStore } from '../store/themeStore';
 
 const Tab = createBottomTabNavigator<BottomTabParamList>();
@@ -14,11 +14,11 @@ const Tab = createBottomTabNavigator<BottomTabParamList>();
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
 const ICONS: Record<keyof BottomTabParamList, { on: IconName; off: IconName }> = {
-  Home:     { on: 'home',      off: 'home-outline' },
-  History:  { on: 'calendar',  off: 'calendar-outline' },
-  Stats:    { on: 'bar-chart', off: 'bar-chart-outline' },
-  Points:   { on: 'star',      off: 'star-outline' },
-  Settings: { on: 'settings',  off: 'settings-outline' },
+  Home:        { on: 'home',          off: 'home-outline' },
+  History:     { on: 'calendar',      off: 'calendar-outline' },
+  Stats:       { on: 'bar-chart',     off: 'bar-chart-outline' },
+  CareCircle:  { on: 'people',        off: 'people-outline' },
+  Settings:    { on: 'settings',      off: 'settings-outline' },
 };
 
 export default function MainTabNavigator() {
@@ -37,11 +37,11 @@ export default function MainTabNavigator() {
         },
       })}
     >
-      <Tab.Screen name="Home"     component={HomeScreen}         options={{ title: '홈' }} />
-      <Tab.Screen name="History"  component={HistoryScreen}      options={{ title: '기록' }} />
-      <Tab.Screen name="Stats"    component={StatsScreen}        options={{ title: '통계' }} />
-      <Tab.Screen name="Points"   component={PointHistoryScreen} options={{ title: '포인트' }} />
-      <Tab.Screen name="Settings" component={SettingsScreen}     options={{ title: '설정' }} />
+      <Tab.Screen name="Home"        component={HomeScreen}       options={{ title: '홈' }} />
+      <Tab.Screen name="History"     component={HistoryScreen}    options={{ title: '기록' }} />
+      <Tab.Screen name="Stats"       component={StatsScreen}      options={{ title: '통계' }} />
+      <Tab.Screen name="CareCircle"  component={CareCircleScreen} options={{ title: '보호자' }} />
+      <Tab.Screen name="Settings"    component={SettingsScreen}   options={{ title: '설정' }} />
     </Tab.Navigator>
   );
 }

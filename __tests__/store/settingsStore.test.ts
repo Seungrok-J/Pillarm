@@ -31,6 +31,7 @@ const SETTINGS: UserSettings = {
   mealTimeBreakfast: '08:00',
   mealTimeLunch: '12:00',
   mealTimeDinner: '19:00',
+  fontScale: 1.0,
 };
 
 beforeEach(() => {

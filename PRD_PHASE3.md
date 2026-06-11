@@ -3,7 +3,7 @@
 > **전제 조건:** Phase 2가 완료되어 보호자 공유·포인트·AI 코칭이 실기기에서 정상 동작해야 한다.  
 > **목표:** 소셜 간편 로그인 추가, Railway 서버 배포, App Store 우선 배포 후 Google Play 배포
 >
-> **진행 상태 (2026-06-02):** iOS build 15 TestFlight 제출 완료. 소셜 로그인 전체 정상. pillarm.app 도메인 연결 완료. Android 빌드 대기.
+> **진행 상태 (2026-06-10):** iOS build 15 TestFlight 제출 완료. 소셜 로그인 전체 정상. pillarm.app 도메인 연결 완료. Android 빌드 대기. 오프라인 처리 및 관리자 패널 구현 완료.
 
 ---
 
@@ -305,7 +305,98 @@ restartPolicyMaxRetries = 10
 
 ---
 
-## 7. 배포 전 최종 체크리스트
+## 7. 오프라인 처리 ✅ 구현 완료 (2026-06-10)
+
+### 설계 원칙
+
+핵심 기능(홈·기록·통계·알림)은 로컬 SQLite 기반이므로 **오프라인에서 완전 동작**한다.
+온라인 전용 기능(보호자 그룹, 서버 동기화)에만 가드 UI를 적용한다.
+
+### 구현 내용
+
+| 항목 | 파일 | 내용 |
+|------|------|------|
+| 네트워크 상태 스토어 | `src/store/networkStore.ts` | `isOnline` + `hasPendingSync` Zustand 스토어 |
+| 오프라인 배너 | `src/components/OfflineBanner.tsx` | 오프라인 시 화면 하단에 절대 위치로 표시 |
+| NetInfo 구독 | `App.tsx` | 앱 전역 연결 감지, 재연결 시 `retrySyncIfPending()` 호출 |
+| 동기화 큐잉 | `src/sync/syncService.ts` | `initialPush` 실패 시 pending 마킹 → 재연결 시 자동 재시도 |
+| 보호자 그룹 가드 | `src/features/careCircle/CareCircleScreen.tsx` | 오프라인 시 배너로 안내 |
+
+### 오프라인 동작 매트릭스
+
+| 기능 | 오프라인 | 재연결 시 |
+|------|---------|-----------|
+| 홈·복용 체크 | ✅ 완전 동작 | — |
+| 기록·통계 | ✅ 완전 동작 | — |
+| 로컬 알림 | ✅ 완전 동작 | — |
+| 서버 동기화 | ⏸ pending 마킹 | 자동 재시도 |
+| 보호자 그룹 | ⚠️ 배너 안내 | 자동 갱신 |
+| 소셜 로그인 | ❌ 불가 (인터넷 필수) | — |
+| 약봉투 스캔 AI | ❌ 불가 (서버 필수) | — |
+
+### 서버 요구사항
+
+없음 — 순수 클라이언트 측 구현.
+
+---
+
+## 8. 관리자 패널 ✅ 구현 완료 (2026-06-10)
+
+### 설계 원칙
+
+- 서버에서 로그인 응답에 `isAdmin: boolean` 포함 → 클라이언트에서 관리자 여부 판단
+- 설정 화면에 관리자 전용 섹션 조건부 렌더링 (일반 사용자에게는 보이지 않음)
+- 관리자 API는 서버에서 별도 권한 미들웨어로 보호
+
+### 구현 내용
+
+| 항목 | 파일 | 내용 |
+|------|------|------|
+| 관리자 상태 저장 | `src/store/authStore.ts` | `isAdmin` 필드, `@pillarm/is_admin` AsyncStorage 키 |
+| 로그인 응답 | `src/features/socialAuth/socialAuthApi.ts` | `SocialAuthResponse.isAdmin?: boolean` |
+| 관리자 API | `src/features/admin/adminApi.ts` | 통계·전체 push·기능 플래그 API 래퍼 |
+| 관리자 화면 | `src/features/admin/AdminScreen.tsx` | 통계 대시보드·전체 push 발송·기능 플래그 토글 |
+| 설정 진입점 | `src/app/settings/SettingsScreen.tsx` | `isAdmin` 일 때만 "관리자 패널" 항목 노출 |
+| 네비게이션 | `src/navigation/types.ts`, `ScheduleStackNavigator.tsx` | `Admin` 라우트 추가 |
+
+### 관리자 화면 기능
+
+| 기능 | 설명 |
+|------|------|
+| 유저 통계 | 전체 유저 수 / 오늘 활성 유저 / 이번 주 신규 가입자 |
+| 전체 push 발송 | 제목·내용 입력 후 모든 사용자에게 push 알림 발송 |
+| 기능 플래그 | 서버 등록 기능 플래그 목록 조회 및 on/off 토글 |
+
+### 서버 구현 현황 ✅ 완료 (2026-06-10)
+
+| 항목 | 파일 | 내용 |
+|------|------|------|
+| Prisma 스키마 | `server/prisma/schema.prisma` | `User.isAdmin Boolean @default(false)`, `FeatureFlag` 모델 추가 |
+| DB 마이그레이션 | `server/prisma/migrations/20260610000000_add_admin_and_feature_flags/` | `ALTER TABLE User ADD COLUMN isAdmin`, `CREATE TABLE FeatureFlag` |
+| JWT 페이로드 | `server/src/lib/jwt.ts` | `TokenPayload.isAdmin?: boolean` 추가 |
+| 관리자 미들웨어 | `server/src/middleware/auth.ts` | `requireAdmin` — JWT `isAdmin` 검증, 403 반환 |
+| 로그인 응답 | `server/src/routes/socialAuth.ts` | `issueTokens`에서 DB `isAdmin` 읽어 JWT + 응답에 포함 |
+| 토큰 갱신 | `server/src/routes/auth.ts` | `/auth/refresh`에서 DB `isAdmin` 최신값으로 재발급 |
+| 관리자 라우터 | `server/src/routes/admin.ts` | `GET /admin/stats`, `POST /admin/broadcast`, `GET/PUT /admin/feature-flags` |
+| 앱 등록 | `server/src/app.ts` | `app.use('/admin', adminRouter)` |
+
+**관리자 계정 설정:** 서버 DB에서 직접 `UPDATE "User" SET "isAdmin" = true WHERE email = '이메일';`로 지정한다.
+
+```
+POST /auth/social 응답 (isAdmin 포함):
+  { accessToken, refreshToken, userId, name, isNewUser, isAdmin }
+
+GET  /admin/stats                → { totalUsers, activeToday, newThisWeek }
+POST /admin/broadcast            → { title, body }  →  { sent, failed, total }
+GET  /admin/feature-flags        → FeatureFlag[]
+PUT  /admin/feature-flags/:key   → { enabled, description? }
+
+모든 /admin/* 엔드포인트: requireAdmin 미들웨어 (isAdmin=false → 403)
+```
+
+---
+
+## 9. 배포 전 최종 체크리스트
 
 - [ ] 모든 소셜 로그인 실기기 정상 동작 확인
 - [ ] 앱 버전 및 빌드 번호 확인 (`version`, `buildNumber` / `versionCode`)

@@ -1,13 +1,13 @@
 import { Platform } from 'react-native';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { getExpoPushToken } from '../../notifications/pushToken';
-import { socialLogin, type SocialAuthResponse, type SocialLinkRequired } from './socialAuthApi';
+import { socialLogin, type SocialAuthResponse, type SocialLinkRequired, type DeviceConflict } from './socialAuthApi';
 
 export function isAppleAuthAvailable(): boolean {
   return Platform.OS === 'ios';
 }
 
-export async function signInWithApple(): Promise<SocialAuthResponse | SocialLinkRequired> {
+export async function signInWithApple(): Promise<SocialAuthResponse | SocialLinkRequired | DeviceConflict> {
   const credential = await AppleAuthentication.signInAsync({
     requestedScopes: [
       AppleAuthentication.AppleAuthenticationScope.FULL_NAME,

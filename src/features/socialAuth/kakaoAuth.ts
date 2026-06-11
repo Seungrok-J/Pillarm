@@ -1,8 +1,8 @@
 import { login } from '@react-native-kakao/user';
 import { getExpoPushToken } from '../../notifications/pushToken';
-import { socialLogin, type SocialAuthResponse, type SocialLinkRequired } from './socialAuthApi';
+import { socialLogin, type SocialAuthResponse, type SocialLinkRequired, type DeviceConflict } from './socialAuthApi';
 
-export async function signInWithKakao(): Promise<SocialAuthResponse | SocialLinkRequired> {
+export async function signInWithKakao(): Promise<SocialAuthResponse | SocialLinkRequired | DeviceConflict> {
   const result = await login();
 
   if (!result.accessToken) throw new Error('카카오 accessToken을 받지 못했습니다');

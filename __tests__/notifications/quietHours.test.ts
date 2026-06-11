@@ -13,6 +13,7 @@ const BASE: UserSettings = {
   mealTimeBreakfast: '08:00',
   mealTimeLunch: '12:00',
   mealTimeDinner: '19:00',
+  fontScale: 1.0,
 };
 
 /** 로컬 시각으로 Date 생성 (타임존 독립적 테스트) */

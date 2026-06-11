@@ -8,7 +8,6 @@ import {
   AppStateStatus,
   ActivityIndicator,
   StyleSheet,
-  Animated,
   Modal,
   RefreshControl,
 } from 'react-native';
@@ -51,6 +50,7 @@ const FALLBACK_SETTINGS = {
   mealTimeBreakfast: '09:00',
   mealTimeLunch: '12:00',
   mealTimeDinner: '17:00',
+  fontScale: 1.0,
 };
 
 export default function HomeScreen() {
@@ -84,28 +84,6 @@ export default function HomeScreen() {
       fetchBalance(),
     ]);
     setRefreshing(false);
-  }
-
-  // ── 토스트 애니메이션 ───────────────────────────────────────────────────
-  const toastOpacity = useRef(new Animated.Value(0)).current;
-  const toastTranslateY = useRef(new Animated.Value(20)).current;
-  const [toastMessage, setToastMessage] = useState('+10 포인트! 🎉');
-
-  function triggerToast(message: string) {
-    setToastMessage(message);
-    toastOpacity.setValue(0);
-    toastTranslateY.setValue(20);
-    Animated.sequence([
-      Animated.parallel([
-        Animated.timing(toastOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
-        Animated.timing(toastTranslateY, { toValue: 0, duration: 200, useNativeDriver: true }),
-      ]),
-      Animated.delay(1400),
-      Animated.parallel([
-        Animated.timing(toastOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
-        Animated.timing(toastTranslateY, { toValue: -10, duration: 300, useNativeDriver: true }),
-      ]),
-    ]).start();
   }
 
   // ── 탭 포커스 시마다 재조회 (탭 이동·로그인 전환 포함) ─────────────────
@@ -188,8 +166,7 @@ export default function HomeScreen() {
   // ── 액션 ───────────────────────────────────────────────────────────────
   async function handleTake(id: string) {
     try {
-      const { streakAwarded, pointsAwarded } = await markTaken(id);
-      triggerToast(pointsAwarded ? '+10 포인트! 🎉' : '오늘 포인트 한도를 채웠어요 💊');
+      const { streakAwarded } = await markTaken(id);
       await fetchBalance();
       if (streakAwarded) setShowStreakModal(true);
     } catch {
@@ -199,8 +176,7 @@ export default function HomeScreen() {
 
   async function handleTakePacket(ids: string[]) {
     try {
-      const { streakAwarded, pointsAwarded } = await markPacketTaken(ids);
-      triggerToast(pointsAwarded ? '+10 포인트! 🎉' : '오늘 포인트 한도를 채웠어요 💊');
+      const { streakAwarded } = await markPacketTaken(ids);
       await fetchBalance();
       if (streakAwarded) setShowStreakModal(true);
     } catch {
@@ -345,6 +321,7 @@ export default function HomeScreen() {
                 <PacketCard
                   events={item.events}
                   medicationNames={medicationNames}
+                  medicationColors={medicationColors}
                   onTakePacket={handleTakePacket}
                   onSkipPacket={handleSkipPacket}
                 />
@@ -464,17 +441,6 @@ export default function HomeScreen() {
         <Text style={styles.fabText}>＋</Text>
       </TouchableOpacity>
 
-      {/* 포인트 토스트 */}
-      <Animated.View
-        testID="toast-points"
-        pointerEvents="none"
-        style={[
-          styles.toast,
-          { opacity: toastOpacity, transform: [{ translateY: toastTranslateY }] },
-        ]}
-      >
-        <Text style={styles.toastText}>{toastMessage}</Text>
-      </Animated.View>
     </View>
     </SafeAreaView>
   );
@@ -552,21 +518,6 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   fabText: { color: '#fff', fontSize: 28, lineHeight: 32 },
-
-  toast: {
-    position: 'absolute',
-    bottom: 100,
-    alignSelf: 'center',
-    backgroundColor: '#16a34a',
-    borderRadius: 20,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  toastText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 
   piOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center' },
   piCard:    { width: '86%', backgroundColor: '#fff', borderRadius: 18, padding: 20 },

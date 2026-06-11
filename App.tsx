@@ -1,6 +1,7 @@
 import './global.css';
 import React, { useEffect, useRef, useState } from 'react';
-import { AppState, AppStateStatus } from 'react-native';
+import { AppState, AppStateStatus, Text, TextInput, View } from 'react-native';
+import NetInfo from '@react-native-community/netinfo';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
@@ -9,8 +10,11 @@ import { configureGoogle } from './src/features/socialAuth/googleAuth';
 import { getDatabase } from './src/db';
 import { checkAndMarkMissed } from './src/notifications';
 import { useSettingsStore, useDoseEventStore } from './src/store';
+import { useNetworkStore } from './src/store/networkStore';
+import { retrySyncIfPending } from './src/sync/syncService';
 import { todayString } from './src/utils';
 import RootNavigator from './src/navigation';
+import OfflineBanner from './src/components/OfflineBanner';
 // permissions.ts 에서 setNotificationHandler + userId 필터링을 통합 관리
 import './src/notifications/permissions';
 
@@ -20,6 +24,15 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 export default function App() {
   const [isReady, setIsReady] = useState(false);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  // 시스템 폰트 스케일을 끄고 앱 자체 fontScale 설정으로 제어
+  useEffect(() => {
+    (Text as { defaultProps?: Record<string, unknown> }).defaultProps =
+      (Text as { defaultProps?: Record<string, unknown> }).defaultProps || {};
+    (Text as { defaultProps?: Record<string, unknown> }).defaultProps!.allowFontScaling = false;
+    (TextInput as { defaultProps?: Record<string, unknown> }).defaultProps =
+      (TextInput as { defaultProps?: Record<string, unknown> }).defaultProps || {};
+    (TextInput as { defaultProps?: Record<string, unknown> }).defaultProps!.allowFontScaling = false;
+  }, []);
 
   // ── DB 초기화 & 설정 로드 ────────────────────────────────────────────────
   useEffect(() => {
@@ -43,6 +56,21 @@ export default function App() {
     })();
   }, []);
 
+  // ── NetInfo: 온라인 상태 감지 + 재연결 시 pending sync 재시도 ────────────
+  useEffect(() => {
+    const { setOnline, loadPendingSync } = useNetworkStore.getState();
+    loadPendingSync();
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      const online = !!state.isConnected && state.isInternetReachable !== false;
+      const wasOnline = useNetworkStore.getState().isOnline;
+      setOnline(online);
+      if (!wasOnline && online) {
+        retrySyncIfPending().catch(() => {});
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
   // ── AppState 리스너: 앱 복귀 시 누락 처리 + 오늘 이벤트 새로고침 ─────────
   useEffect(() => {
     const sub = AppState.addEventListener('change', async (next: AppStateStatus) => {
@@ -63,7 +91,10 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <RootNavigator />
+      <View style={{ flex: 1 }}>
+        <RootNavigator />
+        <OfflineBanner />
+      </View>
       <StatusBar style="dark" />
     </SafeAreaProvider>
   );

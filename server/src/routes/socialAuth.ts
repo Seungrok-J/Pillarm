@@ -104,14 +104,18 @@ async function verifySocial(
 
 // ── 헬퍼: JWT 발급 + 유저 반환 ────────────────────────────────────────────────
 
-async function issueTokens(user: { id: string; email: string | null; name: string | null; isNewUser?: boolean }) {
-  const payload = { userId: user.id, email: user.email ?? '' };
+async function issueTokens(user: { id: string; email: string | null; name: string | null; isNewUser?: boolean; isAdmin?: boolean }) {
+  // DB에서 최신 isAdmin 값을 읽는다 (user 객체가 stale할 수 있음)
+  const fresh = await prisma.user.findUnique({ where: { id: user.id }, select: { isAdmin: true } });
+  const isAdmin = fresh?.isAdmin ?? false;
+
+  const payload = { userId: user.id, email: user.email ?? '', isAdmin };
   const accessToken  = signAccess(payload);
   const refreshToken = signRefresh(payload);
   await prisma.refreshToken.create({
     data: { userId: user.id, token: refreshToken, expiresAt: refreshExpiry() },
   });
-  return { accessToken, refreshToken, userId: user.id, name: user.name, isNewUser: user.isNewUser ?? false };
+  return { accessToken, refreshToken, userId: user.id, name: user.name, isNewUser: user.isNewUser ?? false, isAdmin };
 }
 
 // ── 헬퍼: 유저 조회 (SocialConnection → User.provider/providerId → 없음) ─────

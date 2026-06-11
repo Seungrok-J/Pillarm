@@ -25,6 +25,7 @@ import {
   confirmSocialLink,
   type SocialAuthResponse,
   type SocialLinkRequired,
+  type DeviceConflict,
 } from '../../features/socialAuth/socialAuthApi';
 
 type Nav = StackNavigationProp<RootStackParamList>;
@@ -40,7 +41,7 @@ export default function LoginScreen() {
 
   async function handleSocialLogin(
     providerName: string,
-    loginFn: () => Promise<SocialAuthResponse | SocialLinkRequired>,
+    loginFn: () => Promise<SocialAuthResponse | SocialLinkRequired | DeviceConflict>,
   ) {
     setLoading(true);
     setLoadingProvider(providerName);
@@ -77,6 +78,40 @@ export default function LoginScreen() {
         return;
       }
 
+      // 중복 로그인 감지 (다른 기기에서 이미 로그인 중)
+      if ('deviceConflict' in result && result.deviceConflict) {
+        const conflict = result as unknown as DeviceConflict;
+        setLoading(false);
+        setLoadingProvider(null);
+        Alert.alert(
+          '다른 기기에서 로그인 중',
+          conflict.message || '이 계정은 다른 기기에서 이미 로그인되어 있습니다.\n이 기기로 로그인하면 다른 기기는 자동으로 로그아웃됩니다.',
+          [
+            { text: '취소', style: 'cancel' },
+            {
+              text: '이 기기로 로그인',
+              style: 'destructive',
+              onPress: async () => {
+                setLoading(true);
+                setLoadingProvider(providerName);
+                try {
+                  const forceResult = await loginFn();
+                  if ('accessToken' in forceResult) {
+                    await afterLogin(forceResult as SocialAuthResponse);
+                  }
+                } catch {
+                  Alert.alert('오류', '로그인에 실패했습니다. 다시 시도해주세요.');
+                } finally {
+                  setLoading(false);
+                  setLoadingProvider(null);
+                }
+              },
+            },
+          ],
+        );
+        return;
+      }
+
       await afterLogin(result as unknown as SocialAuthResponse);
     } catch (err: unknown) {
       const code = (err as { code?: string })?.code;
@@ -92,22 +127,24 @@ export default function LoginScreen() {
   }
 
   async function afterLogin(data: SocialAuthResponse) {
+    // saveSession이 기존 알림을 취소하고 세션을 저장
     await saveSession({
       accessToken:  data.accessToken,
       refreshToken: data.refreshToken,
       userId:       data.userId,
       userEmail:    null,
       userName:     data.name ?? null,
+      isAdmin:      data.isAdmin ?? false,
     });
     if (data.isNewUser) {
       initialPush(data.userId).catch(() => {});
-      getUserSettings().then((s) => rescheduleAllSchedules(s)).catch(() => {});
     } else {
-      pullFromServer(data.userId)
-        .then(() => getUserSettings())
-        .then((s) => rescheduleAllSchedules(s))
-        .catch(() => {});
+      pullFromServer(data.userId).catch(() => {});
     }
+    // 로그인 계정의 일정으로 알림 재등록
+    getUserSettings()
+      .then((s) => rescheduleAllSchedules(s))
+      .catch(() => {});
     navigation.goBack();
   }
 

@@ -11,6 +11,7 @@ export type RootStackParamList = {
   CareMonitor:    { circleId: string; patientId: string; patientName?: string };
   Login:   undefined;
   Account: undefined;
+  Admin:   undefined;
   // Phase 4
   GuideList:      undefined;
   GuideDetail:    { id: string };
@@ -19,10 +20,10 @@ export type RootStackParamList = {
 };
 
 export type BottomTabParamList = {
-  Home:     undefined;
-  History:  undefined;
-  Stats:    undefined;
-  Points:   undefined;
-  Settings: undefined;
+  Home:        undefined;
+  History:     undefined;
+  Stats:       undefined;
+  CareCircle:  undefined;
+  Settings:    undefined;
 };
 

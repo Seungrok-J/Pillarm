@@ -78,9 +78,17 @@ export function suggestTimesFromMeals(
     .sort();
 }
 
+const DEFAULT_TIMES: Record<number, string[]> = {
+  1: ['08:00'],
+  2: ['08:00', '20:00'],
+  3: ['08:00', '13:00', '20:00'],
+  4: ['08:00', '12:00', '18:00', '22:00'],
+};
+
 /** timesPerDay만 있을 때 사용하는 fallback (설정 미전달 경우) */
 export function suggestTimes(timesPerDay: number | undefined): string[] {
-  return suggestTimesFromMeals(null, 0, timesPerDay, null);
+  if (!timesPerDay || timesPerDay < 1 || timesPerDay > 4) return ['08:00'];
+  return DEFAULT_TIMES[timesPerDay] ?? ['08:00'];
 }
 
 export async function prepareImageBase64(uri: string): Promise<string> {

@@ -8,6 +8,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RootStackParamList } from '../../navigation';
 import { useAuthStore } from '../../store/authStore';
+import { useNetworkStore } from '../../store/networkStore';
 import QRCode from 'react-native-qrcode-svg';
 import {
   listCircles, createCircle, deleteCircle, createInvite,
@@ -20,9 +21,9 @@ const JOIN_WEB_URL = 'https://pillarm.app/join';
 type Nav = StackNavigationProp<RootStackParamList>;
 
 const ROLE_LABEL: Record<string, string> = {
-  admin:      '관리자',
-  viewer:     '열람자',
-  notifyOnly: '알림 전용',
+  admin:      '피보호자',
+  viewer:     '피보호자',
+  notifyOnly: '피보호자',
 };
 
 // ── 멤버 표시 이름 헬퍼 ────────────────────────────────────────────────────────
@@ -56,8 +57,8 @@ function InviteModal({ visible, code, onClose }: InviteModalProps) {
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <View testID="modal-invite" style={styles.modal}>
-          <Text style={styles.modalTitle}>보호자 초대</Text>
-          <Text style={styles.modalSub}>아래 코드를 보호자에게 전달하세요</Text>
+          <Text style={styles.modalTitle}>피보호자 초대</Text>
+          <Text style={styles.modalSub}>아래 코드를 피보호자에게 전달하세요</Text>
 
           {/* 6자리 코드 */}
           <View style={styles.codeRow}>
@@ -96,6 +97,7 @@ function InviteModal({ visible, code, onClose }: InviteModalProps) {
 export default function CareCircleScreen() {
   const navigation = useNavigation<Nav>();
   const { userId } = useAuthStore();
+  const isOnline = useNetworkStore((s) => s.isOnline);
 
   const [circles,        setCircles]        = useState<ApiCareCircle[]>([]);
   const [loading,        setLoading]        = useState(true);
@@ -178,7 +180,7 @@ export default function CareCircleScreen() {
   function handleDeleteMember(circleId: string, member: ApiCareMember) {
     const label = memberDisplayName(member);
     Alert.alert(
-      '보호자 삭제',
+      '피보호자 삭제',
       `"${label}"을(를) 보호 그룹에서 삭제하시겠어요?`,
       [
         { text: '취소', style: 'cancel' },
@@ -189,7 +191,7 @@ export default function CareCircleScreen() {
               await deleteMember(circleId, member.id);
               await loadCircles();
             } catch {
-              Alert.alert('오류', '보호자 삭제에 실패했습니다');
+              Alert.alert('오류', '피보호자 삭제에 실패했습니다');
             }
           },
         },
@@ -237,19 +239,19 @@ export default function CareCircleScreen() {
   // ── 렌더: 소유 그룹 카드 ──────────────────────────────────────────────────
 
   function renderOwnedCircle(circle: ApiCareCircle) {
-    const guardians = circle.members.filter((m) => m.memberUserId !== userId);
+    const members = circle.members.filter((m) => m.memberUserId !== userId);
     return (
       <View testID={`card-circle-${circle.id}`} style={styles.circleCard}>
         <View style={styles.circleHeader}>
           <Text style={styles.circleName}>{circle.name}</Text>
-          <Text style={styles.memberCount}>보호자 {guardians.length}명</Text>
+          <Text style={styles.memberCount}>피보호자 {members.length}명</Text>
         </View>
 
-        {/* 보호자 목록 */}
-        {guardians.length > 0 ? (
-          guardians.map((m) => renderMemberRow(m, circle.id))
+        {/* 피보호자 목록 */}
+        {members.length > 0 ? (
+          members.map((m) => renderMemberRow(m, circle.id))
         ) : (
-          <Text style={styles.emptyMembers}>연결된 보호자가 없습니다</Text>
+          <Text style={styles.emptyMembers}>연결된 피보호자가 없습니다</Text>
         )}
 
         <View style={styles.circleActions}>
@@ -258,12 +260,12 @@ export default function CareCircleScreen() {
             style={styles.inviteBtn}
             onPress={() => handleInvite(circle.id)}
             disabled={inviteLoading}
-            accessibilityLabel="보호자 초대하기"
+            accessibilityLabel="피보호자 초대하기"
             accessibilityRole="button"
           >
             {inviteLoading
               ? <ActivityIndicator size="small" color="#fff" />
-              : <Text style={styles.inviteBtnText}>+ 초대하기</Text>
+              : <Text style={styles.inviteBtnText}>+ 피보호자 초대</Text>
             }
           </TouchableOpacity>
 
@@ -353,7 +355,7 @@ export default function CareCircleScreen() {
             testID={`btn-remove-${member.id}`}
             style={[styles.memberActionBtn, styles.memberActionDanger]}
             onPress={() => handleDeleteMember(circleId, member)}
-            accessibilityLabel="보호자 삭제"
+            accessibilityLabel="피보호자 삭제"
           >
             <Text style={[styles.memberActionTxt, styles.memberActionDangerTxt]}>삭제</Text>
           </TouchableOpacity>
@@ -386,28 +388,14 @@ export default function CareCircleScreen() {
   }
 
   function renderMemberCircle(circle: ApiCareCircle) {
+    const guardian = circle.ownerUserName ?? circle.ownerUserEmail ?? '보호자';
     return (
       <View testID={`card-joined-${circle.id}`} style={styles.circleCard}>
         <View style={styles.circleHeader}>
           <Text style={styles.circleName}>{circle.name}</Text>
-          <Text style={styles.memberCount}>내가 보호자</Text>
+          <Text style={styles.memberCount}>보호자: {guardian}</Text>
         </View>
-
-        <TouchableOpacity
-          testID={`btn-monitor-${circle.id}`}
-          style={styles.monitorBtn}
-          onPress={() =>
-            navigation.navigate('CareMonitor', {
-              circleId:    circle.id,
-              patientId:   circle.ownerUserId,
-              patientName: circle.ownerUserName ?? circle.ownerUserEmail ?? undefined,
-            })
-          }
-          accessibilityLabel="오늘 복용 현황 보기"
-          accessibilityRole="button"
-        >
-          <Text style={styles.monitorBtnText}>오늘 복용 현황 보기 →</Text>
-        </TouchableOpacity>
+        <Text style={styles.memberRole}>나는 이 그룹의 피보호자입니다</Text>
 
         <TouchableOpacity
           testID={`btn-leave-${circle.id}`}
@@ -444,13 +432,20 @@ export default function CareCircleScreen() {
         <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#3b82f6" colors={['#3b82f6']} />
       }
     >
-      {/* ── 나의 보호 그룹 (환자 뷰) ──── */}
-      <Text style={styles.sectionTitle}>나의 보호 그룹</Text>
+      {/* ── 오프라인 배너 ── */}
+      {!isOnline && (
+        <View style={styles.offlineBanner}>
+          <Text style={styles.offlineBannerText}>오프라인 상태입니다 — 보호 그룹 기능은 인터넷 연결이 필요합니다</Text>
+        </View>
+      )}
+
+      {/* ── 내가 관리하는 그룹 (보호자 뷰) ──── */}
+      <Text style={styles.sectionTitle}>내가 관리하는 그룹 (보호자)</Text>
 
       {ownedCircles.length === 0 && (
         <View style={styles.emptyCard}>
           <Text style={styles.emptyTitle}>아직 보호 그룹이 없어요</Text>
-          <Text style={styles.emptySub}>그룹을 만들어 보호자를 초대하세요</Text>
+          <Text style={styles.emptySub}>그룹을 만들고 피보호자를 초대하세요</Text>
         </View>
       )}
 
@@ -507,10 +502,10 @@ export default function CareCircleScreen() {
         </TouchableOpacity>
       )}
 
-      {/* ── 참여 중인 그룹 (보호자 뷰) ─ */}
+      {/* ── 참여 중인 그룹 (피보호자 뷰) ─ */}
       {joinedCircles.length > 0 && (
         <>
-          <Text style={[styles.sectionTitle, { marginTop: 24 }]}>내가 보호 중인 그룹</Text>
+          <Text style={[styles.sectionTitle, { marginTop: 24 }]}>내가 속한 그룹 (피보호자)</Text>
           {joinedCircles.map((c) => (
             <View key={c.id}>{renderMemberCircle(c)}</View>
           ))}
@@ -532,6 +527,13 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9fafb' },
   content:   { padding: 16, paddingBottom: 40 },
   center:    { flex: 1, alignItems: 'center', justifyContent: 'center' },
+
+  offlineBanner: {
+    backgroundColor: '#1f2937', borderRadius: 10,
+    paddingVertical: 10, paddingHorizontal: 14,
+    marginBottom: 16, alignItems: 'center',
+  },
+  offlineBannerText: { color: '#f9fafb', fontSize: 13, fontWeight: '500', textAlign: 'center' },
 
   sectionTitle: {
     fontSize: 13, fontWeight: '600', color: '#6b7280',

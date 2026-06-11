@@ -201,7 +201,7 @@ export default function JoinCareCircleScreen() {
       await joinCircle(code);
       Alert.alert(
         '참여 완료! 🎉',
-        '보호 그룹에 참여했습니다. 이제 복용 현황을 확인할 수 있어요.',
+        '보호 그룹에 피보호자로 참여했습니다.\n보호자가 내 복용 현황을 확인할 수 있습니다.',
         [{ text: '확인', onPress: () => navigation.goBack() }],
       );
     } catch (err: unknown) {

@@ -57,43 +57,45 @@ describe('runMigrations — 실행 흐름', () => {
       expect(firstSql).toContain('CREATE TABLE IF NOT EXISTS');
     });
 
-    it('v1~v5 마이그레이션을 순서대로 실행한다', async () => {
+    it('v1~v7 마이그레이션을 순서대로 실행한다', async () => {
       await runMigrations(asDb(db));
 
-      // schema_migrations 생성(1) + v1(2) + v2(3) + v3(4) + v4(5) + v5(6)
-      expect(db.execAsync).toHaveBeenCalledTimes(6);
+      // schema_migrations 생성(1) + v1~v7(7) = 8
+      expect(db.execAsync).toHaveBeenCalledTimes(8);
     });
 
-    it('v1~v5 버전을 schema_migrations 에 기록한다', async () => {
+    it('v1~v7 버전을 schema_migrations 에 기록한다', async () => {
       await runMigrations(asDb(db));
 
-      expect(db.runAsync).toHaveBeenCalledTimes(5);
+      expect(db.runAsync).toHaveBeenCalledTimes(7);
       expect((db.runAsync.mock.calls[0][1] as unknown[])).toContain(1);
       expect((db.runAsync.mock.calls[1][1] as unknown[])).toContain(2);
       expect((db.runAsync.mock.calls[2][1] as unknown[])).toContain(3);
       expect((db.runAsync.mock.calls[3][1] as unknown[])).toContain(4);
       expect((db.runAsync.mock.calls[4][1] as unknown[])).toContain(5);
+      expect((db.runAsync.mock.calls[5][1] as unknown[])).toContain(6);
+      expect((db.runAsync.mock.calls[6][1] as unknown[])).toContain(7);
     });
   });
 
   // ── Phase 1 → Phase 2 업데이트 ──────────────────────────────────────────
 
-  describe('v1만 적용된 상태 (v2~v5 업데이트)', () => {
+  describe('v1만 적용된 상태 (v2~v7 업데이트)', () => {
     beforeEach(() => {
       db.getAllAsync.mockResolvedValue([{ version: 1 }]);
     });
 
-    it('v2~v5 마이그레이션을 실행한다', async () => {
+    it('v2~v7 마이그레이션을 실행한다', async () => {
       await runMigrations(asDb(db));
 
-      // schema_migrations(1) + v2(2) + v3(3) + v4(4) + v5(5)
-      expect(db.execAsync).toHaveBeenCalledTimes(5);
+      // schema_migrations(1) + v2~v7(6) = 7
+      expect(db.execAsync).toHaveBeenCalledTimes(7);
     });
 
-    it('v2~v5 버전을 schema_migrations 에 기록한다', async () => {
+    it('v2~v7 버전을 schema_migrations 에 기록한다', async () => {
       await runMigrations(asDb(db));
 
-      expect(db.runAsync).toHaveBeenCalledTimes(4);
+      expect(db.runAsync).toHaveBeenCalledTimes(6);
       expect((db.runAsync.mock.calls[0][1] as unknown[])).toContain(2);
       expect((db.runAsync.mock.calls[1][1] as unknown[])).toContain(3);
     });
@@ -109,10 +111,11 @@ describe('runMigrations — 실행 흐름', () => {
 
   // ── 최신 상태 (멱등성) ─────────────────────────────────────────────────
 
-  describe('v1~v5 모두 적용된 상태 (최신 버전)', () => {
+  describe('v1~v7 모두 적용된 상태 (최신 버전)', () => {
     beforeEach(() => {
       db.getAllAsync.mockResolvedValue([
-        { version: 1 }, { version: 2 }, { version: 3 }, { version: 4 }, { version: 5 },
+        { version: 1 }, { version: 2 }, { version: 3 }, { version: 4 },
+        { version: 5 }, { version: 6 }, { version: 7 },
       ]);
     });
 
@@ -141,7 +144,8 @@ describe('runMigrations — 실행 흐름', () => {
       db.getAllAsync.mockResolvedValueOnce([]);
       // 2차 호출: 모두 적용됨 (1차가 기록했다고 가정)
       db.getAllAsync.mockResolvedValueOnce([
-        { version: 1 }, { version: 2 }, { version: 3 }, { version: 4 }, { version: 5 },
+        { version: 1 }, { version: 2 }, { version: 3 }, { version: 4 },
+        { version: 5 }, { version: 6 }, { version: 7 },
       ]);
 
       await runMigrations(asDb(db));
@@ -150,13 +154,14 @@ describe('runMigrations — 실행 흐름', () => {
       await runMigrations(asDb(db));
       const runAsyncCountAfterSecond = db.runAsync.mock.calls.length;
 
-      expect(runAsyncCountAfterFirst).toBe(5);   // v1~v5 기록
-      expect(runAsyncCountAfterSecond).toBe(5);  // 추가 기록 없음
+      expect(runAsyncCountAfterFirst).toBe(7);   // v1~v7 기록
+      expect(runAsyncCountAfterSecond).toBe(7);  // 추가 기록 없음
     });
 
     it('두 번 호출해도 에러가 발생하지 않는다', async () => {
       db.getAllAsync.mockResolvedValue([
-        { version: 1 }, { version: 2 }, { version: 3 }, { version: 4 }, { version: 5 },
+        { version: 1 }, { version: 2 }, { version: 3 }, { version: 4 },
+        { version: 5 }, { version: 6 }, { version: 7 },
       ]);
 
       await expect(runMigrations(asDb(db))).resolves.toBeUndefined();

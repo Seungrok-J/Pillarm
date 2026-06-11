@@ -168,8 +168,11 @@ router.post('/refresh', async (req, res, next) => {
     // Rotate: delete old, issue new
     await prisma.refreshToken.delete({ where: { token: refreshToken } });
 
-    const newAccess = signAccess({ userId: payload.userId, email: payload.email });
-    const newRefresh = signRefresh({ userId: payload.userId, email: payload.email });
+    // isAdmin은 DB에서 최신 값으로 읽는다
+    const freshUser = await prisma.user.findUnique({ where: { id: stored.userId }, select: { isAdmin: true } });
+    const tokenPayload = { userId: payload.userId, email: payload.email, isAdmin: freshUser?.isAdmin ?? false };
+    const newAccess  = signAccess(tokenPayload);
+    const newRefresh = signRefresh(tokenPayload);
 
     await prisma.refreshToken.create({
       data: { userId: stored.userId, token: newRefresh, expiresAt: refreshExpiry() },

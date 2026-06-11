@@ -8,6 +8,7 @@ export interface SocialAuthResponse {
   userId:       string;
   name?:        string;
   isNewUser:    boolean;
+  isAdmin?:     boolean;
 }
 
 export interface SocialLinkRequired {
@@ -29,13 +30,19 @@ interface SocialAuthPayload {
   accessToken?: string;
   name?:        string;
   fcmToken?:    string;
+  forceLogin?:  boolean;
 }
 
-/** 소셜 로그인 — requiresLink 응답이 올 수 있음 */
+export interface DeviceConflict {
+  deviceConflict: true;
+  message:        string;
+}
+
+/** 소셜 로그인 — requiresLink 응답 또는 deviceConflict 응답이 올 수 있음 */
 export async function socialLogin(
   payload: SocialAuthPayload,
-): Promise<SocialAuthResponse | SocialLinkRequired> {
-  const res = await api.post<SocialAuthResponse | SocialLinkRequired>('/auth/social', payload);
+): Promise<SocialAuthResponse | SocialLinkRequired | DeviceConflict> {
+  const res = await api.post<SocialAuthResponse | SocialLinkRequired | DeviceConflict>('/auth/social', payload);
   return res.data;
 }
 

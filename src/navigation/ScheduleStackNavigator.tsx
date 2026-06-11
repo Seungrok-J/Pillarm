@@ -14,6 +14,7 @@ import GuideListScreen from '../app/supplementGuide/GuideListScreen';
 import GuideDetailScreen from '../app/supplementGuide/GuideDetailScreen';
 import ScanScreen from '../app/scan/ScanScreen';
 import ScanResultScreen from '../app/scan/ScanResultScreen';
+import AdminScreen from '../features/admin/AdminScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
 
@@ -89,6 +90,11 @@ export default function ScheduleStackNavigator() {
         name="ScanResult"
         component={ScanResultScreen}
         options={{ title: '인식 결과 확인', headerBackTitle: '뒤로' }}
+      />
+      <Stack.Screen
+        name="Admin"
+        component={AdminScreen}
+        options={{ title: '관리자 패널', headerBackTitle: '뒤로' }}
       />
     </Stack.Navigator>
   );
