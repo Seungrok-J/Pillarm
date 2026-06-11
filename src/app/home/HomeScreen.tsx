@@ -60,12 +60,11 @@ export default function HomeScreen() {
     useDoseEventStore((s) => s);
   const { medications, fetchMedications } = useMedicationStore((s) => s);
   const settings = useSettingsStore((s) => s.settings) ?? FALLBACK_SETTINGS;
-  const { balance, streak, fetchBalance } = usePointStore();
+  const { fetchBalance } = usePointStore();
   const { userId } = useAuthStore();
   const theme = useThemeStore((s) => s.activeTheme);
 
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
-  const [showPointsInfo,  setShowPointsInfo]  = useState(false);
   const [showStreakModal, setShowStreakModal] = useState(false);
   const [refreshing,      setRefreshing]      = useState(false);
   const [now,             setNow]             = useState(() => new Date());
@@ -260,23 +259,6 @@ export default function HomeScreen() {
             >
               <Text style={styles.scheduleChipText}>영양제 가이드 📖</Text>
             </TouchableOpacity>
-            {/* 포인트 배지 */}
-            <TouchableOpacity
-              testID="badge-points"
-              style={styles.pointBadgeRow}
-              onPress={() => setShowPointsInfo(true)}
-              accessibilityLabel={`포인트 ${balance}, 연속 ${streak}일`}
-              accessibilityRole="button"
-            >
-              {streak > 0 && (
-                <View style={styles.streakBadge}>
-                  <Text style={styles.badgeText}>🔥 {streak}일</Text>
-                </View>
-              )}
-              <View style={[styles.balanceBadge, { backgroundColor: theme.primaryLight }]}>
-                <Text style={styles.badgeText}>⭐ {balance.toLocaleString()}P</Text>
-              </View>
-            </TouchableOpacity>
           </View>
         </View>
         {pendingCount > 0 && (
@@ -348,59 +330,6 @@ export default function HomeScreen() {
           }
         />
       )}
-
-      {/* 포인트 안내 모달 */}
-      <Modal
-        visible={showPointsInfo}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowPointsInfo(false)}
-      >
-        <TouchableOpacity
-          style={styles.piOverlay}
-          activeOpacity={1}
-          onPress={() => setShowPointsInfo(false)}
-        >
-          <TouchableOpacity activeOpacity={1} style={styles.piCard}>
-            <View style={styles.piHeader}>
-              <Text style={styles.piTitle}>포인트 적립 방법</Text>
-              <TouchableOpacity onPress={() => setShowPointsInfo(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Text style={styles.piClose}>✕</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.piRow}>
-              <Text style={styles.piIcon}>💊</Text>
-              <View style={styles.piTextBlock}>
-                <Text style={styles.piLabel}>복용 완료</Text>
-                <Text style={styles.piDesc}>예정 시간에 맞춰 복용하면 적립</Text>
-              </View>
-              <Text style={[styles.piPoints, { color: theme.primary }]}>+10P</Text>
-            </View>
-            <View style={styles.piDivider} />
-            <View style={styles.piRow}>
-              <Text style={styles.piIcon}>🔥</Text>
-              <View style={styles.piTextBlock}>
-                <Text style={styles.piLabel}>연속 7일 달성</Text>
-                <Text style={styles.piDesc}>7일마다 보너스 적립</Text>
-              </View>
-              <Text style={[styles.piPoints, { color: theme.primary }]}>+50P</Text>
-            </View>
-            <View style={styles.piDivider} />
-            <View style={styles.piRow}>
-              <Text style={styles.piIcon}>⭐</Text>
-              <View style={styles.piTextBlock}>
-                <Text style={styles.piLabel}>이번 주 누락 0건</Text>
-                <Text style={styles.piDesc}>한 주 동안 빠짐없이 복용하면 적립</Text>
-              </View>
-              <Text style={[styles.piPoints, { color: theme.primary }]}>+30P</Text>
-            </View>
-            <View style={styles.piCurrentRow}>
-              <Text style={styles.piCurrentLabel}>현재 보유</Text>
-              <Text style={styles.piCurrentValue}>⭐ {balance.toLocaleString()}P</Text>
-            </View>
-          </TouchableOpacity>
-        </TouchableOpacity>
-      </Modal>
 
       {/* 연속 7일 달성 축하 모달 */}
       <Modal
@@ -476,20 +405,6 @@ const styles = StyleSheet.create({
   },
   scheduleChipText: { fontSize: 12, fontWeight: '500', color: '#6b7280' },
   guideChip: { borderColor: '#bfdbfe', backgroundColor: '#eff6ff' },
-  pointBadgeRow: { flexDirection: 'row', gap: 6 },
-  streakBadge: {
-    backgroundColor: '#fff7ed',
-    borderRadius: 12,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-  },
-  balanceBadge: {
-    backgroundColor: '#eff6ff',
-    borderRadius: 12,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-  },
-  badgeText: { fontSize: 13, fontWeight: '600', color: '#111827' },
 
   banner: {
     marginHorizontal: 16,
@@ -521,22 +436,6 @@ const styles = StyleSheet.create({
 
   piOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center' },
   piCard:    { width: '86%', backgroundColor: '#fff', borderRadius: 18, padding: 20 },
-  piHeader:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 },
-  piTitle:   { fontSize: 17, fontWeight: '700', color: '#111827' },
-  piClose:   { fontSize: 18, color: '#9ca3af' },
-  piRow:     { flexDirection: 'row', alignItems: 'center', paddingVertical: 12 },
-  piIcon:    { fontSize: 22, width: 36 },
-  piTextBlock: { flex: 1 },
-  piLabel:   { fontSize: 15, fontWeight: '600', color: '#111827' },
-  piDesc:    { fontSize: 13, color: '#6b7280', marginTop: 2 },
-  piPoints:  { fontSize: 16, fontWeight: '700', color: '#3b82f6', minWidth: 48, textAlign: 'right' },
-  piDivider: { height: 1, backgroundColor: '#f3f4f6' },
-  piCurrentRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: '#e5e7eb',
-  },
-  piCurrentLabel: { fontSize: 14, color: '#6b7280' },
-  piCurrentValue: { fontSize: 18, fontWeight: '700', color: '#111827' },
 
   streakTitle:  { fontSize: 26, textAlign: 'center', marginBottom: 8 },
   streakDesc:   { fontSize: 15, color: '#6b7280', textAlign: 'center', marginBottom: 6 },

@@ -414,44 +414,6 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* ── 글씨 크기 ────────────────────────────────────────────── */}
-        <Text style={styles.sectionTitle}>글씨 크기</Text>
-        <View style={styles.section}>
-          <View style={styles.row}>
-            <View style={styles.labelBlock}>
-              <Text style={styles.label}>글씨 크기</Text>
-              <Text style={styles.hint}>앱 전체 텍스트 크기를 조절합니다</Text>
-            </View>
-          </View>
-          <View style={[styles.row, { paddingTop: 0, minHeight: 0 }]}>
-            <View style={[styles.fontScaleRow]}>
-              {([
-                { label: '보통', value: 1.0 },
-                { label: '크게', value: 1.15 },
-                { label: '아주 크게', value: 1.3 },
-              ] as const).map(({ label, value }) => (
-                <TouchableOpacity
-                  key={label}
-                  testID={`btn-fontscale-${label}`}
-                  style={[
-                    styles.fontScaleBtn,
-                    Math.abs((settings.fontScale ?? 1.0) - value) < 0.01 && styles.fontScaleBtnActive,
-                  ]}
-                  onPress={() => saveSetting({ fontScale: value })}
-                >
-                  <Text style={[
-                    styles.fontScaleBtnText,
-                    { fontSize: 13 * value },
-                    Math.abs((settings.fontScale ?? 1.0) - value) < 0.01 && styles.fontScaleBtnTextActive,
-                  ]}>
-                    {label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        </View>
-
         {/* ── 복용 일정 ────────────────────────────────────────────── */}
         <Text style={styles.sectionTitle}>복용 일정</Text>
         <View style={styles.section}>
@@ -704,19 +666,6 @@ const styles = StyleSheet.create({
 
   // 이용약관
   termsText: { fontSize: 13, color: '#374151', lineHeight: 22, paddingVertical: 16 },
-
-  // 글씨 크기
-  fontScaleRow: {
-    flexDirection: 'row', gap: 8, flex: 1, paddingBottom: 14,
-  },
-  fontScaleBtn: {
-    flex: 1, paddingVertical: 12, borderRadius: 10,
-    borderWidth: 1, borderColor: '#d1d5db', alignItems: 'center',
-    backgroundColor: '#f9fafb',
-  },
-  fontScaleBtnActive: { backgroundColor: '#3b82f6', borderColor: '#3b82f6' },
-  fontScaleBtnText:   { color: '#374151', fontWeight: '500' as const },
-  fontScaleBtnTextActive: { color: '#fff' },
 
   // Stepper
   stepper: {

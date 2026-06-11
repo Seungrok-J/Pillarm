@@ -4,6 +4,7 @@ import {
   ActivityIndicator, Alert, StyleSheet,
   ScrollView, TextInput, Share, RefreshControl,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RootStackParamList } from '../../navigation';
@@ -388,15 +389,23 @@ export default function CareCircleScreen() {
   }
 
   function renderMemberCircle(circle: ApiCareCircle) {
-    const guardian = circle.ownerUserName ?? circle.ownerUserEmail ?? '보호자';
+    const ownerName = circle.ownerUserName ?? circle.ownerUserEmail ?? '관리자';
     return (
-      <View testID={`card-joined-${circle.id}`} style={styles.circleCard}>
-        <View style={styles.circleHeader}>
-          <Text style={styles.circleName}>{circle.name}</Text>
-          <Text style={styles.memberCount}>보호자: {guardian}</Text>
+      <View testID={`card-joined-${circle.id}`} style={styles.memberCircleCard}>
+        {/* 헤더: 그룹명 + 피보호자 배지 */}
+        <View style={styles.memberCircleTop}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.circleName}>{circle.name}</Text>
+            <Text style={styles.memberCircleOwner} numberOfLines={1}>
+              👤 {ownerName}
+            </Text>
+          </View>
+          <View style={styles.memberBadge}>
+            <Text style={styles.memberBadgeText}>피보호자</Text>
+          </View>
         </View>
-        <Text style={styles.memberRole}>나는 이 그룹의 피보호자입니다</Text>
 
+        {/* 나가기 버튼 */}
         <TouchableOpacity
           testID={`btn-leave-${circle.id}`}
           style={styles.leaveBtn}
@@ -417,13 +426,16 @@ export default function CareCircleScreen() {
 
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#3b82f6" />
-      </View>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color="#3b82f6" />
+        </View>
+      </SafeAreaView>
     );
   }
 
   return (
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
@@ -518,12 +530,14 @@ export default function CareCircleScreen() {
         onClose={() => { setInviteVisible(false); setInviteCode(null); }}
       />
     </ScrollView>
+    </SafeAreaView>
   );
 }
 
 // ── 스타일 ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
+  safeArea:  { flex: 1, backgroundColor: '#f9fafb' },
   container: { flex: 1, backgroundColor: '#f9fafb' },
   content:   { padding: 16, paddingBottom: 40 },
   center:    { flex: 1, alignItems: 'center', justifyContent: 'center' },
@@ -597,6 +611,38 @@ const styles = StyleSheet.create({
   monitorBtnText: { color: '#3b82f6', fontWeight: '600', fontSize: 14 },
   leaveBtn:       { borderRadius: 10, paddingVertical: 10, alignItems: 'center', marginTop: 6 },
   leaveBtnText:   { color: '#9ca3af', fontWeight: '500', fontSize: 13 },
+
+  memberCircleCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  memberCircleTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 10,
+  },
+  memberCircleOwner: {
+    fontSize: 13,
+    color: '#6b7280',
+    marginTop: 3,
+  },
+  memberBadge: {
+    backgroundColor: '#f0fdf4',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginLeft: 8,
+    alignSelf: 'flex-start',
+  },
+  memberBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#16a34a',
+  },
 
   emptyCard: {
     backgroundColor: '#fff', borderRadius: 16, padding: 20,
