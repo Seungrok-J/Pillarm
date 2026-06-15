@@ -1,13 +1,16 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useNavigation } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
-import type { BottomTabParamList } from './types';
+import type { BottomTabParamList, RootStackParamList } from './types';
 import HomeScreen from '../app/home/HomeScreen';
 import HistoryScreen from '../app/history/HistoryScreen';
 import StatsScreen from '../app/stats/StatsScreen';
 import SettingsScreen from '../app/settings/SettingsScreen';
 import CareCircleScreen from '../features/careCircle/CareCircleScreen';
 import { useThemeStore } from '../store/themeStore';
+import { useAuthStore } from '../store/authStore';
 
 const Tab = createBottomTabNavigator<BottomTabParamList>();
 
@@ -23,6 +26,8 @@ const ICONS: Record<keyof BottomTabParamList, { on: IconName; off: IconName }> =
 
 export default function MainTabNavigator() {
   const primary = useThemeStore((s) => s.activeTheme.primary);
+  const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
 
   return (
     <Tab.Navigator
@@ -40,7 +45,19 @@ export default function MainTabNavigator() {
       <Tab.Screen name="Home"        component={HomeScreen}       options={{ title: '홈' }} />
       <Tab.Screen name="History"     component={HistoryScreen}    options={{ title: '기록' }} />
       <Tab.Screen name="Stats"       component={StatsScreen}      options={{ title: '통계' }} />
-      <Tab.Screen name="CareCircle"  component={CareCircleScreen} options={{ title: '보호자' }} />
+      <Tab.Screen
+        name="CareCircle"
+        component={CareCircleScreen}
+        options={{ title: '보호자' }}
+        listeners={{
+          tabPress: (e) => {
+            if (!isLoggedIn) {
+              e.preventDefault();
+              navigation.navigate('Login');
+            }
+          },
+        }}
+      />
       <Tab.Screen name="Settings"    component={SettingsScreen}   options={{ title: '설정' }} />
     </Tab.Navigator>
   );

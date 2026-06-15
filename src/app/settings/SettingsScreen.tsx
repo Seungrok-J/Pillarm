@@ -264,10 +264,7 @@ export default function SettingsScreen() {
               onPress={() => navigation.navigate('Login')}
               accessibilityRole="button"
             >
-              <View style={styles.labelBlock}>
-                <Text style={styles.label}>간편로그인으로 시작하기</Text>
-                <Text style={styles.hint}>Apple · Google · 카카오</Text>
-              </View>
+              <Text style={styles.label}>간편로그인으로 시작하기</Text>
               <Text style={styles.chevron}>›</Text>
             </TouchableOpacity>
           )}
@@ -447,10 +444,7 @@ export default function SettingsScreen() {
             onPress={openContact}
             accessibilityRole="button"
           >
-            <View style={styles.labelBlock}>
-              <Text style={styles.label}>문의하기</Text>
-              <Text style={styles.hint}>{CONTACT_EMAIL}</Text>
-            </View>
+            <Text style={styles.label}>문의하기</Text>
             <Text style={styles.chevron}>›</Text>
           </TouchableOpacity>
           <View style={styles.divider} />
