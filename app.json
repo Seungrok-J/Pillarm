@@ -14,7 +14,7 @@
     },
     "ios": {
       "bundleIdentifier": "com.seungrokj.pillarm",
-      "buildNumber": "20",
+      "buildNumber": "21",
       "supportsTablet": false,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
@@ -25,7 +25,7 @@
     },
     "android": {
       "package": "com.seungrokj.pillarm",
-      "versionCode": 14,
+      "versionCode": 15,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
