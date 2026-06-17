@@ -14,8 +14,8 @@ export async function getSchedulesByMedication(medicationId: string, userId: str
 export async function upsertSchedule(schedule: Schedule, userId: string): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
-    `INSERT INTO schedules (id, medication_id, schedule_type, start_date, end_date, days_of_week, times, with_food, grace_minutes, is_active, packet_id, user_id, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO schedules (id, medication_id, schedule_type, start_date, end_date, days_of_week, times, with_food, grace_minutes, is_active, packet_id, packet_name, user_id, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET
        schedule_type = excluded.schedule_type,
        start_date = excluded.start_date,
@@ -26,6 +26,7 @@ export async function upsertSchedule(schedule: Schedule, userId: string): Promis
        grace_minutes = excluded.grace_minutes,
        is_active = excluded.is_active,
        packet_id = excluded.packet_id,
+       packet_name = excluded.packet_name,
        updated_at = excluded.updated_at`,
     schedule.id,
     schedule.medicationId,
@@ -38,6 +39,7 @@ export async function upsertSchedule(schedule: Schedule, userId: string): Promis
     schedule.graceMinutes,
     schedule.isActive ? 1 : 0,
     schedule.packetId ?? null,
+    schedule.packetName ?? null,
     userId,
     schedule.createdAt,
     schedule.updatedAt,
@@ -84,6 +86,7 @@ function rowToSchedule(row: Record<string, unknown>): Schedule {
     graceMinutes: row['grace_minutes'] as number,
     isActive: (row['is_active'] as number) === 1,
     packetId: (row['packet_id'] as string | null) ?? undefined,
+    packetName: (row['packet_name'] as string | null) ?? undefined,
     createdAt: row['created_at'] as string,
     updatedAt: row['updated_at'] as string,
   };

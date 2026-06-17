@@ -13,6 +13,7 @@ export interface DoseEvent {
   note?: string;
   photoPath?: string;
   packetId?: string;
+  packetName?: string;
   createdAt: string;
   updatedAt: string;
 }

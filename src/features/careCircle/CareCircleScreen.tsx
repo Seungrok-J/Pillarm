@@ -332,35 +332,50 @@ export default function CareCircleScreen() {
     }
 
     return (
-      <View key={member.id} testID={`member-${member.id}`} style={styles.memberRow}>
-        <View style={styles.memberIcon}>
-          <Text style={styles.memberIconText}>👤</Text>
+      <View key={member.id} testID={`member-${member.id}`} style={styles.memberRowWrap}>
+        <View style={styles.memberRow}>
+          <View style={styles.memberIcon}>
+            <Text style={styles.memberIconText}>👤</Text>
+          </View>
+          <View style={styles.memberInfo}>
+            <Text style={styles.memberId} numberOfLines={1}>{display}</Text>
+            {hasNickname && realName ? (
+              <Text style={styles.memberRealName} numberOfLines={1}>{realName}</Text>
+            ) : null}
+            <Text style={styles.memberRole}>{ROLE_LABEL[member.role] ?? member.role}</Text>
+          </View>
+          <View style={styles.memberActions}>
+            <TouchableOpacity
+              testID={`btn-nickname-${member.id}`}
+              style={styles.memberActionBtn}
+              onPress={() => setEditingNickname({ circleId, memberId: member.id, value: member.nickname ?? '' })}
+              accessibilityLabel="별칭 수정"
+            >
+              <Text style={styles.memberActionTxt}>별칭</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              testID={`btn-remove-${member.id}`}
+              style={[styles.memberActionBtn, styles.memberActionDanger]}
+              onPress={() => handleDeleteMember(circleId, member)}
+              accessibilityLabel="피보호자 삭제"
+            >
+              <Text style={[styles.memberActionTxt, styles.memberActionDangerTxt]}>삭제</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-        <View style={styles.memberInfo}>
-          <Text style={styles.memberId} numberOfLines={1}>{display}</Text>
-          {hasNickname && realName ? (
-            <Text style={styles.memberRealName} numberOfLines={1}>{realName}</Text>
-          ) : null}
-          <Text style={styles.memberRole}>{ROLE_LABEL[member.role] ?? member.role}</Text>
-        </View>
-        <View style={styles.memberActions}>
-          <TouchableOpacity
-            testID={`btn-nickname-${member.id}`}
-            style={styles.memberActionBtn}
-            onPress={() => setEditingNickname({ circleId, memberId: member.id, value: member.nickname ?? '' })}
-            accessibilityLabel="별칭 수정"
-          >
-            <Text style={styles.memberActionTxt}>별칭</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            testID={`btn-remove-${member.id}`}
-            style={[styles.memberActionBtn, styles.memberActionDanger]}
-            onPress={() => handleDeleteMember(circleId, member)}
-            accessibilityLabel="피보호자 삭제"
-          >
-            <Text style={[styles.memberActionTxt, styles.memberActionDangerTxt]}>삭제</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          testID={`btn-monitor-${member.id}`}
+          style={styles.monitorBtn}
+          onPress={() => navigation.navigate('CareMonitor', {
+            circleId,
+            patientId: member.memberUserId,
+            patientName: display,
+          })}
+          accessibilityLabel={`${display}님의 복용 현황 보기`}
+          accessibilityRole="button"
+        >
+          <Text style={styles.monitorBtnText}>복용 현황 보기</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -570,10 +585,12 @@ const styles = StyleSheet.create({
   circleName:  { fontSize: 17, fontWeight: '700', color: '#111827' },
   memberCount: { fontSize: 13, color: '#6b7280' },
 
+  memberRowWrap: {
+    borderTopWidth: 1, borderTopColor: '#f3f4f6',
+    paddingVertical: 8,
+  },
   memberRow: {
     flexDirection: 'row', alignItems: 'center',
-    paddingVertical: 8,
-    borderTopWidth: 1, borderTopColor: '#f3f4f6',
   },
   memberIcon:     { width: 36, height: 36, borderRadius: 18, backgroundColor: '#eff6ff', alignItems: 'center', justifyContent: 'center', marginRight: 10 },
   memberIconText: { fontSize: 18 },

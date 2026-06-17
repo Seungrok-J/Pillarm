@@ -1,4 +1,5 @@
 import React from 'react';
+import { Alert } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
@@ -51,10 +52,16 @@ export default function MainTabNavigator() {
         options={{ title: '보호자' }}
         listeners={{
           tabPress: (e) => {
-            if (!isLoggedIn) {
-              e.preventDefault();
-              navigation.navigate('Login');
-            }
+            if (isLoggedIn) return;
+            e.preventDefault();
+            Alert.alert(
+              '로그인이 필요합니다',
+              '보호자 기능을 사용하려면 먼저 로그인해 주세요.',
+              [
+                { text: '취소', style: 'cancel' },
+                { text: '로그인하기', onPress: () => navigation.navigate('Login') },
+              ],
+            );
           },
         }}
       />

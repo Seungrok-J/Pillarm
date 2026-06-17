@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Modal,
   Platform,
+  Alert,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -349,6 +350,21 @@ export default function ScheduleFormScreen() {
     }
   }
 
+  function handleScanPress() {
+    if (useAuthStore.getState().isLoggedIn) {
+      navigation.navigate('ScanNew');
+      return;
+    }
+    Alert.alert(
+      '로그인이 필요합니다',
+      '약봉투 스캔으로 자동 입력하려면 먼저 로그인해 주세요.',
+      [
+        { text: '취소', style: 'cancel' },
+        { text: '로그인하기', onPress: () => navigation.navigate('Login') },
+      ],
+    );
+  }
+
   function toggleDay(day: number) {
     setSelectedDays((prev) =>
       prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day],
@@ -369,7 +385,7 @@ export default function ScheduleFormScreen() {
       {!isEdit && (
         <TouchableOpacity
           style={scanBtnStyle}
-          onPress={() => navigation.navigate('ScanNew')}
+          onPress={handleScanPress}
           accessibilityRole="button"
         >
           <Text style={scanBtnTextStyle}>📷 약봉투 스캔으로 자동 입력</Text>

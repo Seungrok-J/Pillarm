@@ -160,6 +160,15 @@ export const MIGRATIONS: Migration[] = [
     version: 7,
     sql: `ALTER TABLE user_settings ADD COLUMN font_scale REAL NOT NULL DEFAULT 1.0;`,
   },
+
+  // ── v8: 포 그룹 이름 ──────────────────────────────────────────────────────────
+  {
+    version: 8,
+    sql: `
+      ALTER TABLE schedules   ADD COLUMN packet_name TEXT;
+      ALTER TABLE dose_events ADD COLUMN packet_name TEXT;
+    `,
+  },
 ];
 
 export async function runMigrations(db: MigrationDb): Promise<void> {

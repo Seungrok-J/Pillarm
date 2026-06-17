@@ -13,6 +13,7 @@ export interface Schedule {
   graceMinutes: number;
   isActive: boolean;
   packetId?: string;
+  packetName?: string;
   createdAt: string;
   updatedAt: string;
 }

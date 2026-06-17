@@ -21,6 +21,7 @@ export default function PacketCard({
   const theme = useThemeStore((s) => s.activeTheme);
 
   const time       = events[0]?.plannedAt.slice(11, 16) ?? '';
+  const packetName = events.find((e) => e.packetName)?.packetName;
   const takenCount = events.filter((e) => e.status === 'taken').length;
   const total      = events.length;
   const allTaken   = takenCount === total;
@@ -55,13 +56,14 @@ export default function PacketCard({
 
       {/* 상단: 시간 + 약 이름들 + 상태 */}
       <View style={styles.topRow}>
-        <Text style={styles.time}>{time}</Text>
+        <Text style={styles.time} numberOfLines={1}>{time}</Text>
         <View style={styles.nameCol}>
           <View style={styles.packetLabelRow}>
             <View style={[styles.packetBadge, { backgroundColor: statusColor() }]}>
               <Text style={styles.packetBadgeText}>포</Text>
             </View>
             <Text style={[styles.packetTitle, allTaken && styles.textDone]}>
+              {packetName ? `${packetName} · ` : ''}
               {allTaken ? `${total}개 모두 복용 완료` : `${takenCount}/${total}개 복용`}
             </Text>
           </View>
@@ -145,7 +147,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#374151',
-    width: 44,
+    minWidth: 48,
+    flexShrink: 0,
     marginTop: 2,
   },
   nameCol: {

@@ -219,7 +219,7 @@ export default function DoseCard({
 
         {/* 상단: 시간 + 약 이름 + 힌트 */}
         <View style={styles.topRow}>
-          <Text testID={`card-time-${event.id}`} style={styles.time}>{time}</Text>
+          <Text testID={`card-time-${event.id}`} style={styles.time} numberOfLines={1}>{time}</Text>
           <View style={styles.nameCol}>
             <Text testID={`card-name-${event.id}`} style={styles.name} numberOfLines={1}>
               {medicationName}
@@ -430,7 +430,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 12,
     borderBottomLeftRadius: 12,
   },
-  time:    { fontSize: 16, fontWeight: '600', color: '#374151', width: 44 },
+  time:    { fontSize: 16, fontWeight: '600', color: '#374151', minWidth: 48, flexShrink: 0 },
   nameCol: { flex: 1, marginLeft: 10, justifyContent: 'center' },
   name:    { fontSize: 16, color: '#111827' },
   hintGray: { fontSize: 11, color: '#9ca3af', marginTop: 2 },

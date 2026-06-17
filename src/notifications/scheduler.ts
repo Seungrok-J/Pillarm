@@ -93,6 +93,7 @@ export async function scheduleForSchedule(
         snoozeCount: 0,
         source: 'notification',
         packetId: schedule.packetId,
+        packetName: schedule.packetName,
         createdAt: now.toISOString(),
         updatedAt: now.toISOString(),
       }, currentUserId());

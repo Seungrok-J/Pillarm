@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
   StyleSheet, Alert, Modal, Platform,
@@ -41,6 +41,11 @@ function addDays(dateStr: string, days: number): string {
 function formatDisplayDate(dateStr: string): string {
   const [y, m, day] = dateStr.split('-');
   return `${y}년 ${Number(m)}월 ${Number(day)}일`;
+}
+
+/** 복용 시간 배열을 정렬해 묶음 키로 사용 (같은 시간 조합만 한 포로 묶을 수 있음) */
+function timeKeyOf(item: MedicationScanResult): string {
+  return [...item.suggestedTimes].sort().join(',');
 }
 
 // ── DatePickerField ──────────────────────────────────────────────────────────
@@ -148,9 +153,9 @@ export default function ScanResultScreen() {
   const [items, setItems] = useState<MedicationScanResult[]>(params.results);
   const [tabIndex, setTabIndex] = useState(0);
   const [skipped, setSkipped] = useState<Set<number>>(new Set());
-  const [packetItems, setPacketItems] = useState<Set<number>>(
-    () => new Set(params.results.map((_, i) => i)),
-  );
+  // 포 그룹화는 같은 복용 시간을 가진 약끼리만 가능 — 시간 시그니처(timeKey)로 묶음을 자동 구성한다.
+  const [packetExcluded, setPacketExcluded] = useState<Record<string, Set<number>>>({});
+  const [packetNames, setPacketNames] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
   // 각 약별 날짜 상태 (startDate, endDate)
@@ -186,6 +191,27 @@ export default function ScanResultScreen() {
   }, [navigation]);
 
   const currentItem = items[tabIndex];
+
+  // 같은 복용 시간을 가진(2개 이상) 약들만 포 묶음 후보가 된다.
+  const timeGroups = useMemo(() => {
+    const map = new Map<string, number[]>();
+    items.forEach((item, i) => {
+      if (skipped.has(i)) return;
+      if (item.suggestedTimes.length === 0) return;
+      const key = timeKeyOf(item);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(i);
+    });
+    return [...map.entries()].filter(([, idxs]) => idxs.length >= 2);
+  }, [items, skipped]);
+
+  function togglePacketMember(key: string, idx: number) {
+    setPacketExcluded((prev) => {
+      const cur = new Set(prev[key] ?? []);
+      cur.has(idx) ? cur.delete(idx) : cur.add(idx);
+      return { ...prev, [key]: cur };
+    });
+  }
 
   function updateField<K extends keyof MedicationScanResult>(
     key: K,
@@ -226,8 +252,16 @@ export default function ScanResultScreen() {
       return;
     }
 
-    const activePacketIndices = [...packetItems].filter((i) => !skipped.has(i));
-    const sharedPacketId = activePacketIndices.length >= 2 ? generateId() : undefined;
+    // 시간이 같은 묶음별로 패킷 ID·이름을 부여한다 (제외 체크된 약은 빠짐)
+    const packetInfoByIndex = new Map<number, { id: string; name?: string }>();
+    for (const [key, idxs] of timeGroups) {
+      const excluded = packetExcluded[key] ?? new Set<number>();
+      const included = idxs.filter((i) => !excluded.has(i));
+      if (included.length < 2) continue;
+      const packetId = generateId();
+      const name = packetNames[key]?.trim() || undefined;
+      for (const i of included) packetInfoByIndex.set(i, { id: packetId, name });
+    }
 
     setSaving(true);
     try {
@@ -254,9 +288,7 @@ export default function ScanResultScreen() {
           userId,
         );
 
-        const packetId = sharedPacketId && activePacketIndices.includes(origIdx)
-          ? sharedPacketId
-          : undefined;
+        const packetInfo = packetInfoByIndex.get(origIdx);
 
         const schedule = {
           id:           scheduleId,
@@ -268,7 +300,8 @@ export default function ScanResultScreen() {
           withFood:     item.withFood ?? ('none' as const),
           graceMinutes: 120,
           isActive:     true,
-          packetId,
+          packetId:     packetInfo?.id,
+          packetName:   packetInfo?.name,
           createdAt:    now,
           updatedAt:    now,
         };
@@ -496,50 +529,64 @@ export default function ScanResultScreen() {
           </Text>
         </TouchableOpacity>
 
-        {/* 포 그룹화 */}
-        {items.length >= 2 && (
-          <View style={styles.packetSection}>
-            <View style={styles.packetTitleRow}>
-              <Text style={styles.packetTitle}>💊 한 포로 묶기</Text>
-              <Text style={styles.packetHint}>
-                체크된 약은 홈에서 한 번에 복용 체크돼요
-              </Text>
-            </View>
-            {items.map((item, i) => {
-              const isItemSkipped = skipped.has(i);
-              const inPacket = packetItems.has(i);
-              return (
-                <TouchableOpacity
-                  key={i}
-                  style={[styles.packetRow, isItemSkipped && styles.packetRowDisabled]}
-                  onPress={() => {
-                    if (isItemSkipped) return;
-                    setPacketItems((prev) => {
-                      const next = new Set(prev);
-                      next.has(i) ? next.delete(i) : next.add(i);
-                      return next;
-                    });
-                  }}
-                  disabled={isItemSkipped}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.checkbox, inPacket && !isItemSkipped && styles.checkboxChecked]}>
-                    {inPacket && !isItemSkipped && <Text style={styles.checkmark}>✓</Text>}
-                  </View>
-                  <Text style={[styles.packetItemName, isItemSkipped && styles.packetItemDisabled]} numberOfLines={1}>
-                    {item.medicationName || `약 ${i + 1}`}
+        {/* 포 그룹화 — 같은 복용 시간을 가진 약끼리만 묶을 수 있다 */}
+        {timeGroups.length > 0 ? (
+          timeGroups.map(([key, idxs]) => {
+            const excluded = packetExcluded[key] ?? new Set<number>();
+            const includedCount = idxs.filter((i) => !excluded.has(i)).length;
+            const times = key.split(',');
+            return (
+              <View key={key} style={styles.packetSection}>
+                <View style={styles.packetTitleRow}>
+                  <Text style={styles.packetTitle}>💊 {times.join('  ')} 한 포로 묶기</Text>
+                  <Text style={styles.packetHint}>
+                    같은 시간에 복용하는 약만 묶을 수 있어요 · 홈에서 한 번에 복용 체크돼요
                   </Text>
-                  {isItemSkipped && <Text style={styles.skippedLabel}>건너뜀</Text>}
-                </TouchableOpacity>
-              );
-            })}
-            {[...packetItems].filter((i) => !skipped.has(i)).length < 2 && (
-              <Text style={styles.packetWarning}>
-                2개 이상 선택해야 포로 묶입니다
-              </Text>
-            )}
+                </View>
+
+                <TextInput
+                  style={styles.input}
+                  value={packetNames[key] ?? ''}
+                  onChangeText={(v) => setPacketNames((prev) => ({ ...prev, [key]: v }))}
+                  placeholder="그룹 이름 (예: 아침약, 식후약)"
+                  maxLength={20}
+                />
+
+                {idxs.map((i) => {
+                  const item = items[i];
+                  const inPacket = !excluded.has(i);
+                  return (
+                    <TouchableOpacity
+                      key={i}
+                      style={styles.packetRow}
+                      onPress={() => togglePacketMember(key, i)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={[styles.checkbox, inPacket && styles.checkboxChecked]}>
+                        {inPacket && <Text style={styles.checkmark}>✓</Text>}
+                      </View>
+                      <Text style={styles.packetItemName} numberOfLines={1}>
+                        {item.medicationName || `약 ${i + 1}`}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+
+                {includedCount < 2 && (
+                  <Text style={styles.packetWarning}>
+                    2개 이상 선택해야 포로 묶입니다
+                  </Text>
+                )}
+              </View>
+            );
+          })
+        ) : items.length >= 2 ? (
+          <View style={styles.packetSection}>
+            <Text style={styles.packetHint}>
+              복용 시간이 같은 약이 2개 이상 있어야 한 포로 묶을 수 있어요
+            </Text>
           </View>
-        )}
+        ) : null}
       </ScrollView>
 
       {/* 하단 버튼 */}
@@ -624,17 +671,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 10,
     paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#f3f4f6',
   },
-  packetRowDisabled: { opacity: 0.4 },
   checkbox: {
     width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: '#d1d5db',
     alignItems: 'center', justifyContent: 'center', backgroundColor: '#f9fafb',
   },
-  checkboxChecked:   { backgroundColor: '#3b82f6', borderColor: '#3b82f6' },
-  checkmark:         { fontSize: 13, color: '#fff', fontWeight: '800' },
-  packetItemName:    { flex: 1, fontSize: 14, fontWeight: '500', color: '#374151' },
-  packetItemDisabled:{ color: '#9ca3af' },
-  skippedLabel:      { fontSize: 11, color: '#9ca3af', fontWeight: '500' },
-  packetWarning:     { fontSize: 12, color: '#f59e0b', marginTop: 8, textAlign: 'center' },
+  checkboxChecked: { backgroundColor: '#3b82f6', borderColor: '#3b82f6' },
+  checkmark:       { fontSize: 13, color: '#fff', fontWeight: '800' },
+  packetItemName:  { flex: 1, fontSize: 14, fontWeight: '500', color: '#374151' },
+  packetWarning:   { fontSize: 12, color: '#f59e0b', marginTop: 8, textAlign: 'center' },
 
   footer: {
     position: 'absolute', bottom: 0, left: 0, right: 0,

@@ -265,6 +265,7 @@ export default function ScheduleManageScreen() {
 
   function renderPacketGroup(group: PacketGroup) {
     const times = [...new Set(group.items.flatMap((i) => i.schedule.times))].sort();
+    const packetName = group.items.find((i) => i.schedule.packetName)?.schedule.packetName;
     return (
       <View key={group.packetId} style={styles.packetCard}>
         {/* 포 그룹 헤더 */}
@@ -273,7 +274,7 @@ export default function ScheduleManageScreen() {
             <Text style={styles.packetBadgeText}>포</Text>
           </View>
           <Text style={styles.packetTitle}>
-            {group.items.length}개 약 묶음
+            {packetName ? packetName : `${group.items.length}개 약 묶음`}
           </Text>
           <Text style={styles.packetTimes}>{times.join('  ')}</Text>
         </View>
