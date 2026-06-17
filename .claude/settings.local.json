@@ -139,7 +139,21 @@
       "Bash(eas build:list --limit 6 --non-interactive)",
       "Bash(eas submit *)",
       "Bash(eas build:list --limit 2 --non-interactive)",
-      "Bash(eas build:list --limit 3 --non-interactive)"
+      "Bash(eas build:list --limit 3 --non-interactive)",
+      "Bash(timeout 30)",
+      "Bash(Start-Sleep -Seconds 20)",
+      "Bash(Get-Content \"C:\\\\Users\\\\jsl\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-jsl-Desktop----Pillarm-\\\\5f621551-c0bd-4efc-af1e-1ce1712a3c0a\\\\tasks\\\\btrzwhq1m.output\")",
+      "Bash(Select-Object -Last 20)",
+      "PowerShell(eas build *)",
+      "PowerShell(eas build:view *)",
+      "PowerShell(eas build:logs *)",
+      "PowerShell(java *)",
+      "PowerShell([System.Environment]::SetEnvironmentVariable\\(\"JAVA_HOME\", \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\", \"User\"\\); [System.Environment]::SetEnvironmentVariable\\(\"PATH\", \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\\\\bin;\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"User\"\\), \"User\"\\); Write-Host \"JAVA_HOME 영구 설정 완료\")",
+      "PowerShell($env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; $env:PATH = \"$env:JAVA_HOME\\\\bin;$env:PATH\"; npx expo run:android 2>&1)",
+      "PowerShell(Test-Path *)",
+      "PowerShell($env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; $env:PATH = \"$env:JAVA_HOME\\\\bin;$env:PATH\"; npx expo run:android 2>&1 | Select-String -Pattern \"FAILURE|error:|ERROR|exception|Exception|BUILD FAILED\" | Select-Object -Last 30)",
+      "PowerShell(git rm *)",
+      "Bash(eas build:list --limit 5 --non-interactive)"
     ]
   }
 }
