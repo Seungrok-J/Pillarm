@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
 
-  tabScroll: { backgroundColor: '#fff', height: 60 },
+  tabScroll: { backgroundColor: '#fff' },
   tabContent: { paddingHorizontal: 12, paddingVertical: 10, gap: 8, alignItems: 'flex-start' },
   tab: {
     paddingHorizontal: 16,
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   tabActive:     { backgroundColor: '#3b82f6' },
-  tabText:       { fontSize: 13, fontWeight: '500', color: '#6b7280' },
+  tabText:       { fontSize: 13, lineHeight: 18, fontWeight: '500', color: '#6b7280' },
   tabTextActive: { color: '#fff', fontWeight: '600' },
 
   listContent: { padding: 16, paddingBottom: 40 },
