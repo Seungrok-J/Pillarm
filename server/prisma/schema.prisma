@@ -55,6 +55,7 @@ model User {
   schedules         Schedule[]          @relation("UserSchedules")
   doseEvents        DoseEvent[]         @relation("UserDoseEvents")
   socialConnections SocialConnection[]
+  scanUsages        ScanUsage[]
 
   @@unique([provider, providerId])
 }
@@ -205,6 +206,19 @@ model FeatureFlag {
   enabled     Boolean  @default(false)
   description String   @default("")
   updatedAt   DateTime @updatedAt
+}
+
+/// 약봉투 스캔(AI Vision) 일일 사용량 — 사용자별·날짜별 호출 횟수 집계
+model ScanUsage {
+  id     String @id @default(cuid())
+  userId String
+  /// YYYY-MM-DD (KST 기준)
+  date   String
+  count  Int    @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
 }
 
 /// 6자리 일회용 초대 코드 (24h TTL)

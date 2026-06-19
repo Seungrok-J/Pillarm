@@ -24,11 +24,19 @@ export async function scanMedicationImage(
   base64Image:  string,
   mealSettings: MealSettings | null = null,
 ): Promise<MedicationScanResult[]> {
-  const { data } = await api.post<ScanResponse>('/ai/scan-medication', {
-    image: base64Image,
-  }, {
-    timeout: 60_000,
-  });
+  let data: ScanResponse;
+  try {
+    const res = await api.post<ScanResponse>('/ai/scan-medication', {
+      image: base64Image,
+    }, {
+      timeout: 60_000,
+    });
+    data = res.data;
+  } catch (err) {
+    const serverMsg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+    if (serverMsg) throw new Error(serverMsg);
+    throw err;
+  }
 
   if (!data.results?.length) {
     throw new Error('약봉투 정보를 인식하지 못했습니다.\n사진을 다시 찍거나 직접 입력해주세요.');

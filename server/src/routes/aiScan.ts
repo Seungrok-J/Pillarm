@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
+import prisma from '../lib/prisma';
 import { requireAuth } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 
@@ -11,6 +12,13 @@ router.use(requireAuth);
 const bodySchema = z.object({
   image: z.string().min(100).max(10_000_000),
 });
+
+const DAILY_SCAN_LIMIT = 5;
+
+function todayKST(): string {
+  const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  return kst.toISOString().slice(0, 10);
+}
 
 let _client: Anthropic | null = null;
 function getClient(): Anthropic {
@@ -59,6 +67,19 @@ router.post('/', async (req, res, next) => {
     const parsed = bodySchema.safeParse(req.body);
     if (!parsed.success) throw new AppError('이미지 데이터가 필요합니다', 400);
 
+    const userId = req.user!.userId;
+    const date = todayKST();
+
+    const usage = await prisma.scanUsage.findUnique({
+      where: { userId_date: { userId, date } },
+    });
+    if (usage && usage.count >= DAILY_SCAN_LIMIT) {
+      throw new AppError(
+        `오늘 약봉투 분석 횟수(${DAILY_SCAN_LIMIT}회)를 모두 사용했어요. 내일 다시 시도해주세요.`,
+        429,
+      );
+    }
+
     const client = getClient();
 
     let text: string;
@@ -81,6 +102,12 @@ router.post('/', async (req, res, next) => {
       });
       text = msg.content[0]?.type === 'text' ? msg.content[0].text : '';
     }
+
+    await prisma.scanUsage.upsert({
+      where: { userId_date: { userId, date } },
+      update: { count: { increment: 1 } },
+      create: { userId, date, count: 1 },
+    });
 
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new AppError('약봉투 정보를 인식하지 못했습니다', 422);
