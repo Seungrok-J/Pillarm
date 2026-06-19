@@ -50,7 +50,6 @@ function InviteModal({ visible, code, onClose }: InviteModalProps) {
     const url = `${JOIN_WEB_URL}?code=${code}`;
     Share.share({
       message: `필람 보호 그룹 초대입니다. 아래 링크를 눌러 참여해주세요 (24시간 유효)\n\n${url}`,
-      url,
     });
   }
 

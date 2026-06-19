@@ -102,8 +102,10 @@ export async function uploadTodaySnapshot(
   const circles = await api
     .get<Array<{ id: string; ownerUserId: string }>>('/care-circles')
     .then((r) => r.data);
-  const ownedCircles = circles.filter((c) => c.ownerUserId === userId);
-  if (!ownedCircles.length) return;
+  // GET /care-circles는 본인이 owner이거나 member인 그룹만 반환한다.
+  // 피보호자는 그룹의 owner가 아니라 member이므로, owner가 아닌 그룹에 스냅샷을 올려야 한다.
+  const memberCircles = circles.filter((c) => c.ownerUserId !== userId);
+  if (!memberCircles.length) return;
 
   const events = todayEvents.map((e) => ({
     id:             e.id,
@@ -117,7 +119,7 @@ export async function uploadTodaySnapshot(
 
   const date = todayString(); // 클라이언트 로컬 날짜 (한국 시간 기준)
   await Promise.allSettled(
-    ownedCircles.map((c) =>
+    memberCircles.map((c) =>
       api.put(`/care-circles/${c.id}/members/${userId}/today`, { date, events }),
     ),
   );
