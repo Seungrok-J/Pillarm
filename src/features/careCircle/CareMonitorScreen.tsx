@@ -11,7 +11,7 @@ import { getSnapshot, type DoseSnapshot } from './careCircleApi';
 type Route = RouteProp<RootStackParamList, 'CareMonitor'>;
 
 // SharePolicy.allowedFields 기본값: 서버가 없으면 모두 표시
-const DEFAULT_ALLOWED = ['status', 'time', 'note'];
+const DEFAULT_ALLOWED = ['status', 'time', 'note', 'name'];
 
 // ── 복용 이벤트 타입 (서버 스냅샷 data 필드) ────────────────────────────────
 
@@ -149,10 +149,12 @@ export default function CareMonitorScreen() {
     (snapshot?.data as { allowedFields?: string[] } | null)?.allowedFields ?? DEFAULT_ALLOWED;
 
   // 통계
-  const takenCount   = events.filter((e) => e.status === 'taken' || e.status === 'late').length;
-  const missedCount  = events.filter((e) => e.status === 'missed').length;
-  const totalCount   = events.length;
-  const hasMissed    = missedCount > 0;
+  const takenCount    = events.filter((e) => e.status === 'taken' || e.status === 'late').length;
+  const missedCount   = events.filter((e) => e.status === 'missed').length;
+  const skippedCount  = events.filter((e) => e.status === 'skipped').length;
+  const scheduledCount = events.filter((e) => e.status === 'scheduled').length;
+  const totalCount    = events.length;
+  const hasMissed     = missedCount > 0;
 
   // ── 렌더 ───────────────────────────────────────────────────────────────────
 
@@ -208,16 +210,44 @@ export default function CareMonitorScreen() {
       {/* 통계 요약 */}
       {!loading && !error && (
         <View style={[styles.summaryCard, hasMissed && styles.summaryCardWarning]}>
-          {hasMissed ? (
-            <Text testID="txt-missed-warning" style={styles.missedWarning}>
-              ⚠️ 오늘 {missedCount}건의 복용이 누락됐어요
-            </Text>
+          {totalCount === 0 ? (
+            <Text style={styles.summaryOk}>오늘 예정된 복용이 없습니다</Text>
           ) : (
-            <Text style={styles.summaryOk}>
-              {totalCount > 0
-                ? `오늘 ${totalCount}건 중 ${takenCount}건 복용 완료`
-                : '오늘 예정된 복용이 없습니다'}
-            </Text>
+            <>
+              {hasMissed && (
+                <Text testID="txt-missed-warning" style={styles.missedWarning}>
+                  ⚠️ {missedCount}건 누락됨
+                </Text>
+              )}
+              <View style={styles.summaryGrid}>
+                <View style={styles.summaryItem}>
+                  <Text style={styles.summaryCount}>{takenCount}</Text>
+                  <Text style={styles.summaryLabel}>복용 완료</Text>
+                </View>
+                {skippedCount > 0 && (
+                  <View style={styles.summaryItem}>
+                    <Text style={[styles.summaryCount, { color: '#6b7280' }]}>{skippedCount}</Text>
+                    <Text style={styles.summaryLabel}>건너뜀</Text>
+                  </View>
+                )}
+                {missedCount > 0 && (
+                  <View style={styles.summaryItem}>
+                    <Text style={[styles.summaryCount, { color: '#dc2626' }]}>{missedCount}</Text>
+                    <Text style={styles.summaryLabel}>누락</Text>
+                  </View>
+                )}
+                {scheduledCount > 0 && (
+                  <View style={styles.summaryItem}>
+                    <Text style={[styles.summaryCount, { color: '#3b82f6' }]}>{scheduledCount}</Text>
+                    <Text style={styles.summaryLabel}>예정</Text>
+                  </View>
+                )}
+                <View style={styles.summaryItem}>
+                  <Text style={[styles.summaryCount, { color: '#9ca3af' }]}>{totalCount}</Text>
+                  <Text style={styles.summaryLabel}>전체</Text>
+                </View>
+              </View>
+            </>
           )}
         </View>
       )}
@@ -275,7 +305,11 @@ const styles = StyleSheet.create({
   },
   summaryCardWarning: { backgroundColor: '#fef2f2', borderLeftColor: '#dc2626' },
   summaryOk:       { fontSize: 15, color: '#16a34a', fontWeight: '600' },
-  missedWarning:   { fontSize: 15, color: '#dc2626', fontWeight: '700' },
+  missedWarning:   { fontSize: 15, color: '#dc2626', fontWeight: '700', marginBottom: 10 },
+  summaryGrid:     { flexDirection: 'row', gap: 16 },
+  summaryItem:     { alignItems: 'center' },
+  summaryCount:    { fontSize: 22, fontWeight: '700', color: '#16a34a' },
+  summaryLabel:    { fontSize: 11, color: '#6b7280', marginTop: 2 },
 
   eventList:    { paddingHorizontal: 16 },
   sectionTitle: {
