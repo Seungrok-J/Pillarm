@@ -25,7 +25,7 @@
     },
     "android": {
       "package": "com.seungrokj.pillarm",
-      "versionCode": 15,
+      "versionCode": 16,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
