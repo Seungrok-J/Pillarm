@@ -14,7 +14,7 @@
     },
     "ios": {
       "bundleIdentifier": "com.seungrokj.pillarm",
-      "buildNumber": "22",
+      "buildNumber": "23",
       "supportsTablet": false,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
