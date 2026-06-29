@@ -244,7 +244,7 @@ router.post('/confirm-link', async (req, res, next) => {
 
 router.get('/connections', requireAuth, async (req, res, next) => {
   try {
-    const userId = (req as any).userId as string;
+    const userId = req.user!.userId;
 
     const [user, connections] = await Promise.all([
       prisma.user.findUnique({ where: { id: userId }, select: { provider: true, providerId: true, passwordHash: true } }),
@@ -271,7 +271,7 @@ router.get('/connections', requireAuth, async (req, res, next) => {
 
 router.post('/link', requireAuth, async (req, res, next) => {
   try {
-    const userId = (req as any).userId as string;
+    const userId = req.user!.userId;
     const parsed = socialSchema.safeParse(req.body);
     if (!parsed.success) throw new AppError(parsed.error.errors[0]?.message ?? 'Invalid input', 400);
 
@@ -304,7 +304,7 @@ router.post('/link', requireAuth, async (req, res, next) => {
 
 router.delete('/link/:provider', requireAuth, async (req, res, next) => {
   try {
-    const userId  = (req as any).userId as string;
+    const userId  = req.user!.userId;
     const provider = req.params['provider']!;
 
     const [user, connections] = await Promise.all([

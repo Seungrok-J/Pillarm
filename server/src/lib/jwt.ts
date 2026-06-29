@@ -6,12 +6,17 @@ export interface TokenPayload {
   isAdmin?: boolean;
 }
 
-// Read at call time so test setup can override process.env before first use
+// Read at call time so test setup can override process.env before first use.
+// Missing secrets cause an immediate crash — never fall back to known-weak values.
 function accessSecret(): string {
-  return process.env.JWT_ACCESS_SECRET ?? 'dev-access-secret';
+  const s = process.env.JWT_ACCESS_SECRET;
+  if (!s) throw new Error('JWT_ACCESS_SECRET is not set. Set it before starting the server.');
+  return s;
 }
 function refreshSecret(): string {
-  return process.env.JWT_REFRESH_SECRET ?? 'dev-refresh-secret';
+  const s = process.env.JWT_REFRESH_SECRET;
+  if (!s) throw new Error('JWT_REFRESH_SECRET is not set. Set it before starting the server.');
+  return s;
 }
 
 export function signAccess(payload: TokenPayload): string {

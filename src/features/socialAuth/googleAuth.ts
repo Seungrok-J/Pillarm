@@ -24,8 +24,7 @@ export function configureGoogle() {
   console.log('[Google] webClientId:', webClientId ? 'SET' : 'NOT SET (iosClientId audience mode)');
 }
 
-export async function signInWithGoogle(): Promise<SocialAuthResponse | SocialLinkRequired | DeviceConflict> {
-  // 이미 로그인된 세션이 있으면 먼저 로그아웃 (세션 충돌 방지)
+async function googleOAuthFlow(): Promise<string> {
   try {
     const isSignedIn = await GoogleSignin.getCurrentUser();
     if (isSignedIn) await GoogleSignin.signOut();
@@ -36,22 +35,24 @@ export async function signInWithGoogle(): Promise<SocialAuthResponse | SocialLin
   }
 
   const userInfo = await GoogleSignin.signIn();
-
-  if (userInfo.type === 'cancelled') {
-    throw Object.assign(new Error('cancelled'), { code: 'SIGN_IN_CANCELLED' });
-  }
+  if (userInfo.type === 'cancelled') throw Object.assign(new Error('cancelled'), { code: 'SIGN_IN_CANCELLED' });
   if (userInfo.type !== 'success') throw new Error('Google 로그인을 완료해주세요');
 
   const idToken = userInfo.data?.idToken;
   if (!idToken) throw new Error('Google idToken을 받지 못했습니다');
+  return idToken;
+}
 
+/** 계정 연결 전용 — 서버 로그인 없이 idToken만 반환 */
+export async function getGoogleIdToken(): Promise<{ idToken: string }> {
+  const idToken = await googleOAuthFlow();
+  return { idToken };
+}
+
+export async function signInWithGoogle(): Promise<SocialAuthResponse | SocialLinkRequired | DeviceConflict> {
+  const idToken  = await googleOAuthFlow();
   const fcmToken = await getExpoPushToken();
-
-  return socialLogin({
-    provider: 'google',
-    idToken,
-    fcmToken: fcmToken ?? undefined,
-  });
+  return socialLogin({ provider: 'google', idToken, fcmToken: fcmToken ?? undefined });
 }
 
 export { statusCodes as googleStatusCodes };

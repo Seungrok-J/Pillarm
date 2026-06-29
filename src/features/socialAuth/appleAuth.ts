@@ -7,27 +7,24 @@ export function isAppleAuthAvailable(): boolean {
   return Platform.OS === 'ios';
 }
 
-export async function signInWithApple(): Promise<SocialAuthResponse | SocialLinkRequired | DeviceConflict> {
+/** 계정 연결 전용 — 서버 로그인 없이 idToken과 name만 반환 */
+export async function getAppleCredentials(): Promise<{ idToken: string; name?: string }> {
   const credential = await AppleAuthentication.signInAsync({
     requestedScopes: [
       AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
       AppleAuthentication.AppleAuthenticationScope.EMAIL,
     ],
   });
-
-  const fcmToken = await getExpoPushToken();
-
-  // Apple은 최초 로그인 시에만 fullName을 제공한다
+  const idToken = credential.identityToken;
+  if (!idToken) throw new Error('Apple identityToken을 받지 못했습니다');
   const name = credential.fullName
-    ? [credential.fullName.givenName, credential.fullName.familyName]
-        .filter(Boolean)
-        .join(' ') || undefined
+    ? [credential.fullName.givenName, credential.fullName.familyName].filter(Boolean).join(' ') || undefined
     : undefined;
+  return { idToken, name };
+}
 
-  return socialLogin({
-    provider:    'apple',
-    idToken:     credential.identityToken ?? undefined,
-    name,
-    fcmToken:    fcmToken ?? undefined,
-  });
+export async function signInWithApple(): Promise<SocialAuthResponse | SocialLinkRequired | DeviceConflict> {
+  const { idToken, name } = await getAppleCredentials();
+  const fcmToken = await getExpoPushToken();
+  return socialLogin({ provider: 'apple', idToken, name, fcmToken: fcmToken ?? undefined });
 }

@@ -48,6 +48,9 @@ export const useDoseEventStore = create<DoseEventState>((set, get) => ({
         const missedEvents = todayEvents.filter((e) => e.status === 'missed');
         if (missedEvents.length > 0) {
           missedEvents.forEach((e) => pushDoseEvent(e).catch(() => {}));
+        }
+        // 이벤트가 있으면 항상 스냅샷 업로드 — scheduled 상태 포함, 보호자가 즉시 확인 가능하도록
+        if (todayEvents.length > 0) {
           uploadTodaySnapshot(currentUserId(), todayEvents).catch(() => {});
         }
       }

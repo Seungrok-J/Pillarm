@@ -22,10 +22,12 @@ import {
   getMedicationById,
   getScheduleById,
   deleteFutureDoseEvents,
+  getDoseEventsByDate,
 } from '../../db';
 import { scheduleForSchedule } from '../../notifications';
 import { useSettingsStore } from '../../store';
 import { useAuthStore } from '../../store/authStore';
+import { isSyncEnabled, pushMedication, pushSchedule, uploadTodaySnapshot } from '../../sync/syncService';
 import ColorPalette from '../../components/ColorPalette';
 import TimePickerList from '../../components/TimePickerList';
 import MedicationSearchInput from '../../features/medicationDB/MedicationSearchInput';
@@ -341,7 +343,18 @@ export default function ScheduleFormScreen() {
       // Step 4+5 — 알림 취소 → DoseEvent 생성 → 알림 재등록
       await scheduleForSchedule(sched, med, settings);
 
-      // Step 6 — 홈으로 이동
+      // Step 6 — 서버 동기화 및 보호자 스냅샷 업로드
+      const uid = useAuthStore.getState().userId ?? 'local';
+      if (isSyncEnabled()) {
+        pushMedication(med).catch(() => {});
+        pushSchedule(sched).catch(() => {});
+        const todayEvents = await getDoseEventsByDate(todayString(), uid);
+        if (todayEvents.length > 0) {
+          uploadTodaySnapshot(uid, todayEvents).catch(() => {});
+        }
+      }
+
+      // Step 7 — 홈으로 이동
       navigation.navigate('Main' as never);
     } catch {
       setErrors({ _form: '저장 중 오류가 발생했습니다' });

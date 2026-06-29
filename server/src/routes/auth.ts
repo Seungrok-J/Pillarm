@@ -260,46 +260,14 @@ router.delete('/me', requireAuth, async (req, res, next) => {
   }
 });
 
-// ── POST /auth/reset-password ─────────────────────────────────────────────────
+// ── POST /auth/reset-password — 비활성화 (소셜 로그인 전용) ─────────────────────
+// 이메일+이름만으로 비밀번호를 재설정하면 계정 탈취가 가능하므로 비활성화.
+// 이메일 전송 인프라 도입 후 OTP 기반으로 재구현 예정.
 
-const resetPasswordSchema = z.object({
-  email:       z.string().email(),
-  name:        z.string().trim().min(1),
-  newPassword: z.string().min(8, '비밀번호는 8자 이상이어야 합니다'),
-});
-
-router.post('/reset-password', async (req, res, next) => {
-  try {
-    const parsed = resetPasswordSchema.safeParse(req.body);
-    if (!parsed.success) throw new AppError(parsed.error.errors[0]?.message ?? 'Invalid input', 400);
-
-    const { email, name, newPassword } = parsed.data;
-
-    const user = await prisma.user.findUnique({ where: { email } });
-    // 이메일·이름 불일치 시 동일한 오류 반환 (계정 존재 여부 노출 방지)
-    if (!user || user.name?.trim().toLowerCase() !== name.trim().toLowerCase()) {
-      throw new AppError('이름 또는 이메일이 일치하지 않습니다', 404);
-    }
-
-    // 소셜 전용 계정은 비밀번호 없음 → 재설정 불가
-    if (user.provider && !user.passwordHash) {
-      const pName = PROVIDER_NAMES[user.provider] ?? user.provider;
-      throw new AppError(
-        `이 이메일은 ${pName} 계정으로 가입되어 있습니다. 비밀번호 재설정이 불가합니다.`,
-        400,
-      );
-    }
-
-    const passwordHash = await bcrypt.hash(newPassword, 10);
-    await prisma.user.update({ where: { id: user.id }, data: { passwordHash } });
-
-    // 기존 리프레시 토큰 전체 무효화 (보안)
-    await prisma.refreshToken.deleteMany({ where: { userId: user.id } });
-
-    res.json({ message: '비밀번호가 변경되었습니다. 다시 로그인해주세요.' });
-  } catch (err) {
-    next(err);
-  }
+router.post('/reset-password', async (_req, res) => {
+  res.status(410).json({
+    error: '비밀번호 재설정은 현재 지원하지 않습니다. Apple·Google·카카오 소셜 로그인을 이용해주세요.',
+  });
 });
 
 export default router;

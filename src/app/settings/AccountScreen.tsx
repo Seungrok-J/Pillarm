@@ -19,9 +19,9 @@ import {
 } from '../../features/socialAuth/socialAuthApi';
 import {
   isAppleAuthAvailable,
-  signInWithApple,
-  signInWithGoogle,
-  signInWithKakao,
+  getAppleCredentials,
+  getGoogleIdToken,
+  getKakaoAccessToken,
 } from '../../features/socialAuth';
 
 function formatDate(iso: string): string {
@@ -139,21 +139,18 @@ export default function AccountScreen() {
   async function handleLink(provider: string) {
     setLinkingProvider(provider);
     try {
-      let result: { idToken?: string; accessToken?: string; name?: string } | null = null;
+      let payload: { idToken?: string; accessToken?: string; name?: string } | null = null;
 
       if (provider === 'apple') {
-        const r = await signInWithApple();
-        result = { idToken: (r as any).idToken, name: (r as any).name };
+        payload = await getAppleCredentials();
       } else if (provider === 'google') {
-        const r = await signInWithGoogle();
-        result = { idToken: (r as any).idToken };
+        payload = await getGoogleIdToken();
       } else if (provider === 'kakao') {
-        const r = await signInWithKakao();
-        result = { accessToken: (r as any).accessToken };
+        payload = await getKakaoAccessToken();
       }
 
-      if (!result) return;
-      await linkSocialAccount({ provider: provider as any, ...result });
+      if (!payload) return;
+      await linkSocialAccount({ provider: provider as any, ...payload });
       Alert.alert('연결 완료', `${PROVIDER_META[provider]?.label ?? provider} 계정이 연결되었습니다.`);
       await loadConnections();
     } catch (err: unknown) {

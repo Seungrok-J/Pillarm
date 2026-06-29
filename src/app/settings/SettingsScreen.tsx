@@ -22,6 +22,7 @@ import type { RootStackParamList } from '../../navigation';
 import { useSettingsStore } from '../../store';
 import { useAuthStore } from '../../store/authStore';
 import { rescheduleAllSchedules } from '../../notifications';
+import { seedDemoData } from '../../utils/seedDemoData';
 import type { UserSettings } from '../../domain';
 
 type Nav = StackNavigationProp<RootStackParamList>;
@@ -164,7 +165,7 @@ function TimeInput({ value, onSave, testID }: TimeInputProps) {
 export default function SettingsScreen() {
   const navigation = useNavigation<Nav>();
   const { settings, loadSettings, updateSettings } = useSettingsStore();
-  const { isLoggedIn, userEmail, userName, clearSession, isAdmin } = useAuthStore();
+  const { isLoggedIn, userEmail, userName, clearSession, isAdmin, saveSession, accessToken, refreshToken, userId } = useAuthStore();
   const [refreshing, setRefreshing]     = useState(false);
   const [showQuietInfo, setShowQuietInfo] = useState(false);
   const [showFAQ, setShowFAQ]           = useState(false);
@@ -495,6 +496,63 @@ export default function SettingsScreen() {
                 accessibilityRole="button"
               >
                 <Text style={[styles.label, { color: '#dc2626' }]}>관리자 패널</Text>
+                <Text style={styles.chevron}>›</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
+
+        {/* ── 개발자 도구 (seungrokjeong@gmail.com 전용) ──────────── */}
+        {isLoggedIn && userEmail === 'seungrokjeong@gmail.com' && (
+          <>
+            <Text style={styles.sectionTitle}>개발자 도구</Text>
+            <View style={styles.section}>
+              <TouchableOpacity
+                style={styles.row}
+                onPress={async () => {
+                  if (!userId) return;
+                  Alert.alert('시연 데이터 추가', '약 5종과 7일치 복용 기록을 추가합니다. 계속할까요?', [
+                    { text: '취소', style: 'cancel' },
+                    {
+                      text: '추가',
+                      onPress: async () => {
+                        try {
+                          await seedDemoData(userId);
+                          Alert.alert('완료', '시연 데이터가 추가되었습니다.\n홈으로 이동해서 확인해 주세요.');
+                        } catch {
+                          Alert.alert('오류', '데이터 추가에 실패했습니다.');
+                        }
+                      },
+                    },
+                  ]);
+                }}
+              >
+                <Text style={styles.label}>앱스토어 스크린샷 데이터 추가</Text>
+                <Text style={styles.chevron}>›</Text>
+              </TouchableOpacity>
+              <View style={styles.divider} />
+              <TouchableOpacity
+                style={styles.row}
+                onPress={() => {
+                  if (!accessToken || !refreshToken || !userId) return;
+                  Alert.alert(
+                    isAdmin ? '관리자 모드 해제' : '관리자 모드 활성화',
+                    isAdmin
+                      ? '관리자 권한을 로컬에서 해제합니다. (서버 설정 무관)'
+                      : '관리자 UI를 로컬에서 활성화합니다.\n실제 API 호출은 서버 권한이 필요합니다.',
+                    [
+                      { text: '취소', style: 'cancel' },
+                      {
+                        text: '확인',
+                        onPress: () => saveSession({ accessToken, refreshToken, userId, userEmail: userEmail ?? null, userName, isAdmin: !isAdmin }),
+                      },
+                    ],
+                  );
+                }}
+              >
+                <Text style={styles.label}>
+                  {isAdmin ? '관리자 모드 해제' : '관리자 모드 활성화 (로컬)'}
+                </Text>
                 <Text style={styles.chevron}>›</Text>
               </TouchableOpacity>
             </View>
