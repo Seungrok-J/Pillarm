@@ -208,12 +208,11 @@ router.delete('/:id/leave', async (req, res, next) => {
       throw new AppError('그룹 소유자는 나갈 수 없습니다. 그룹 해제를 이용해주세요.', 400);
     }
 
-    const member = await prisma.careMember.findUnique({
-      where: { careCircleId_memberUserId: { careCircleId: id, memberUserId: userId } },
+    const { count } = await prisma.careMember.deleteMany({
+      where: { careCircleId: id, memberUserId: userId },
     });
-    if (!member) throw new AppError('Not a member', 404);
+    if (count === 0) throw new AppError('Not a member', 404);
 
-    await prisma.careMember.delete({ where: { id: member.id } });
     res.status(204).send();
   } catch (err) {
     next(err);

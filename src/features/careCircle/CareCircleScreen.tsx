@@ -393,8 +393,16 @@ export default function CareCircleScreen() {
             try {
               await leaveCircle(circle.id);
               await loadCircles();
-            } catch {
-              Alert.alert('오류', '그룹 나가기에 실패했습니다');
+            } catch (err: unknown) {
+              console.error('[CareCircle] 그룹 나가기 실패:', err);
+              const status = (err as { response?: { status?: number } })?.response?.status;
+              if (status === 404) {
+                // 이미 그룹에서 제거된 상태 — 목록만 갱신
+                await loadCircles();
+              } else {
+                const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+                Alert.alert('오류', msg ?? '그룹 나가기에 실패했습니다');
+              }
             }
           },
         },
