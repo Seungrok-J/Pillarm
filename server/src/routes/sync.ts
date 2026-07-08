@@ -65,6 +65,33 @@ router.post('/push', async (req, res, next) => {
       doseEvents?:  Record<string, unknown>[];
     };
 
+    // 소유권 검증 — 다른 사용자 소유의 id 로 upsert 하면 해당 레코드를
+    // 덮어쓰면서 userId 까지 탈취할 수 있으므로(IDOR) 사전에 차단한다.
+    const idsOf = (rows: Record<string, unknown>[]) =>
+      rows.map((r) => r['id']).filter((v): v is string => typeof v === 'string');
+
+    const [foreignMed, foreignSched, foreignEvt] = await Promise.all([
+      medications.length
+        ? prisma.medication.findFirst({
+            where: { id: { in: idsOf(medications) }, userId: { not: userId } },
+            select: { id: true },
+          })
+        : null,
+      schedules.length
+        ? prisma.schedule.findFirst({
+            where: { id: { in: idsOf(schedules) }, userId: { not: userId } },
+            select: { id: true },
+          })
+        : null,
+      doseEvents.length
+        ? prisma.doseEvent.findFirst({
+            where: { id: { in: idsOf(doseEvents) }, userId: { not: userId } },
+            select: { id: true },
+          })
+        : null,
+    ]);
+    if (foreignMed || foreignSched || foreignEvt) throw new AppError('Forbidden', 403);
+
     await Promise.all([
       ...medications.map((m) => {
         const { id, ...data } = m as any;

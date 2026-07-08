@@ -20,16 +20,22 @@ jest.mock('../src/lib/prisma', () => ({
   __esModule: true,
   default: {
     medication: {
-      findMany: jest.fn(),
-      upsert:   jest.fn(),
+      findMany:   jest.fn(),
+      findFirst:  jest.fn(),
+      findUnique: jest.fn(),
+      upsert:     jest.fn(),
     },
     schedule: {
-      findMany: jest.fn(),
-      upsert:   jest.fn(),
+      findMany:   jest.fn(),
+      findFirst:  jest.fn(),
+      findUnique: jest.fn(),
+      upsert:     jest.fn(),
     },
     doseEvent: {
-      findMany: jest.fn(),
-      upsert:   jest.fn(),
+      findMany:   jest.fn(),
+      findFirst:  jest.fn(),
+      findUnique: jest.fn(),
+      upsert:     jest.fn(),
     },
   },
 }));
@@ -63,7 +69,17 @@ const EVT = {
   createdAt: '2026-04-23T00:00:00Z', updatedAt: '2026-04-23T08:05:00Z',
 };
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  // 소유권 검증 기본값 — 다른 사용자 소유 레코드 없음
+  m.medication.findFirst.mockResolvedValue(null);
+  m.schedule.findFirst.mockResolvedValue(null);
+  m.doseEvent.findFirst.mockResolvedValue(null);
+  // PUT 라우트 소유권 검증 기본값 — 기존 레코드 없음(신규 생성 경로)
+  m.medication.findUnique.mockResolvedValue(null);
+  m.schedule.findUnique.mockResolvedValue(null);
+  m.doseEvent.findUnique.mockResolvedValue(null);
+});
 
 // ── AC6 — 인증 없으면 401 ─────────────────────────────────────────────────────
 
@@ -159,6 +175,45 @@ describe('POST /sync/push', () => {
     expect(res.status).toBe(200);
     expect(res.body.synced).toEqual({ medications: 0, schedules: 0, doseEvents: 0 });
     expect(m.medication.upsert).not.toHaveBeenCalled();
+  });
+
+  it('다른 사용자 소유의 medication id 가 섞여 있으면 403, upsert 하지 않는다', async () => {
+    m.medication.findFirst.mockResolvedValue({ id: 'med-1' }); // 타인 소유 레코드 발견
+
+    const res = await request(app)
+      .post('/sync/push')
+      .set('Authorization', bearer())
+      .send({ medications: [MED] });
+
+    expect(res.status).toBe(403);
+    expect(m.medication.upsert).not.toHaveBeenCalled();
+  });
+
+  it('다른 사용자 소유의 doseEvent id 가 섞여 있으면 403', async () => {
+    m.doseEvent.findFirst.mockResolvedValue({ id: 'evt-1' });
+
+    const res = await request(app)
+      .post('/sync/push')
+      .set('Authorization', bearer())
+      .send({ doseEvents: [EVT] });
+
+    expect(res.status).toBe(403);
+    expect(m.doseEvent.upsert).not.toHaveBeenCalled();
+  });
+
+  it('소유권 검증은 userId not 조건으로 조회한다', async () => {
+    m.medication.upsert.mockResolvedValue(MED);
+
+    await request(app)
+      .post('/sync/push')
+      .set('Authorization', bearer())
+      .send({ medications: [MED] });
+
+    expect(m.medication.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: { in: ['med-1'] }, userId: { not: USER.userId } },
+      }),
+    );
   });
 
   it('medications, schedules, doseEvents 각각 userId가 주입된다', async () => {
