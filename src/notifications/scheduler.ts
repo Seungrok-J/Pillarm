@@ -18,11 +18,22 @@ function currentUserId() {
   return useAuthStore.getState().userId ?? 'local';
 }
 
+// iOS 는 앱당 예약 로컬 알림을 64개까지만 유지하고 초과분을 조용히 버린다.
+// 스누즈 재등록 여유분을 남기고, 가까운 시각 순으로 이 예산 안에서만 등록한다.
+// 예산에서 밀려난 미래 이벤트는 앱 복귀 시 topUpNotifications 로 보충된다.
+const MAX_SCHEDULED_NOTIFICATIONS = 60;
+
+interface NotificationCandidate {
+  content: Notifications.NotificationContentInput;
+  triggerAt: Date;
+}
+
 // ── 스케줄링 ──────────────────────────────────────────────────────────────
 
 /**
- * 스케줄에 해당하는 알림과 DoseEvent 를 오늘~30일치 등록합니다.
- * 기존 등록된 알림은 먼저 모두 취소합니다.
+ * 스케줄에 해당하는 DoseEvent 를 오늘~30일치 생성하고,
+ * 알림은 전역 예산(MAX_SCHEDULED_NOTIFICATIONS) 안에서 가까운 시각 순으로 등록합니다.
+ * 기존 등록된 이 스케줄의 알림은 먼저 모두 취소합니다.
  */
 export async function scheduleForSchedule(
   schedule: Schedule,
@@ -42,6 +53,7 @@ export async function scheduleForSchedule(
     : thirtyDaysLater;
 
   const db = await getDatabase();
+  const candidates: NotificationCandidate[] = [];
 
   for (let d = new Date(todayMidnight); d <= limitDate; d = addMinutes(d, 24 * 60)) {
     if (schedule.daysOfWeek && !schedule.daysOfWeek.includes(d.getDay())) continue;
@@ -55,19 +67,19 @@ export async function scheduleForSchedule(
       // 이미 지난 시간은 등록하지 않습니다.
       if (plannedAt <= now) continue;
 
-      // 동일한 일정·시각에 이미 이벤트가 존재하면(taken/skipped 등) 중복 생성하지 않습니다.
       const plannedAtStr = toLocalISOString(plannedAt);
-      const existing = await db.getFirstAsync<{ id: string }>(
-        'SELECT id FROM dose_events WHERE schedule_id = ? AND planned_at = ?',
+      const existing = await db.getFirstAsync<{ id: string; status: string }>(
+        'SELECT id, status FROM dose_events WHERE schedule_id = ? AND planned_at = ?',
         schedule.id,
         plannedAtStr,
       );
-      if (existing) continue;
+      // 이미 taken/skipped 등으로 처리된 이벤트는 알림도 만들지 않습니다.
+      if (existing && existing.status !== 'scheduled') continue;
 
+      const doseEventId = existing?.id ?? generateId();
       const triggerAt = adjustForQuietHours(plannedAt, settings);
-      const doseEventId = generateId();
 
-      await Notifications.scheduleNotificationAsync({
+      candidates.push({
         content: {
           title: `${medication.name} 복용 시간이에요 💊`,
           body: withFoodBody(schedule.withFood),
@@ -76,28 +88,152 @@ export async function scheduleForSchedule(
             medicationId: medication.id,
             doseEventId,
             userId: currentUserId(),
+            triggerAt: triggerAt.getTime(),
           },
         },
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.DATE,
-          date: triggerAt,
-        },
+        triggerAt,
       });
 
-      await insertDoseEvent({
-        id: doseEventId,
-        scheduleId: schedule.id,
-        medicationId: medication.id,
-        plannedAt: toLocalISOString(plannedAt),
-        status: 'scheduled',
-        snoozeCount: 0,
-        source: 'notification',
-        packetId: schedule.packetId,
-        packetName: schedule.packetName,
-        createdAt: now.toISOString(),
-        updatedAt: now.toISOString(),
-      }, currentUserId());
+      if (!existing) {
+        await insertDoseEvent({
+          id: doseEventId,
+          scheduleId: schedule.id,
+          medicationId: medication.id,
+          plannedAt: plannedAtStr,
+          status: 'scheduled',
+          snoozeCount: 0,
+          source: 'notification',
+          packetId: schedule.packetId,
+          packetName: schedule.packetName,
+          createdAt: now.toISOString(),
+          updatedAt: now.toISOString(),
+        }, currentUserId());
+      }
     }
+  }
+
+  await registerWithinBudget(candidates);
+}
+
+/**
+ * 전역 알림 예산을 유지하면서 후보 알림을 등록합니다.
+ * 기존 예약 알림과 후보를 시각 순으로 합쳐 가까운 60개만 남기고,
+ * 예산에서 밀려난 기존 알림은 취소합니다(가까운 시각 우선 불변식 유지).
+ */
+async function registerWithinBudget(candidates: NotificationCandidate[]): Promise<void> {
+  if (!candidates.length) return;
+  const existing = await Notifications.getAllScheduledNotificationsAsync();
+
+  type Entry = {
+    triggerAt: number;
+    identifier?: string;
+    candidate?: NotificationCandidate;
+  };
+
+  const entries: Entry[] = [
+    ...existing.map((n) => {
+      const data = n.content.data as Record<string, unknown> | undefined;
+      const trigger = n.trigger as unknown as Record<string, unknown> | null;
+      // 구버전 알림에는 data.triggerAt 이 없을 수 있다 — trigger 정보로 폴백,
+      // 그래도 없으면 0(가장 가까운 것) 취급해 취소 대상이 되지 않게 한다.
+      const triggerAt =
+        Number(data?.['triggerAt'] ?? trigger?.['value'] ?? Date.parse(String(trigger?.['date'] ?? '')) ?? 0) || 0;
+      return { identifier: n.identifier, triggerAt };
+    }),
+    ...candidates.map((c) => ({ candidate: c, triggerAt: c.triggerAt.getTime() })),
+  ];
+  entries.sort((a, b) => a.triggerAt - b.triggerAt);
+
+  const keep = entries.slice(0, MAX_SCHEDULED_NOTIFICATIONS);
+  const drop = entries.slice(MAX_SCHEDULED_NOTIFICATIONS);
+
+  await Promise.all(
+    drop
+      .filter((e) => e.identifier)
+      .map((e) => Notifications.cancelScheduledNotificationAsync(e.identifier!)),
+  );
+
+  for (const e of keep) {
+    if (!e.candidate) continue;
+    await Notifications.scheduleNotificationAsync({
+      content: e.candidate.content,
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: e.candidate.triggerAt,
+      },
+    });
+  }
+}
+
+/**
+ * 알림 예산에 여유가 생겼을 때(알림 발화·시간 경과), 알림이 등록되지 않은
+ * 미래의 scheduled 이벤트를 가까운 시각 순으로 보충 등록합니다.
+ * App 이 active 로 전환될 때 checkAndMarkMissed 이후에 호출합니다.
+ */
+export async function topUpNotifications(settings: UserSettings): Promise<void> {
+  if (Platform.OS === 'web') return;
+
+  const all = await Notifications.getAllScheduledNotificationsAsync();
+  let budget = MAX_SCHEDULED_NOTIFICATIONS - all.length;
+  if (budget <= 0) return;
+
+  const registered = new Set(
+    all.map((n) => (n.content.data as Record<string, unknown>)?.['doseEventId']),
+  );
+
+  const db = await getDatabase();
+  const userId = currentUserId();
+  const rows = await db.getAllAsync<{
+    id: string;
+    schedule_id: string;
+    medication_id: string;
+    planned_at: string;
+  }>(
+    `SELECT id, schedule_id, medication_id, planned_at FROM dose_events
+      WHERE user_id = ? AND status = 'scheduled' AND planned_at > ?
+      ORDER BY planned_at ASC LIMIT ?`,
+    userId,
+    toLocalISOString(new Date()),
+    MAX_SCHEDULED_NOTIFICATIONS,
+  );
+  if (!rows.length) return;
+
+  const schedules = await getAllSchedules(userId);
+  const scheduleMap = new Map(schedules.map((s) => [s.id, s]));
+  const medCache = new Map<string, Medication | null>();
+
+  for (const row of rows) {
+    if (budget <= 0) break;
+    if (registered.has(row.id)) continue;
+
+    const schedule = scheduleMap.get(row.schedule_id);
+    if (!schedule) continue;
+
+    if (!medCache.has(row.medication_id)) {
+      medCache.set(row.medication_id, await getMedicationById(row.medication_id));
+    }
+    const med = medCache.get(row.medication_id);
+    if (!med) continue;
+
+    const triggerAt = adjustForQuietHours(new Date(row.planned_at), settings);
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: `${med.name} 복용 시간이에요 💊`,
+        body: withFoodBody(schedule.withFood),
+        data: {
+          scheduleId: schedule.id,
+          medicationId: med.id,
+          doseEventId: row.id,
+          userId,
+          triggerAt: triggerAt.getTime(),
+        },
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: triggerAt,
+      },
+    });
+    budget--;
   }
 }
 
@@ -155,10 +291,22 @@ export async function rescheduleSnooze(
 
   const snoozeAt = addMinutes(new Date(basePlannedAt), snoozeMinutes);
 
+  const content: Notifications.NotificationContentInput = existing
+    ? {
+        ...(existing.content as unknown as Notifications.NotificationContentInput),
+        data: {
+          ...(existing.content.data as Record<string, unknown>),
+          triggerAt: snoozeAt.getTime(),
+        },
+      }
+    : {
+        title: '약 복용 시간이에요 💊',
+        body: '복용할 시간입니다',
+        data: { doseEventId, triggerAt: snoozeAt.getTime() },
+      };
+
   await Notifications.scheduleNotificationAsync({
-    content: existing
-      ? (existing.content as unknown as Notifications.NotificationContentInput)
-      : { title: '약 복용 시간이에요 💊', body: '복용할 시간입니다', data: { doseEventId } },
+    content,
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.DATE,
       date: snoozeAt,

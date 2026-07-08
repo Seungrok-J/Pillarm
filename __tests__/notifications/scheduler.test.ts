@@ -255,6 +255,40 @@ describe('scheduleForSchedule', () => {
     );
     expect(mockSchedule.mock.calls[0]?.[0].content.body).toBe('식후에 복용하세요');
   });
+
+  it('알림은 전역 예산(60개) 안에서만 등록한다 — iOS 64개 한도 대응', async () => {
+    // 하루 3회 × 30일 = 90개 후보 → 60개만 등록되어야 함
+    await scheduleForSchedule(
+      makeSchedule({ times: ['08:00', '12:00', '19:00'] }),
+      MEDICATION,
+      SETTINGS,
+    );
+
+    expect(mockSchedule).toHaveBeenCalledTimes(60);
+    // DoseEvent 는 예산과 무관하게 전체 기간 생성 (하루 3회 × 30일 이상)
+    expect(mockInsertDoseEvent.mock.calls.length).toBeGreaterThan(60);
+  });
+
+  it('예산이 가득 차면 더 먼 시각의 기존 알림을 취소하고 가까운 후보를 등록한다', async () => {
+    // 기존 알림 60개가 모두 먼 미래(triggerAt 큰 값)를 차지한 상태
+    const farFuture = new Date(2026, 4, 20, 10, 0, 0).getTime(); // 약 한 달 뒤
+    mockGetAll.mockResolvedValue(
+      Array.from({ length: 60 }, (_, i) =>
+        fakeNotif(`far-${i}`, { scheduleId: 'other-sched', triggerAt: farFuture + i * 60_000 }),
+      ),
+    );
+
+    // 오늘 10:00 하루짜리 스케줄 → 기존 것보다 가까우므로 등록되어야 함
+    await scheduleForSchedule(
+      makeSchedule({ times: ['10:00'], endDate: '2026-04-22' }),
+      MEDICATION,
+      SETTINGS,
+    );
+
+    expect(mockSchedule).toHaveBeenCalledTimes(1);
+    // 가장 먼 기존 알림 1개가 취소되어 예산이 유지된다
+    expect(mockCancel).toHaveBeenCalledWith('far-59');
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════

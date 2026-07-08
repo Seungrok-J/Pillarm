@@ -8,7 +8,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { initializeKakaoSDK } from '@react-native-kakao/core';
 import { configureGoogle } from './src/features/socialAuth/googleAuth';
 import { getDatabase } from './src/db';
-import { checkAndMarkMissed } from './src/notifications';
+import { checkAndMarkMissed, topUpNotifications } from './src/notifications';
 import { useSettingsStore, useDoseEventStore } from './src/store';
 import { useNetworkStore } from './src/store/networkStore';
 import { retrySyncIfPending } from './src/sync/syncService';
@@ -79,6 +79,8 @@ export default function App() {
         if (settings) {
           await checkAndMarkMissed(settings);
           await useDoseEventStore.getState().fetchTodayEvents(todayString());
+          // 알림 예산(iOS 64개 한도)에 여유가 생기면 미래 이벤트 알림을 보충
+          topUpNotifications(settings).catch(() => {});
         }
       }
       appStateRef.current = next;
