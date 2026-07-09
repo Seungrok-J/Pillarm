@@ -181,10 +181,17 @@ describe('doseEvents DB', () => {
 
   describe('markOverdueEventsMissed', () => {
     it("status='scheduled' 이면서 planned_at < cutoff 인 이벤트를 missed 처리한다", async () => {
-      await markOverdueEventsMissed('2025-01-01T09:00:00.000Z');
+      await markOverdueEventsMissed('2025-01-01T09:00:00.000Z', 'user-1');
       const sql = db.runAsync.mock.calls[0][0] as string;
       expect(sql).toContain("status = 'missed'");
       expect(sql).toContain("status IN ('scheduled', 'late')");
+    });
+
+    it('해당 사용자의 이벤트만 대상으로 한다 (user 스코핑)', async () => {
+      await markOverdueEventsMissed('2025-01-01T09:00:00.000Z', 'user-1');
+      const sql = db.runAsync.mock.calls[0][0] as string;
+      expect(sql).toContain('user_id = ?');
+      expect(db.runAsync.mock.calls[0]).toContain('user-1');
     });
   });
 

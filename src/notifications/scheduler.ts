@@ -345,8 +345,10 @@ export async function checkAndMarkMissed(settings: UserSettings): Promise<void> 
   const cutoff = toLocalISOString(
     new Date(Date.now() - settings.missedToLateMinutes * 60_000),
   );
-  await markOverdueEventsMissed(cutoff);
-  await markScheduledEventsLate(now);
+  // 계정 전환 시 다른 사용자의 이벤트까지 missed 처리되지 않도록 user 스코핑
+  const userId = currentUserId();
+  await markOverdueEventsMissed(cutoff, userId);
+  await markScheduledEventsLate(now, userId);
 }
 
 // ── 내부 헬퍼 ─────────────────────────────────────────────────────────────
