@@ -45,9 +45,12 @@
     "plugins": [
       "expo-sqlite",
       "expo-notifications",
-      ["expo-camera", {
-        "cameraPermission": "보호 그룹 초대 QR 코드를 스캔하기 위해 카메라 접근 권한이 필요합니다."
-      }],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "보호 그룹 초대 QR 코드를 스캔하기 위해 카메라 접근 권한이 필요합니다."
+        }
+      ],
       "expo-apple-authentication",
       [
         "@react-native-google-signin/google-signin",
@@ -74,16 +77,25 @@
         "expo-build-properties",
         {
           "android": {
-            "extraMavenRepos": ["https://devrepo.kakao.com/nexus/content/groups/public/"]
+            "extraMavenRepos": [
+              "https://devrepo.kakao.com/nexus/content/groups/public/"
+            ]
           },
           "ios": {
             "extraPods": [
-              { "name": "GoogleUtilities", "modular_headers": true },
-              { "name": "RecaptchaInterop", "modular_headers": true }
+              {
+                "name": "GoogleUtilities",
+                "modular_headers": true
+              },
+              {
+                "name": "RecaptchaInterop",
+                "modular_headers": true
+              }
             ]
           }
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "extra": {
       "eas": {

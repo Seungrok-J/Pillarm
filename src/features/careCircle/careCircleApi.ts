@@ -1,6 +1,6 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthStore } from '../../store/authStore';
+import { getAccessToken, getRefreshToken, setTokens } from '../../store/tokenStorage';
 
 // ── 설정 ──────────────────────────────────────────────────────────────────────
 // 우선순위: EXPO_PUBLIC_SERVER_URL(클라우드) > EXPO_PUBLIC_SERVER_IP(로컬 실기기) > 에뮬레이터
@@ -11,9 +11,6 @@ export const API_BASE_URL =
       ? `http://${process.env.EXPO_PUBLIC_SERVER_IP}:3000`
       : 'http://10.0.2.2:3000';
 
-const ACCESS_KEY  = '@pillarm/access_token';
-const REFRESH_KEY = '@pillarm/refresh_token';
-
 export const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10_000,
@@ -23,7 +20,7 @@ export const api = axios.create({
 // ── Request interceptor: Bearer 토큰 자동 주입 ────────────────────────────────
 
 api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
-  const token = await AsyncStorage.getItem(ACCESS_KEY);
+  const token = await getAccessToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
@@ -63,7 +60,7 @@ api.interceptors.response.use(
 
     isRefreshing = true;
     try {
-      const refreshToken = await AsyncStorage.getItem(REFRESH_KEY);
+      const refreshToken = await getRefreshToken();
       if (!refreshToken) throw new Error('no_refresh');
 
       const res = await axios.post<{ accessToken: string; refreshToken: string }>(
@@ -72,8 +69,7 @@ api.interceptors.response.use(
       );
       const { accessToken, refreshToken: newRefresh } = res.data;
 
-      await AsyncStorage.setItem(ACCESS_KEY,  accessToken);
-      await AsyncStorage.setItem(REFRESH_KEY, newRefresh);
+      await setTokens(accessToken, newRefresh);
 
       flushQueue(null, accessToken);
       original.headers.Authorization = `Bearer ${accessToken}`;

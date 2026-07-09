@@ -2,10 +2,10 @@ import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import { getAccessToken, getRefreshToken, setTokens, clearTokens } from './tokenStorage';
 
+// 토큰은 tokenStorage(SecureStore)에 저장하고, 민감하지 않은 프로필 정보만 AsyncStorage 에 둔다.
 const K = {
-  ACCESS:   '@pillarm/access_token',
-  REFRESH:  '@pillarm/refresh_token',
   USER_ID:  '@pillarm/user_id',
   EMAIL:    '@pillarm/user_email',
   NAME:     '@pillarm/user_name',
@@ -40,8 +40,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   loadSession: async () => {
     try {
       const [access, refresh, userId, email, name, adminStr] = await Promise.all([
-        AsyncStorage.getItem(K.ACCESS),
-        AsyncStorage.getItem(K.REFRESH),
+        getAccessToken(),
+        getRefreshToken(),
         AsyncStorage.getItem(K.USER_ID),
         AsyncStorage.getItem(K.EMAIL),
         AsyncStorage.getItem(K.NAME),
@@ -64,8 +64,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       await Notifications.cancelAllScheduledNotificationsAsync();
     }
     await Promise.all([
-      AsyncStorage.setItem(K.ACCESS,   accessToken),
-      AsyncStorage.setItem(K.REFRESH,  refreshToken),
+      setTokens(accessToken, refreshToken),
       AsyncStorage.setItem(K.USER_ID,  userId),
       userEmail != null
         ? AsyncStorage.setItem(K.EMAIL, userEmail)
@@ -85,8 +84,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       await Notifications.cancelAllScheduledNotificationsAsync();
     }
     await Promise.all([
-      AsyncStorage.removeItem(K.ACCESS),
-      AsyncStorage.removeItem(K.REFRESH),
+      clearTokens(),
       AsyncStorage.removeItem(K.USER_ID),
       AsyncStorage.removeItem(K.EMAIL),
       AsyncStorage.removeItem(K.NAME),
