@@ -62,16 +62,32 @@ export async function initialPush(userId: string): Promise<void> {
   }
 }
 
-export async function pushMedication(medication: Medication): Promise<void> {
-  await api.put(`/sync/medications/${medication.id}`, medication);
+/**
+ * 개별 push 실패 시 pending 마킹 — 재연결·앱 재시작 시 retrySyncIfPending 이
+ * initialPush(전체 재업로드, 서버 upsert 라 멱등)로 복구한다.
+ * 이것이 없으면 오프라인 중 기록한 복용 이벤트가 재로그인 전까지 서버에 반영되지 않는다.
+ */
+async function pushOrMarkPending(request: () => Promise<unknown>): Promise<void> {
+  try {
+    await request();
+  } catch (err) {
+    await useNetworkStore.getState().markPendingSync().catch(() => {});
+    throw err;
+  }
 }
 
-export async function pushSchedule(schedule: Schedule): Promise<void> {
-  await api.put(`/sync/schedules/${schedule.id}`, schedule);
+export function pushMedication(medication: Medication): Promise<void> {
+  return pushOrMarkPending(() => api.put(`/sync/medications/${medication.id}`, medication));
 }
 
-export async function pushDoseEvent(event: DoseEvent): Promise<void> {
-  await api.put(`/sync/dose-events/${event.id}`, toDoseEventPayload(event));
+export function pushSchedule(schedule: Schedule): Promise<void> {
+  return pushOrMarkPending(() => api.put(`/sync/schedules/${schedule.id}`, schedule));
+}
+
+export function pushDoseEvent(event: DoseEvent): Promise<void> {
+  return pushOrMarkPending(() =>
+    api.put(`/sync/dose-events/${event.id}`, toDoseEventPayload(event)),
+  );
 }
 
 /**

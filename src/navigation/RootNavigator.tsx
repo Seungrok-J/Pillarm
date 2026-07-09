@@ -10,6 +10,8 @@ import { useAuthStore } from '../store/authStore';
 import { useThemeStore } from '../store/themeStore';
 import type { RootStackParamList } from './types';
 import { syncPushToken } from '../notifications/pushToken';
+import { useNetworkStore } from '../store/networkStore';
+import { retrySyncIfPending } from '../sync/syncService';
 
 const linking: LinkingOptions<RootStackParamList> = {
   prefixes: [ExpoLinking.createURL('/'), 'pillarm://'],
@@ -36,6 +38,10 @@ export default function RootNavigator() {
       // 이미 로그인된 경우 토큰 갱신 (기기 재시작·토큰 만료 대응)
       if (useAuthStore.getState().isLoggedIn) {
         syncPushToken().catch(() => {});
+        // 오프라인 중 동기화하지 못한 변경분이 있으면 서버로 재업로드
+        useNetworkStore.getState().loadPendingSync()
+          .then(() => retrySyncIfPending())
+          .catch(() => {});
       }
     });
   }, []);
