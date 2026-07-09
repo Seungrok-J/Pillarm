@@ -11,8 +11,8 @@ jest.mock('../src/lib/prisma', () => ({
   __esModule: true,
   default: {
     scanUsage: {
-      findUnique: jest.fn(),
       upsert: jest.fn(),
+      update: jest.fn(),
     },
   },
 }));
@@ -43,9 +43,8 @@ beforeEach(() => {
 });
 
 describe('POST /ai/scan-medication — 일일 호출 제한', () => {
-  it('오늘 사용량이 4회면 호출을 허용하고 5회로 증가시킨다', async () => {
-    m.scanUsage.findUnique.mockResolvedValue({ count: 4 });
-    m.scanUsage.upsert.mockResolvedValue({ count: 5 });
+  it('increment 선점 후 5회 이내면 호출을 허용한다', async () => {
+    m.scanUsage.upsert.mockResolvedValue({ count: 5 }); // 이번 요청으로 5회째
 
     const res = await request(app)
       .post('/ai/scan-medication')
@@ -54,6 +53,7 @@ describe('POST /ai/scan-medication — 일일 호출 제한', () => {
 
     expect(res.status).toBe(200);
     expect(mockCreate).toHaveBeenCalledTimes(1);
+    // 원자적 선점 — Claude 호출 전에 increment 가 먼저 일어난다
     expect(m.scanUsage.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         update: { count: { increment: 1 } },
@@ -62,8 +62,8 @@ describe('POST /ai/scan-medication — 일일 호출 제한', () => {
     );
   });
 
-  it('오늘 사용량이 5회면 429와 안내 메시지를 반환하고 Claude를 호출하지 않는다', async () => {
-    m.scanUsage.findUnique.mockResolvedValue({ count: 5 });
+  it('선점 결과가 한도를 초과하면 429를 반환하고 Claude를 호출하지 않는다', async () => {
+    m.scanUsage.upsert.mockResolvedValue({ count: 6 }); // 이미 5회 소진 후 6회째
 
     const res = await request(app)
       .post('/ai/scan-medication')
@@ -73,11 +73,9 @@ describe('POST /ai/scan-medication — 일일 호출 제한', () => {
     expect(res.status).toBe(429);
     expect(res.body.error).toContain('5회');
     expect(mockCreate).not.toHaveBeenCalled();
-    expect(m.scanUsage.upsert).not.toHaveBeenCalled();
   });
 
   it('오늘 첫 호출(레코드 없음)은 허용된다', async () => {
-    m.scanUsage.findUnique.mockResolvedValue(null);
     m.scanUsage.upsert.mockResolvedValue({ count: 1 });
 
     const res = await request(app)
@@ -87,6 +85,22 @@ describe('POST /ai/scan-medication — 일일 호출 제한', () => {
 
     expect(res.status).toBe(200);
     expect(mockCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it('AI 호출이 모두 실패하면 선점한 사용 횟수를 되돌린다', async () => {
+    m.scanUsage.upsert.mockResolvedValue({ count: 2 });
+    m.scanUsage.update.mockResolvedValue({ count: 1 });
+    mockCreate.mockRejectedValue(new Error('api down')); // 하이쿠·소넷 모두 실패
+
+    const res = await request(app)
+      .post('/ai/scan-medication')
+      .set('Authorization', bearer)
+      .send({ image: 'a'.repeat(200) });
+
+    expect(res.status).toBe(500);
+    expect(m.scanUsage.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { count: { decrement: 1 } } }),
+    );
   });
 
   it('인증 없이 요청하면 401', async () => {

@@ -70,44 +70,53 @@ router.post('/', async (req, res, next) => {
     const userId = req.user!.userId;
     const date = todayKST();
 
-    const usage = await prisma.scanUsage.findUnique({
+    const client = getClient(); // 503 은 사용 횟수 선점 전에 확인
+
+    // 사용 횟수를 원자적으로 선점 — 조회 후 검사·증가 방식은
+    // 동시 요청이 같은 count 를 읽어 일일 한도를 우회할 수 있다.
+    const usage = await prisma.scanUsage.upsert({
       where: { userId_date: { userId, date } },
+      update: { count: { increment: 1 } },
+      create: { userId, date, count: 1 },
     });
-    if (usage && usage.count >= DAILY_SCAN_LIMIT) {
+    if (usage.count > DAILY_SCAN_LIMIT) {
       throw new AppError(
         `오늘 약봉투 분석 횟수(${DAILY_SCAN_LIMIT}회)를 모두 사용했어요. 내일 다시 시도해주세요.`,
         429,
       );
     }
 
-    const client = getClient();
-
     let text: string;
     let confidence: 'high' | 'medium' = 'high';
 
     try {
-      const msg = await client.messages.create({
-        model: 'claude-haiku-4-5',
-        max_tokens: 1024,
-        messages: [{ role: 'user', content: imageContent(parsed.data.image) }],
-      });
-      text = msg.content[0]?.type === 'text' ? msg.content[0].text : '';
-    } catch {
-      // 하이쿠 실패 시 소넷으로 재시도 — 신뢰도를 medium으로 낮춤
-      confidence = 'medium';
-      const msg = await client.messages.create({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1024,
-        messages: [{ role: 'user', content: imageContent(parsed.data.image) }],
-      });
-      text = msg.content[0]?.type === 'text' ? msg.content[0].text : '';
+      try {
+        const msg = await client.messages.create({
+          model: 'claude-haiku-4-5',
+          max_tokens: 1024,
+          messages: [{ role: 'user', content: imageContent(parsed.data.image) }],
+        });
+        text = msg.content[0]?.type === 'text' ? msg.content[0].text : '';
+      } catch {
+        // 하이쿠 실패 시 소넷으로 재시도 — 신뢰도를 medium으로 낮춤
+        confidence = 'medium';
+        const msg = await client.messages.create({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 1024,
+          messages: [{ role: 'user', content: imageContent(parsed.data.image) }],
+        });
+        text = msg.content[0]?.type === 'text' ? msg.content[0].text : '';
+      }
+    } catch (err) {
+      // AI 호출 자체가 실패하면 선점했던 사용 횟수를 되돌린다
+      await prisma.scanUsage
+        .update({
+          where: { userId_date: { userId, date } },
+          data: { count: { decrement: 1 } },
+        })
+        .catch(() => {});
+      throw err;
     }
-
-    await prisma.scanUsage.upsert({
-      where: { userId_date: { userId, date } },
-      update: { count: { increment: 1 } },
-      create: { userId, date, count: 1 },
-    });
 
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new AppError('약봉투 정보를 인식하지 못했습니다', 422);
