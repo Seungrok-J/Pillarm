@@ -124,7 +124,8 @@ router.post('/login', async (req, res, next) => {
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) throw new AppError('이메일 또는 비밀번호가 올바르지 않습니다.', 401);
 
-    const payload = { userId: user.id, email: user.email ?? '' };
+    // isAdmin 을 포함해야 refresh 전에도 관리자 API 접근이 가능하다
+    const payload = { userId: user.id, email: user.email ?? '', isAdmin: user.isAdmin };
     const accessToken = signAccess(payload);
     const refreshToken = signRefresh(payload);
 
@@ -138,7 +139,7 @@ router.post('/login', async (req, res, next) => {
       await prisma.user.update({ where: { id: user.id }, data: { fcmToken } });
     }
 
-    res.json({ accessToken, refreshToken, userId: user.id, name: user.name });
+    res.json({ accessToken, refreshToken, userId: user.id, name: user.name, isAdmin: user.isAdmin });
   } catch (err) {
     next(err);
   }
@@ -245,14 +246,17 @@ router.delete('/me', requireAuth, async (req, res, next) => {
   try {
     const { userId } = req.user!;
 
-    // 다른 케어서클에서 이 사용자의 멤버십 삭제
-    await prisma.careMember.deleteMany({ where: { memberUserId: userId } });
-    // 다른 케어서클에서 이 사용자가 환자인 스냅샷 삭제
-    await prisma.doseEventSnapshot.deleteMany({ where: { patientId: userId } });
-    // 소유한 케어서클 삭제 (멤버·정책·초대코드·스냅샷 cascade)
-    await prisma.careCircle.deleteMany({ where: { ownerUserId: userId } });
-    // 유저 삭제 (리프레시토큰·약·일정·복용기록 cascade)
-    await prisma.user.delete({ where: { id: userId } });
+    // 트랜잭션으로 묶어 중간 실패 시 계정이 반쯤 지워진 상태로 남지 않게 한다
+    await prisma.$transaction([
+      // 다른 케어서클에서 이 사용자의 멤버십 삭제
+      prisma.careMember.deleteMany({ where: { memberUserId: userId } }),
+      // 다른 케어서클에서 이 사용자가 환자인 스냅샷 삭제
+      prisma.doseEventSnapshot.deleteMany({ where: { patientId: userId } }),
+      // 소유한 케어서클 삭제 (멤버·정책·초대코드·스냅샷 cascade)
+      prisma.careCircle.deleteMany({ where: { ownerUserId: userId } }),
+      // 유저 삭제 (리프레시토큰·약·일정·복용기록 cascade)
+      prisma.user.delete({ where: { id: userId } }),
+    ]);
 
     res.status(204).send();
   } catch (err) {

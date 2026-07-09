@@ -47,53 +47,17 @@ const BASE_RT = {
 
 beforeEach(() => jest.clearAllMocks());
 
-// ── POST /auth/signup ─────────────────────────────────────────────────────────
+// ── POST /auth/signup — 소셜 로그인 전용으로 비활성화됨 ──────────────────────
 
 describe('POST /auth/signup', () => {
-  it('creates user and returns tokens (201)', async () => {
-    m.user.findUnique.mockResolvedValue(null);
-    m.user.create.mockResolvedValue(BASE_USER);
-    m.refreshToken.create.mockResolvedValue({});
-
+  it('이메일 가입은 410과 소셜 로그인 안내를 반환한다', async () => {
     const res = await request(app)
       .post('/auth/signup')
       .send({ email: 'alice@example.com', password: 'password123' });
 
-    expect(res.status).toBe(201);
-    expect(res.body).toMatchObject({
-      accessToken: expect.any(String),
-      refreshToken: expect.any(String),
-      userId: 'user-1',
-    });
-    expect(m.user.create).toHaveBeenCalledTimes(1);
-    expect(m.refreshToken.create).toHaveBeenCalledTimes(1);
-  });
-
-  it('returns 409 when ready exists', async () => {
-    m.user.findUnique.mockResolvedValue(BASE_USER);
-
-    const res = await request(app)
-      .post('/auth/signup')
-      .send({ email: 'alice@example.com', password: 'password123' });
-
-    expect(res.status).toBe(409);
-    expect(res.body.error).toMatch(/already in use/i);
-  });
-
-  it('returns 400 for invalid email', async () => {
-    const res = await request(app)
-      .post('/auth/signup')
-      .send({ email: 'not-an-email', password: 'password123' });
-
-    expect(res.status).toBe(400);
-  });
-
-  it('returns 400 for password shorter than 8 chars', async () => {
-    const res = await request(app)
-      .post('/auth/signup')
-      .send({ email: 'alice@example.com', password: 'short' });
-
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(410);
+    expect(res.body.error).toContain('소셜 로그인');
+    expect(m.user.create).not.toHaveBeenCalled();
   });
 });
 
@@ -127,7 +91,7 @@ describe('POST /auth/login', () => {
       .send({ email: 'alice@example.com', password: 'wrongpass' });
 
     expect(res.status).toBe(401);
-    expect(res.body.error).toMatch(/invalid credentials/i);
+    expect(res.body.error).toContain('올바르지 않습니다');
   });
 
   it('returns 401 for unknown email', async () => {
