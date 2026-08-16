@@ -29,7 +29,7 @@ type Nav = StackNavigationProp<RootStackParamList>;
 
 const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0';
 const PRIVACY_URL = 'https://pillarm.app/privacy-policy.html';
-const CONTACT_EMAIL = 'seungrokjeong@gmail.com';
+const CONTACT_EMAIL = 'support@pillarm.app';
 const IOS_APP_ID = '6770390217';
 const ANDROID_PACKAGE = 'com.seungrokj.pillarm';
 
