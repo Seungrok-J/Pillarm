@@ -169,7 +169,11 @@
       "Bash(gh repo *)",
       "Bash(git fetch *)",
       "Bash(git branch *)",
-      "Bash(git reset *)"
+      "Bash(git reset *)",
+      "Bash(git diff *)",
+      "Bash(nslookup pillarm.app)",
+      "Bash(nslookup -type=CNAME pillarm.app)",
+      "Bash(git ls-remote *)"
     ]
   }
 }
