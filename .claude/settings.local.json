@@ -153,7 +153,23 @@
       "PowerShell(Test-Path *)",
       "PowerShell($env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; $env:PATH = \"$env:JAVA_HOME\\\\bin;$env:PATH\"; npx expo run:android 2>&1 | Select-String -Pattern \"FAILURE|error:|ERROR|exception|Exception|BUILD FAILED\" | Select-Object -Last 30)",
       "PowerShell(git rm *)",
-      "Bash(eas build:list --limit 5 --non-interactive)"
+      "Bash(eas build:list --limit 5 --non-interactive)",
+      "Bash(npx ts-node *)",
+      "Bash(git commit -m '빌드 번호 bump — iOS 22→23 *)",
+      "Bash(git commit -m '빌드 번호 bump — Android 15→16 *)",
+      "Bash(git commit *)",
+      "Read(//c/Users/정승록/OneDrive/문서/카카오톡 받은 파일/**)",
+      "Bash(python3 -c ' *)",
+      "Bash(python3 *)",
+      "PowerShell(python3 \"C:\\\\Users\\\\정승록\\\\OneDrive\\\\문서\\\\카카오톡 받은 파일\\\\resize_screenshots.py\")",
+      "PowerShell(Get-Command *)",
+      "PowerShell(& \"C:\\\\Users\\\\정승록\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python314\\\\python.exe\" \"C:\\\\Users\\\\정승록\\\\OneDrive\\\\문서\\\\카카오톡 받은 파일\\\\resize_screenshots.py\")",
+      "PowerShell(& \"C:\\\\Users\\\\정승록\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python310\\\\python.exe\" -c \"from PIL import Image; print\\('ok'\\)\")",
+      "PowerShell(& \"C:\\\\Users\\\\정승록\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python314\\\\python.exe\" -m pip install --quiet Pillow; & \"C:\\\\Users\\\\정승록\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python314\\\\python.exe\" -c \"from PIL import Image; print\\('ok'\\)\")",
+      "Bash(gh repo *)",
+      "Bash(git fetch *)",
+      "Bash(git branch *)",
+      "Bash(git reset *)"
     ]
   }
 }
