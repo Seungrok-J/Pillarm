@@ -14,7 +14,7 @@
     },
     "ios": {
       "bundleIdentifier": "com.seungrokj.pillarm",
-      "buildNumber": "24",
+      "buildNumber": "25",
       "supportsTablet": false,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
@@ -35,8 +35,7 @@
       "permissions": [
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.RECEIVE_BOOT_COMPLETED",
-        "android.permission.VIBRATE",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.VIBRATE"
       ]
     },
     "web": {
@@ -48,7 +47,9 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "보호 그룹 초대 QR 코드를 스캔하기 위해 카메라 접근 권한이 필요합니다."
+          "cameraPermission": "보호 그룹 초대 QR 코드를 스캔하기 위해 카메라 접근 권한이 필요합니다.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
         }
       ],
       "expo-apple-authentication",
@@ -69,7 +70,8 @@
         "expo-image-picker",
         {
           "photosPermission": "약 복용 사진을 첨부하기 위해 사진 접근 권한이 필요합니다.",
-          "cameraPermission": "약 복용 사진을 찍기 위해 카메라 접근 권한이 필요합니다."
+          "cameraPermission": "약 복용 사진을 찍기 위해 카메라 접근 권한이 필요합니다.",
+          "microphonePermission": false
         }
       ],
       "@react-native-community/datetimepicker",
