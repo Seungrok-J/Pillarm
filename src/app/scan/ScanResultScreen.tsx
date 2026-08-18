@@ -160,6 +160,20 @@ export default function ScanResultScreen() {
   const [packetNames, setPacketNames] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
+  // 요약 카드(원터치 확인) ↔ 상세 편집 폼 토글. 약 이름이 비어 있으면
+  // 바로 고쳐야 하니 처음부터 펼쳐서 보여준다.
+  const [expanded, setExpanded] = useState<Set<number>>(
+    () => new Set(params.results.flatMap((item, i) => (item.medicationName?.trim() ? [] : [i]))),
+  );
+
+  function toggleExpanded() {
+    setExpanded((prev) => {
+      const s = new Set(prev);
+      s.has(tabIndex) ? s.delete(tabIndex) : s.add(tabIndex);
+      return s;
+    });
+  }
+
   // 탭 목록이 화면 너비를 넘어갈 때 "더 있음" 힌트 표시 여부
   const [tabsScrollable, setTabsScrollable] = useState(false);
   const [tabsAtEnd, setTabsAtEnd] = useState(false);
@@ -347,7 +361,8 @@ export default function ScanResultScreen() {
 
   if (!currentItem) return null;
 
-  const isSkipped = skipped.has(tabIndex);
+  const isSkipped  = skipped.has(tabIndex);
+  const isExpanded = expanded.has(tabIndex);
 
   const mealTimes = settings
     ? [
@@ -414,6 +429,47 @@ export default function ScanResultScreen() {
 
       <ScrollView contentContainerStyle={styles.content}>
         <View style={[styles.fieldGroup, isSkipped && styles.dimmed]}>
+        {!isExpanded ? (
+          <TouchableOpacity style={styles.summaryCard} onPress={toggleExpanded} activeOpacity={0.7}>
+            <View style={styles.summaryTopRow}>
+              <Text style={styles.summaryName} numberOfLines={2}>
+                {currentItem.medicationName || `약 ${tabIndex + 1}`}
+              </Text>
+              <View style={styles.summaryEditBadge}>
+                <Ionicons name="pencil" size={12} color="#3b82f6" />
+                <Text style={styles.summaryEditText}>수정</Text>
+              </View>
+            </View>
+
+            {(currentItem.dosageValue != null || currentItem.dosageUnit) && (
+              <Text style={styles.summaryLine}>
+                💊 {currentItem.dosageValue ?? ''}{currentItem.dosageUnit ?? ''}
+              </Text>
+            )}
+
+            <Text style={styles.summaryLine}>
+              ⏰ {currentItem.suggestedTimes.length > 0
+                    ? currentItem.suggestedTimes.join('  ·  ')
+                    : '복용 시간 미설정'}
+            </Text>
+
+            <Text style={styles.summaryLine}>
+              📅 {currentItem.durationDays ? `${currentItem.durationDays}일분` : '상시 복용'}
+              {currentItem.withFood ? `  ·  ${WITH_FOOD_LABELS[currentItem.withFood]}` : ''}
+            </Text>
+
+            {currentItem.note ? (
+              <Text style={styles.summaryNote} numberOfLines={2}>{currentItem.note}</Text>
+            ) : null}
+
+            <Text style={styles.summaryHint}>AI가 인식한 정보예요. 다르면 눌러서 수정하세요.</Text>
+          </TouchableOpacity>
+        ) : (
+        <>
+          <TouchableOpacity style={styles.collapseLink} onPress={toggleExpanded}>
+            <Text style={styles.collapseLinkText}>간단히 보기</Text>
+            <Ionicons name="chevron-up" size={14} color="#3b82f6" />
+          </TouchableOpacity>
 
           {/* 약 이름 */}
           <FieldLabel label="약 이름 *" />
@@ -561,6 +617,8 @@ export default function ScanResultScreen() {
               <Text style={styles.noteText}>{currentItem.note}</Text>
             </>
           ) : null}
+        </>
+        )}
         </View>
 
         {/* 건너뛰기 토글 */}
@@ -675,6 +733,24 @@ const styles = StyleSheet.create({
   dimmed:     { opacity: 0.4 },
 
   fieldLabel: { fontSize: 13, fontWeight: '600', color: '#6b7280', marginTop: 12, marginBottom: 4 },
+
+  summaryCard:     { paddingVertical: 4 },
+  summaryTopRow:   { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10 },
+  summaryName:     { flex: 1, fontSize: 20, fontWeight: '700', color: '#111827', marginRight: 8 },
+  summaryEditBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: '#eff6ff', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 5,
+  },
+  summaryEditText: { fontSize: 12, fontWeight: '600', color: '#3b82f6' },
+  summaryLine:     { fontSize: 16, color: '#374151', marginBottom: 6, lineHeight: 22 },
+  summaryNote:     { fontSize: 13, color: '#9ca3af', marginTop: 2, marginBottom: 6, lineHeight: 18 },
+  summaryHint:     { fontSize: 12, color: '#9ca3af', marginTop: 6 },
+
+  collapseLink: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    alignSelf: 'flex-end', paddingVertical: 6, marginBottom: 4,
+  },
+  collapseLinkText: { fontSize: 13, fontWeight: '600', color: '#3b82f6' },
 
   input: {
     borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10,
