@@ -7,7 +7,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RouteProp } from '@react-navigation/native';
+import type { NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { Ionicons } from '@expo/vector-icons';
 import type { RootStackParamList } from '../../navigation';
 import type { MedicationScanResult } from '../../features/medicationScan/scanUtils';
 import { DOSAGE_UNITS } from '../../features/medicationScan/scanUtils';
@@ -157,6 +159,22 @@ export default function ScanResultScreen() {
   const [packetExcluded, setPacketExcluded] = useState<Record<string, Set<number>>>({});
   const [packetNames, setPacketNames] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+
+  // 탭 목록이 화면 너비를 넘어갈 때 "더 있음" 힌트 표시 여부
+  const [tabsScrollable, setTabsScrollable] = useState(false);
+  const [tabsAtEnd, setTabsAtEnd] = useState(false);
+  const tabContentWidthRef = useRef(0);
+  const tabContainerWidthRef = useRef(0);
+
+  function updateTabsScrollable() {
+    setTabsScrollable(tabContentWidthRef.current > tabContainerWidthRef.current + 1);
+  }
+
+  function handleTabsScroll(e: NativeSyntheticEvent<NativeScrollEvent>) {
+    const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+    const atEnd = contentOffset.x + layoutMeasurement.width >= contentSize.width - 4;
+    setTabsAtEnd(atEnd);
+  }
 
   // 각 약별 날짜 상태 (startDate, endDate)
   const today = todayString();
@@ -347,32 +365,51 @@ export default function ScanResultScreen() {
     <SafeAreaView style={styles.safeArea} edges={['bottom']}>
       {/* 탭 — 글자 잘림 없게 minWidth 기반 */}
       {items.length > 1 && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.tabScroll}
-          contentContainerStyle={styles.tabContent}
-        >
-          {items.map((item, i) => (
-            <TouchableOpacity
-              key={i}
-              style={[
-                styles.tab,
-                tabIndex === i && styles.tabActive,
-                skipped.has(i) && styles.tabSkipped,
-              ]}
-              onPress={() => setTabIndex(i)}
-            >
-              <Text
-                style={[styles.tabText, tabIndex === i && styles.tabTextActive]}
-                numberOfLines={1}
-                ellipsizeMode="tail"
+        <View style={styles.tabWrap}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.tabScroll}
+            contentContainerStyle={styles.tabContent}
+            onLayout={(e) => {
+              tabContainerWidthRef.current = e.nativeEvent.layout.width;
+              updateTabsScrollable();
+            }}
+            onContentSizeChange={(w) => {
+              tabContentWidthRef.current = w;
+              updateTabsScrollable();
+            }}
+            onScroll={handleTabsScroll}
+            scrollEventThrottle={32}
+          >
+            {items.map((item, i) => (
+              <TouchableOpacity
+                key={i}
+                style={[
+                  styles.tab,
+                  tabIndex === i && styles.tabActive,
+                  skipped.has(i) && styles.tabSkipped,
+                ]}
+                onPress={() => setTabIndex(i)}
               >
-                {skipped.has(i) ? '✕ ' : ''}{item.medicationName || `약 ${i + 1}`}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+                <Text
+                  style={[styles.tabText, tabIndex === i && styles.tabTextActive]}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {skipped.has(i) ? '✕ ' : ''}{item.medicationName || `약 ${i + 1}`}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          {/* 스크롤 가능함을 알리는 우측 힌트 — 끝까지 스크롤하면 사라짐 */}
+          {tabsScrollable && !tabsAtEnd && (
+            <View style={styles.tabScrollHint} pointerEvents="none">
+              <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+            </View>
+          )}
+        </View>
       )}
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -615,8 +652,14 @@ function FieldLabel({ label }: { label: string }) {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#f9fafb' },
 
-  tabScroll:      { backgroundColor: '#fff', maxHeight: 52, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  tabContent:     { paddingHorizontal: 12, paddingVertical: 8, gap: 8 },
+  tabWrap:        { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  tabScroll:      { maxHeight: 52 },
+  tabContent:     { paddingHorizontal: 12, paddingVertical: 8, paddingRight: 28, gap: 8 },
+  tabScrollHint: {
+    position: 'absolute', right: 0, top: 0, bottom: 0, width: 28,
+    alignItems: 'flex-end', justifyContent: 'center', paddingRight: 4,
+    backgroundColor: '#fff',
+  },
   tab:            { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: '#f3f4f6', minWidth: 60 },
   tabActive:      { backgroundColor: '#3b82f6' },
   tabSkipped:     { backgroundColor: '#e5e7eb', opacity: 0.6 },

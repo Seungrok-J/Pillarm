@@ -93,7 +93,7 @@ router.post('/', async (req, res, next) => {
       try {
         const msg = await client.messages.create({
           model: 'claude-haiku-4-5',
-          max_tokens: 1024,
+          max_tokens: 4096,
           messages: [{ role: 'user', content: imageContent(parsed.data.image) }],
         });
         text = msg.content[0]?.type === 'text' ? msg.content[0].text : '';
@@ -102,7 +102,7 @@ router.post('/', async (req, res, next) => {
         confidence = 'medium';
         const msg = await client.messages.create({
           model: 'claude-sonnet-4-6',
-          max_tokens: 1024,
+          max_tokens: 4096,
           messages: [{ role: 'user', content: imageContent(parsed.data.image) }],
         });
         text = msg.content[0]?.type === 'text' ? msg.content[0].text : '';
