@@ -79,7 +79,7 @@ router.post('/', async (req, res, next) => {
       update: { count: { increment: 1 } },
       create: { userId, date, count: 1 },
     });
-    if (usage.count > DAILY_SCAN_LIMIT) {
+    if (!req.user!.isAdmin && usage.count > DAILY_SCAN_LIMIT) {
       throw new AppError(
         `오늘 약봉투 분석 횟수(${DAILY_SCAN_LIMIT}회)를 모두 사용했어요. 내일 다시 시도해주세요.`,
         429,

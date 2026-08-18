@@ -110,4 +110,17 @@ describe('POST /ai/scan-medication — 일일 호출 제한', () => {
 
     expect(res.status).toBe(401);
   });
+
+  it('관리자는 한도를 초과해도 횟수 제한 없이 호출할 수 있다', async () => {
+    m.scanUsage.upsert.mockResolvedValue({ count: 99 });
+    const adminBearer = `Bearer ${signAccess({ ...USER, isAdmin: true })}`;
+
+    const res = await request(app)
+      .post('/ai/scan-medication')
+      .set('Authorization', adminBearer)
+      .send({ image: 'a'.repeat(200) });
+
+    expect(res.status).toBe(200);
+    expect(mockCreate).toHaveBeenCalledTimes(1);
+  });
 });

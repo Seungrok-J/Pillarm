@@ -427,15 +427,15 @@ export default function ScanResultScreen() {
 
           {/* 용량 */}
           <FieldLabel label="용량" />
-          <View style={styles.row}>
-            <TextInput
-              style={[styles.input, { flex: 1, marginRight: 8 }]}
-              value={currentItem.dosageValue != null ? String(currentItem.dosageValue) : ''}
-              onChangeText={(v) => updateField('dosageValue', v ? Number(v) : undefined)}
-              keyboardType="numeric"
-              placeholder="숫자"
-              editable={!isSkipped}
-            />
+          <TextInput
+            style={styles.input}
+            value={currentItem.dosageValue != null ? String(currentItem.dosageValue) : ''}
+            onChangeText={(v) => updateField('dosageValue', v ? Number(v) : undefined)}
+            keyboardType="numeric"
+            placeholder="숫자"
+            editable={!isSkipped}
+          />
+          <View style={styles.unitRow}>
             {DOSAGE_UNITS.map((unit) => (
               <TouchableOpacity
                 key={unit}
@@ -446,7 +446,11 @@ export default function ScanResultScreen() {
                 ]}
                 onPress={() => !isSkipped && updateField('dosageUnit', currentItem.dosageUnit === unit ? undefined : unit)}
               >
-                <Text style={[styles.unitBtnText, currentItem.dosageUnit === unit && styles.unitBtnTextActive]}>
+                <Text
+                  style={[styles.unitBtnText, currentItem.dosageUnit === unit && styles.unitBtnTextActive]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                >
                   {unit}
                 </Text>
               </TouchableOpacity>
@@ -679,9 +683,14 @@ const styles = StyleSheet.create({
   },
   row: { flexDirection: 'row', alignItems: 'center' },
 
-  unitBtn:           { paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb', marginLeft: 6 },
+  unitRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  unitBtn: {
+    flex: 1, minHeight: 44, paddingHorizontal: 8, borderRadius: 10, borderWidth: 1,
+    borderColor: '#e5e7eb', backgroundColor: '#f9fafb',
+    alignItems: 'center', justifyContent: 'center',
+  },
   unitBtnActive:     { backgroundColor: '#3b82f6', borderColor: '#3b82f6' },
-  unitBtnText:       { fontSize: 14, fontWeight: '600', color: '#6b7280' },
+  unitBtnText:       { fontSize: 16, fontWeight: '600', color: '#6b7280' },
   unitBtnTextActive: { color: '#fff' },
 
   // 식사 시간 단축 버튼 (일정추가 화면과 동일)
