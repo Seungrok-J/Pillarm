@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -158,6 +158,47 @@ export default function ScheduleManageScreen() {
       ],
     );
   }
+
+  async function handleDeleteAll() {
+    const all = [...activeItems, ...pastItems];
+    if (all.length === 0) return;
+    Alert.alert(
+      '전체 삭제',
+      `등록된 복용 일정 ${all.length}건을 모두 삭제하시겠어요?\n미래 예약된 알림도 함께 취소되며, 삭제 후에는 되돌릴 수 없습니다.`,
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '전체 삭제',
+          style: 'destructive',
+          onPress: async () => {
+            for (const item of all) {
+              await deleteSchedule(item.schedule.id);
+              await deleteFutureDoseEvents(item.schedule.id);
+              await cancelForSchedule(item.schedule.id);
+            }
+            setItems([]);
+          },
+        },
+      ],
+    );
+  }
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () =>
+        activeItems.length + pastItems.length > 0 ? (
+          <TouchableOpacity
+            testID="btn-delete-all"
+            onPress={handleDeleteAll}
+            style={styles.headerDeleteAllBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Text style={styles.headerDeleteAllTxt}>전체 삭제</Text>
+          </TouchableOpacity>
+        ) : null,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigation, activeItems.length, pastItems.length]);
 
   async function confirmDeletePacket(packetItems: ScheduleItem[]) {
     const names = packetItems.map((i) => i.medication.name).join(', ');
@@ -370,6 +411,9 @@ export default function ScheduleManageScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#f9fafb' },
   list: { padding: 16, paddingBottom: 48 },
+
+  headerDeleteAllBtn: { marginRight: 12, paddingVertical: 6, paddingHorizontal: 4 },
+  headerDeleteAllTxt: { color: '#ef4444', fontSize: 15, fontWeight: '600' },
 
   card: {
     backgroundColor: '#fff',

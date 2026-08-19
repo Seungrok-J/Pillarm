@@ -19,11 +19,6 @@ export interface SocialLinkRequired {
   linkToken:        string;
 }
 
-export interface SocialConnection {
-  provider: string;
-  linkedAt: string;
-}
-
 interface SocialAuthPayload {
   provider:     SocialProvider;
   idToken?:     string;
@@ -50,22 +45,4 @@ export async function socialLogin(
 export async function confirmSocialLink(linkToken: string): Promise<SocialAuthResponse> {
   const res = await api.post<SocialAuthResponse>('/auth/social/confirm-link', { linkToken });
   return res.data;
-}
-
-/** 연결된 소셜 계정 목록 조회 */
-export async function getSocialConnections(): Promise<{ connections: SocialConnection[]; hasPassword: boolean }> {
-  const res = await api.get<{ connections: SocialConnection[]; hasPassword: boolean }>(
-    '/auth/social/connections',
-  );
-  return res.data;
-}
-
-/** 현재 로그인한 계정에 소셜 계정 추가 연결 */
-export async function linkSocialAccount(payload: SocialAuthPayload): Promise<void> {
-  await api.post('/auth/social/link', payload);
-}
-
-/** 소셜 연결 해제 */
-export async function unlinkSocialAccount(provider: string): Promise<void> {
-  await api.delete(`/auth/social/link/${provider}`);
 }

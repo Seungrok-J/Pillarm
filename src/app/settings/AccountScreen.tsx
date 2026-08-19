@@ -1,45 +1,19 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
   ActivityIndicator, StyleSheet, Alert, ScrollView,
   KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { Ionicons, AntDesign } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RootStackParamList } from '../../navigation';
 import { useAuthStore } from '../../store/authStore';
 import { getMyProfile, updateMyName, deleteMyAccount, type UserProfile } from '../../features/careCircle/careCircleApi';
-import {
-  getSocialConnections,
-  linkSocialAccount,
-  unlinkSocialAccount,
-  type SocialConnection,
-} from '../../features/socialAuth/socialAuthApi';
-import {
-  isAppleAuthAvailable,
-  getAppleCredentials,
-  getGoogleIdToken,
-  getKakaoAccessToken,
-} from '../../features/socialAuth';
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
   return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일`;
-}
-
-const PROVIDER_META: Record<string, { label: string }> = {
-  apple:  { label: 'Apple'  },
-  google: { label: 'Google' },
-  kakao:  { label: '카카오' },
-};
-
-function ProviderIcon({ provider }: { provider: string }) {
-  if (provider === 'apple')  return <Ionicons name="logo-apple" size={20} color="#fff" />;
-  if (provider === 'google') return <AntDesign name="google"    size={18} color="#4285F4" />;
-  if (provider === 'kakao')  return <Text style={{ fontSize: 16, color: '#191919', fontWeight: '700' }}>K</Text>;
-  return null;
 }
 
 export default function AccountScreen() {
@@ -52,11 +26,6 @@ export default function AccountScreen() {
   const [nameInput,       setNameInput]        = useState('');
   const [savingName,      setSavingName]       = useState(false);
   const [deletingAccount, setDeletingAccount]  = useState(false);
-
-  const [connections,     setConnections]      = useState<SocialConnection[]>([]);
-  const [hasPassword,     setHasPassword]      = useState(false);
-  const [loadingConn,     setLoadingConn]      = useState(true);
-  const [linkingProvider, setLinkingProvider]  = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -71,20 +40,6 @@ export default function AccountScreen() {
       }
     })();
   }, []);
-
-  const loadConnections = useCallback(async () => {
-    try {
-      const { connections: c, hasPassword: hp } = await getSocialConnections();
-      setConnections(c);
-      setHasPassword(hp);
-    } catch {
-      // 오프라인이면 무시
-    } finally {
-      setLoadingConn(false);
-    }
-  }, []);
-
-  useEffect(() => { loadConnections(); }, [loadConnections]);
 
   async function handleSaveName() {
     const trimmed = nameInput.trim();
@@ -136,76 +91,10 @@ export default function AccountScreen() {
     );
   }
 
-  async function handleLink(provider: string) {
-    setLinkingProvider(provider);
-    try {
-      let payload: { idToken?: string; accessToken?: string; name?: string } | null = null;
-
-      if (provider === 'apple') {
-        payload = await getAppleCredentials();
-      } else if (provider === 'google') {
-        payload = await getGoogleIdToken();
-      } else if (provider === 'kakao') {
-        payload = await getKakaoAccessToken();
-      }
-
-      if (!payload) return;
-      await linkSocialAccount({ provider: provider as any, ...payload });
-      Alert.alert('연결 완료', `${PROVIDER_META[provider]?.label ?? provider} 계정이 연결되었습니다.`);
-      await loadConnections();
-    } catch (err: unknown) {
-      const code = (err as { code?: string })?.code;
-      if (code === 'ERR_REQUEST_CANCELED' || code === 'SIGN_IN_CANCELLED') return;
-      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
-        ?? (err as Error)?.message ?? '연결에 실패했습니다.';
-      Alert.alert('연결 실패', msg);
-    } finally {
-      setLinkingProvider(null);
-    }
-  }
-
-  async function handleUnlink(provider: string) {
-    const label = PROVIDER_META[provider]?.label ?? provider;
-    Alert.alert(
-      `${label} 연결 해제`,
-      `${label} 계정 연결을 해제할까요?\n다른 로그인 방법이 있어야 해제할 수 있습니다.`,
-      [
-        { text: '취소', style: 'cancel' },
-        {
-          text: '해제하기',
-          style: 'destructive',
-          onPress: async () => {
-            setLinkingProvider(provider);
-            try {
-              await unlinkSocialAccount(provider);
-              Alert.alert('해제 완료', `${label} 계정 연결이 해제되었습니다.`);
-              await loadConnections();
-            } catch (err: unknown) {
-              const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
-                ?? '해제에 실패했습니다.';
-              Alert.alert('오류', msg);
-            } finally {
-              setLinkingProvider(null);
-            }
-          },
-        },
-      ],
-    );
-  }
-
   const displayName  = profile?.name  ?? userName ?? '';
   const displayEmail = profile?.email ?? userEmail ?? '';
   const joinedAt     = profile?.createdAt ? formatDate(profile.createdAt) : '-';
   const provider     = profile?.provider;
-
-  // 보여줄 소셜 제공자 목록 (iOS면 Apple 포함, Android는 미포함)
-  const availableProviders = [
-    ...(isAppleAuthAvailable() ? ['apple'] : []),
-    'google',
-    'kakao',
-  ];
-
-  const isConnected = (p: string) => connections.some((c) => c.provider === p) || provider === p;
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
@@ -281,70 +170,6 @@ export default function AccountScreen() {
                 </View>
               </View>
 
-              {/* SNS 계정 연결 */}
-              <View style={[styles.section, { marginTop: 16 }]}>
-                <Text style={styles.sectionTitle}>SNS 계정 연결</Text>
-                <Text style={styles.sectionDesc}>
-                  여러 소셜 계정을 연결하면 어떤 방법으로도 로그인할 수 있어요.
-                </Text>
-
-                {loadingConn ? (
-                  <ActivityIndicator style={{ marginVertical: 16 }} color="#3b82f6" />
-                ) : (
-                  availableProviders.map((p, index) => {
-                    const meta      = PROVIDER_META[p] ?? { label: p, emoji: '?' };
-                    const connected = isConnected(p);
-                    const isLinking = linkingProvider === p;
-                    const isFirst   = index === 0;
-
-                    return (
-                      <View key={p}>
-                        {!isFirst && <View style={styles.divider} />}
-                        <View style={styles.providerRow}>
-                          <View style={styles.providerLeft}>
-                            <View style={[styles.providerIconBox, p === 'apple' && styles.appleBox, p === 'google' && styles.googleBox, p === 'kakao' && styles.kakaoBox]}>
-                              <ProviderIcon provider={p} />
-                            </View>
-                            <View>
-                              <Text style={styles.providerName}>{meta.label}</Text>
-                              {connected && (
-                                <Text style={styles.connectedLabel}>연결됨</Text>
-                              )}
-                            </View>
-                          </View>
-
-                          {isLinking ? (
-                            <ActivityIndicator size="small" color="#3b82f6" />
-                          ) : connected ? (
-                            <TouchableOpacity
-                              style={styles.unlinkBtn}
-                              onPress={() => handleUnlink(p)}
-                            >
-                              <Text style={styles.unlinkBtnText}>해제</Text>
-                            </TouchableOpacity>
-                          ) : (
-                            <TouchableOpacity
-                              style={styles.linkBtn}
-                              onPress={() => handleLink(p)}
-                            >
-                              <Text style={styles.linkBtnText}>연결하기</Text>
-                            </TouchableOpacity>
-                          )}
-                        </View>
-                      </View>
-                    );
-                  })
-                )}
-
-                {!hasPassword && connections.length + (provider ? 1 : 0) <= 1 && (
-                  <View style={styles.warningBox}>
-                    <Text style={styles.warningText}>
-                      ⚠️ 로그인 방법이 1개뿐입니다. 해제하려면 먼저 다른 계정을 연결하세요.
-                    </Text>
-                  </View>
-                )}
-              </View>
-
               {/* 비밀번호 (이메일 가입자만) */}
               {!provider && (
                 <View style={[styles.section, { marginTop: 16 }]}>
@@ -391,10 +216,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase', letterSpacing: 0.5,
     paddingHorizontal: 16, paddingTop: 14, paddingBottom: 4,
   },
-  sectionDesc: {
-    fontSize: 12, color: '#9ca3af', paddingHorizontal: 16, paddingBottom: 10,
-    lineHeight: 18,
-  },
   divider: { height: 1, backgroundColor: '#f3f4f6', marginHorizontal: 16 },
 
   fieldRow: {
@@ -419,31 +240,6 @@ const styles = StyleSheet.create({
   saveBtnTxt:    { color: '#fff', fontWeight: '600', fontSize: 13 },
   cancelBtn:     { backgroundColor: '#f3f4f6' },
   cancelBtnTxt:  { color: '#374151', fontWeight: '600', fontSize: 13 },
-
-  // SNS 연결
-  providerRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 14,
-  },
-  providerLeft:   { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  providerIconBox: {
-    width: 36, height: 36, borderRadius: 10,
-    alignItems: 'center', justifyContent: 'center',
-    backgroundColor: '#f3f4f6',
-  },
-  appleBox:  { backgroundColor: '#000' },
-  googleBox: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e5e7eb' },
-  kakaoBox:  { backgroundColor: '#FEE500' },
-  providerName:   { fontSize: 15, fontWeight: '600', color: '#111827' },
-  connectedLabel: { fontSize: 12, color: '#16a34a', marginTop: 1 },
-
-  linkBtn:      { paddingHorizontal: 14, paddingVertical: 7, backgroundColor: '#eff6ff', borderRadius: 10 },
-  linkBtnText:  { fontSize: 13, color: '#3b82f6', fontWeight: '600' },
-  unlinkBtn:    { paddingHorizontal: 14, paddingVertical: 7, backgroundColor: '#fef2f2', borderRadius: 10 },
-  unlinkBtnText:{ fontSize: 13, color: '#ef4444', fontWeight: '600' },
-
-  warningBox: { marginHorizontal: 16, marginBottom: 14, padding: 12, backgroundColor: '#fffbeb', borderRadius: 8 },
-  warningText:{ fontSize: 12, color: '#92400e', lineHeight: 18 },
 
   infoBox: { paddingHorizontal: 16, paddingVertical: 14 },
   infoTxt: { fontSize: 13, color: '#6b7280', lineHeight: 20 },

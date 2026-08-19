@@ -5,7 +5,6 @@ import { OAuth2Client } from 'google-auth-library';
 import { z } from 'zod';
 import prisma from '../lib/prisma';
 import { signAccess, signRefresh, signLinkToken, verifyLinkToken } from '../lib/jwt';
-import { requireAuth } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 
 const router = Router();
@@ -235,100 +234,6 @@ router.post('/confirm-link', async (req, res, next) => {
     }
 
     return res.json(await issueTokens(user));
-  } catch (err) {
-    next(err);
-  }
-});
-
-// ── GET /auth/social/connections  — 연결된 소셜 목록 ─────────────────────────
-
-router.get('/connections', requireAuth, async (req, res, next) => {
-  try {
-    const userId = req.user!.userId;
-
-    const [user, connections] = await Promise.all([
-      prisma.user.findUnique({ where: { id: userId }, select: { provider: true, providerId: true, passwordHash: true } }),
-      prisma.socialConnection.findMany({ where: { userId }, select: { provider: true, linkedAt: true } }),
-    ]);
-
-    const result: Array<{ provider: string; linkedAt: string }> = [...connections.map((c) => ({
-      provider: c.provider,
-      linkedAt: c.linkedAt.toISOString(),
-    }))];
-
-    // 레거시 User.provider도 포함 (SocialConnection에 없는 경우)
-    if (user?.provider && !result.find((c) => c.provider === user.provider)) {
-      result.push({ provider: user.provider, linkedAt: new Date(0).toISOString() });
-    }
-
-    res.json({ connections: result, hasPassword: !!user?.passwordHash });
-  } catch (err) {
-    next(err);
-  }
-});
-
-// ── POST /auth/social/link  — 소셜 계정 추가 연결 (인증 필요) ────────────────
-
-router.post('/link', requireAuth, async (req, res, next) => {
-  try {
-    const userId = req.user!.userId;
-    const parsed = socialSchema.safeParse(req.body);
-    if (!parsed.success) throw new AppError(parsed.error.errors[0]?.message ?? 'Invalid input', 400);
-
-    const { provider, idToken, accessToken } = parsed.data;
-    const { providerId } = await verifySocial(provider, idToken, accessToken);
-
-    // 이미 다른 계정에 연결된 경우
-    const existingConn = await prisma.socialConnection.findUnique({
-      where: { provider_providerId: { provider, providerId } },
-    });
-    const legacyUser = await prisma.user.findFirst({ where: { provider, providerId } });
-    if (existingConn || legacyUser) {
-      throw new AppError(`이 ${PROVIDER_NAMES[provider] ?? provider} 계정은 이미 다른 필람 계정에 연결되어 있습니다`, 409);
-    }
-
-    // 이미 이 유저에게 같은 제공자가 연결된 경우
-    const alreadyLinked = await prisma.socialConnection.findUnique({
-      where: { userId_provider: { userId, provider } },
-    });
-    if (alreadyLinked) throw new AppError(`이미 ${PROVIDER_NAMES[provider] ?? provider}이 연결되어 있습니다`, 409);
-
-    await prisma.socialConnection.create({ data: { userId, provider, providerId } });
-    res.status(201).json({ message: `${PROVIDER_NAMES[provider] ?? provider} 계정이 연결되었습니다` });
-  } catch (err) {
-    next(err);
-  }
-});
-
-// ── DELETE /auth/social/link/:provider  — 소셜 연결 해제 (인증 필요) ─────────
-
-router.delete('/link/:provider', requireAuth, async (req, res, next) => {
-  try {
-    const userId  = req.user!.userId;
-    const provider = req.params['provider']!;
-
-    const [user, connections] = await Promise.all([
-      prisma.user.findUnique({ where: { id: userId }, select: { passwordHash: true, provider: true } }),
-      prisma.socialConnection.findMany({ where: { userId } }),
-    ]);
-
-    const hasPassword     = !!user?.passwordHash;
-    const hasLegacyProvider = user?.provider && user.provider !== provider;
-    const otherConnections = connections.filter((c) => c.provider !== provider);
-
-    // 마지막 로그인 수단이면 해제 불가
-    if (!hasPassword && !hasLegacyProvider && otherConnections.length === 0) {
-      throw new AppError('마지막 로그인 수단은 해제할 수 없습니다. 먼저 다른 계정을 연결하세요.', 400);
-    }
-
-    await prisma.socialConnection.deleteMany({ where: { userId, provider } });
-
-    // 레거시 User.provider도 해제
-    if (user?.provider === provider) {
-      await prisma.user.update({ where: { id: userId }, data: { provider: null, providerId: null } });
-    }
-
-    res.json({ message: `${PROVIDER_NAMES[provider] ?? provider} 계정 연결이 해제되었습니다` });
   } catch (err) {
     next(err);
   }
