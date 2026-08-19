@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
   StyleSheet, Alert, Modal, Platform,
@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RouteProp } from '@react-navigation/native';
-import type { NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import type { NativeSyntheticEvent, NativeScrollEvent, LayoutChangeEvent } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import type { RootStackParamList } from '../../navigation';
@@ -24,6 +24,12 @@ type Nav   = StackNavigationProp<RootStackParamList>;
 type Route = RouteProp<RootStackParamList, 'ScanResult'>;
 
 const WITH_FOOD_LABELS = { before: '식전', after: '식후', none: '무관' } as const;
+
+interface SubPacket {
+  id:         string;
+  name:       string;
+  memberIdxs: number[];
+}
 
 // ── 날짜 헬퍼 ─────────────────────────────────────────────────────────────────
 
@@ -145,6 +151,229 @@ const dpStyles = {
   confirmTxt: { fontSize: 16, color: '#3b82f6', fontWeight: '600' as const },
 };
 
+// ── MedicationCard — 슬라이드 페이지 1장(= 약 1개) ─────────────────────────────
+
+interface MedicationCardProps {
+  idx:         number;
+  item:        MedicationScanResult;
+  isSkipped:   boolean;
+  isExpanded:  boolean;
+  startDate:   string;
+  endDate:     string;
+  mealTimes:   { label: string; time: string }[];
+  width:       number;
+  onUpdateField: <K extends keyof MedicationScanResult>(idx: number, key: K, value: MedicationScanResult[K]) => void;
+  onToggleSkip:      (idx: number) => void;
+  onToggleExpanded:  (idx: number) => void;
+  onDurationChange:  (idx: number, days: number | undefined) => void;
+  onStartDateChange: (idx: number, v: string) => void;
+  onEndDateChange:   (idx: number, v: string) => void;
+}
+
+function MedicationCard({
+  idx, item, isSkipped, isExpanded, startDate, endDate, mealTimes, width,
+  onUpdateField, onToggleSkip, onToggleExpanded, onDurationChange,
+  onStartDateChange, onEndDateChange,
+}: MedicationCardProps) {
+  return (
+    <View style={width ? { width } : styles.pageFallback}>
+      <View style={[styles.fieldGroup, isSkipped && styles.dimmed]}>
+        {!isExpanded ? (
+          <TouchableOpacity style={styles.summaryCard} onPress={() => onToggleExpanded(idx)} activeOpacity={0.7}>
+            <View style={styles.summaryTopRow}>
+              <Text style={styles.summaryName} numberOfLines={2}>
+                {item.medicationName || `약 ${idx + 1}`}
+              </Text>
+              <View style={styles.summaryEditBadge}>
+                <Ionicons name="pencil" size={12} color="#3b82f6" />
+                <Text style={styles.summaryEditText}>수정</Text>
+              </View>
+            </View>
+
+            {(item.dosageValue != null || item.dosageUnit) && (
+              <Text style={styles.summaryLine}>
+                💊 {item.dosageValue ?? ''}{item.dosageUnit ?? ''}
+              </Text>
+            )}
+
+            <Text style={styles.summaryLine}>
+              ⏰ {item.suggestedTimes.length > 0
+                    ? item.suggestedTimes.join('  ·  ')
+                    : '복용 시간 미설정'}
+            </Text>
+
+            <Text style={styles.summaryLine}>
+              📅 {item.durationDays ? `${item.durationDays}일분` : '상시 복용'}
+              {item.withFood ? `  ·  ${WITH_FOOD_LABELS[item.withFood]}` : ''}
+            </Text>
+
+            {item.note ? (
+              <Text style={styles.summaryNote} numberOfLines={2}>{item.note}</Text>
+            ) : null}
+
+            <Text style={styles.summaryHint}>AI가 인식한 정보예요. 다르면 눌러서 수정하세요.</Text>
+          </TouchableOpacity>
+        ) : (
+          <>
+            <TouchableOpacity style={styles.collapseLink} onPress={() => onToggleExpanded(idx)}>
+              <Text style={styles.collapseLinkText}>간단히 보기</Text>
+              <Ionicons name="chevron-up" size={14} color="#3b82f6" />
+            </TouchableOpacity>
+
+            {/* 약 이름 */}
+            <FieldLabel label="약 이름 *" />
+            <TextInput
+              style={styles.input}
+              value={item.medicationName}
+              onChangeText={(v) => onUpdateField(idx, 'medicationName', v)}
+              placeholder="약 이름 입력"
+              editable={!isSkipped}
+            />
+
+            {/* 용량 */}
+            <FieldLabel label="용량" />
+            <TextInput
+              style={styles.input}
+              value={item.dosageValue != null ? String(item.dosageValue) : ''}
+              onChangeText={(v) => onUpdateField(idx, 'dosageValue', v ? Number(v) : undefined)}
+              keyboardType="numeric"
+              placeholder="숫자"
+              editable={!isSkipped}
+            />
+            <View style={styles.unitRow}>
+              {DOSAGE_UNITS.map((unit) => (
+                <TouchableOpacity
+                  key={unit}
+                  style={[
+                    styles.unitBtn,
+                    item.dosageUnit === unit && styles.unitBtnActive,
+                    isSkipped && { opacity: 0.4 },
+                  ]}
+                  onPress={() => !isSkipped && onUpdateField(idx, 'dosageUnit', item.dosageUnit === unit ? undefined : unit)}
+                >
+                  <Text
+                    style={[styles.unitBtnText, item.dosageUnit === unit && styles.unitBtnTextActive]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                  >
+                    {unit}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* 복용 시간 — 일정추가 화면과 동일 스타일 */}
+            <FieldLabel label="복용 시간" />
+            {/* 식사 시간 단축 선택 */}
+            <View style={styles.mealRow}>
+              {mealTimes.map(({ label, time }) => {
+                const selected = item.suggestedTimes.includes(time);
+                return (
+                  <TouchableOpacity
+                    key={label}
+                    style={[styles.mealBtn, selected && styles.mealBtnActive, isSkipped && { opacity: 0.4 }]}
+                    onPress={() => {
+                      if (isSkipped) return;
+                      const times = item.suggestedTimes;
+                      const next  = selected
+                        ? times.filter((t) => t !== time)
+                        : [...times, time].sort();
+                      onUpdateField(idx, 'suggestedTimes', next);
+                    }}
+                  >
+                    <Text style={[styles.mealTxt, selected && styles.mealTxtActive]}>{label}</Text>
+                    <Text style={[styles.mealTime, selected && styles.mealTimeActive]}>{time}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            {/* 시간 드럼롤 선택기 */}
+            {!isSkipped && (
+              <TimePickerList
+                times={item.suggestedTimes}
+                onAdd={(t) => {
+                  const times = item.suggestedTimes;
+                  if (!times.includes(t)) {
+                    onUpdateField(idx, 'suggestedTimes', [...times, t].sort());
+                  }
+                }}
+                onRemove={(t) => {
+                  onUpdateField(idx, 'suggestedTimes', item.suggestedTimes.filter((x) => x !== t));
+                }}
+              />
+            )}
+
+            {/* 복용 기간 */}
+            <FieldLabel label="복용 기간 (일)" />
+            <TextInput
+              style={styles.input}
+              value={item.durationDays != null ? String(item.durationDays) : ''}
+              onChangeText={(v) => onDurationChange(idx, v ? Number(v) : undefined)}
+              keyboardType="numeric"
+              placeholder="예: 5 (비워두면 상시)"
+              editable={!isSkipped}
+            />
+
+            {/* 시작일 / 종료일 */}
+            <FieldLabel label="시작일" />
+            <DatePickerField
+              value={startDate}
+              onChange={(v) => {
+                onStartDateChange(idx, v);
+                if (endDate && endDate < v) {
+                  onEndDateChange(idx, item.durationDays ? addDays(v, item.durationDays - 1) : v);
+                }
+              }}
+              placeholder="시작일 선택"
+              disabled={isSkipped}
+            />
+
+            <FieldLabel label="종료일" />
+            <DatePickerField
+              value={endDate}
+              onChange={(v) => onEndDateChange(idx, v)}
+              placeholder="종료일 선택 (비워두면 상시)"
+              minimumDate={startDate ? new Date(startDate + 'T00:00:00') : undefined}
+              disabled={isSkipped}
+            />
+
+            {/* 식전/식후 */}
+            <FieldLabel label="식전/식후" />
+            <View style={styles.row}>
+              {(['before', 'after', 'none'] as const).map((opt) => (
+                <TouchableOpacity
+                  key={opt}
+                  style={[styles.segBtn, item.withFood === opt && styles.segBtnActive]}
+                  onPress={() => !isSkipped && onUpdateField(idx, 'withFood', opt)}
+                >
+                  <Text style={[styles.segBtnText, item.withFood === opt && styles.segBtnTextActive]}>
+                    {WITH_FOOD_LABELS[opt]}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* 메모 */}
+            {item.note ? (
+              <>
+                <FieldLabel label="특이사항" />
+                <Text style={styles.noteText}>{item.note}</Text>
+              </>
+            ) : null}
+          </>
+        )}
+      </View>
+
+      {/* 건너뛰기 토글 */}
+      <TouchableOpacity style={styles.skipBtn} onPress={() => onToggleSkip(idx)}>
+        <Text style={[styles.skipBtnText, isSkipped && { color: '#3b82f6' }]}>
+          {isSkipped ? '이 약 포함하기' : '이 약 건너뛰기'}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 // ── 메인 화면 ─────────────────────────────────────────────────────────────────
 
 export default function ScanResultScreen() {
@@ -155,9 +384,9 @@ export default function ScanResultScreen() {
   const [items, setItems] = useState<MedicationScanResult[]>(params.results);
   const [tabIndex, setTabIndex] = useState(0);
   const [skipped, setSkipped] = useState<Set<number>>(new Set());
-  // 포 그룹화는 같은 복용 시간을 가진 약끼리만 가능 — 시간 시그니처(timeKey)로 묶음을 자동 구성한다.
-  const [packetExcluded, setPacketExcluded] = useState<Record<string, Set<number>>>({});
-  const [packetNames, setPacketNames] = useState<Record<string, string>>({});
+  // 포 그룹화: 같은 복용 시간을 가진 약끼리 사용자가 직접 만들고 지울 수 있다.
+  const [subPackets, setSubPackets] = useState<Record<string, SubPacket[]>>({});
+  const [pendingSelection, setPendingSelection] = useState<Record<string, Set<number>>>({});
   const [saving, setSaving] = useState(false);
 
   // 요약 카드(원터치 확인) ↔ 상세 편집 폼 토글. 약 이름이 비어 있으면
@@ -166,10 +395,10 @@ export default function ScanResultScreen() {
     () => new Set(params.results.flatMap((item, i) => (item.medicationName?.trim() ? [] : [i]))),
   );
 
-  function toggleExpanded() {
+  function toggleExpanded(idx: number) {
     setExpanded((prev) => {
       const s = new Set(prev);
-      s.has(tabIndex) ? s.delete(tabIndex) : s.add(tabIndex);
+      s.has(idx) ? s.delete(idx) : s.add(idx);
       return s;
     });
   }
@@ -190,6 +419,25 @@ export default function ScanResultScreen() {
     setTabsAtEnd(atEnd);
   }
 
+  // 약 슬라이드(좌우 스와이프) — 탭 탭과 스와이프가 서로 동기화된다.
+  const pagerRef = useRef<ScrollView>(null);
+  const [pageWidth, setPageWidth] = useState(0);
+
+  function goToIndex(i: number, animated = true) {
+    setTabIndex(i);
+    if (pageWidth) pagerRef.current?.scrollTo({ x: i * pageWidth, y: 0, animated });
+  }
+
+  function handlePagerLayout(e: LayoutChangeEvent) {
+    setPageWidth(e.nativeEvent.layout.width);
+  }
+
+  function handlePagerMomentumEnd(e: NativeSyntheticEvent<NativeScrollEvent>) {
+    if (!pageWidth) return;
+    const idx = Math.round(e.nativeEvent.contentOffset.x / pageWidth);
+    setTabIndex(Math.max(0, Math.min(items.length - 1, idx)));
+  }
+
   // 각 약별 날짜 상태 (startDate, endDate)
   const today = todayString();
   const [startDates, setStartDates] = useState<string[]>(() =>
@@ -200,6 +448,13 @@ export default function ScanResultScreen() {
       item.durationDays ? addDays(today, item.durationDays - 1) : '',
     ),
   );
+
+  function updateStartDate(idx: number, v: string) {
+    setStartDates((prev) => { const n = [...prev]; n[idx] = v; return n; });
+  }
+  function updateEndDate(idx: number, v: string) {
+    setEndDates((prev) => { const n = [...prev]; n[idx] = v; return n; });
+  }
 
   // 저장 완료 전 뒤로가기 방지
   const savedRef = useRef(false);
@@ -222,8 +477,6 @@ export default function ScanResultScreen() {
     });
   }, [navigation]);
 
-  const currentItem = items[tabIndex];
-
   // 같은 복용 시간을 가진(2개 이상) 약들만 포 묶음 후보가 된다.
   const timeGroups = useMemo(() => {
     const map = new Map<string, number[]>();
@@ -237,27 +490,53 @@ export default function ScanResultScreen() {
     return [...map.entries()].filter(([, idxs]) => idxs.length >= 2);
   }, [items, skipped]);
 
-  function togglePacketMember(key: string, idx: number) {
-    setPacketExcluded((prev) => {
+  function togglePending(key: string, idx: number) {
+    setPendingSelection((prev) => {
       const cur = new Set(prev[key] ?? []);
       cur.has(idx) ? cur.delete(idx) : cur.add(idx);
       return { ...prev, [key]: cur };
     });
   }
 
+  function createSubPacket(key: string) {
+    const pending = pendingSelection[key];
+    if (!pending || pending.size < 2) return;
+    const memberIdxs = [...pending].sort((a, b) => a - b);
+    setSubPackets((prev) => ({
+      ...prev,
+      [key]: [...(prev[key] ?? []), { id: generateId(), name: '', memberIdxs }],
+    }));
+    setPendingSelection((prev) => ({ ...prev, [key]: new Set() }));
+  }
+
+  function deleteSubPacket(key: string, packetId: string) {
+    setSubPackets((prev) => ({
+      ...prev,
+      [key]: (prev[key] ?? []).filter((p) => p.id !== packetId),
+    }));
+  }
+
+  function updateSubPacketName(key: string, packetId: string, name: string) {
+    setSubPackets((prev) => ({
+      ...prev,
+      [key]: (prev[key] ?? []).map((p) => (p.id === packetId ? { ...p, name } : p)),
+    }));
+  }
+
   function updateField<K extends keyof MedicationScanResult>(
+    idx: number,
     key: K,
     value: MedicationScanResult[K],
   ) {
     setItems((prev) =>
-      prev.map((item, i) => (i === tabIndex ? { ...item, [key]: value } : item)),
+      prev.map((item, i) => (i === idx ? { ...item, [key]: value } : item)),
     );
   }
 
-  function toggleSkip() {
+  function toggleSkip(idx: number) {
     setSkipped((prev) => {
       const s = new Set(prev);
-      s.has(tabIndex) ? s.delete(tabIndex) : s.add(tabIndex);
+      s.has(idx) ? s.delete(idx) : s.add(idx);
       return s;
     });
   }
@@ -284,15 +563,17 @@ export default function ScanResultScreen() {
       return;
     }
 
-    // 시간이 같은 묶음별로 패킷 ID·이름을 부여한다 (제외 체크된 약은 빠짐)
+    // 사용자가 직접 만든 포(subPacket) 기준으로 packetId·이름을 부여한다.
     const packetInfoByIndex = new Map<number, { id: string; name?: string }>();
-    for (const [key, idxs] of timeGroups) {
-      const excluded = packetExcluded[key] ?? new Set<number>();
-      const included = idxs.filter((i) => !excluded.has(i));
-      if (included.length < 2) continue;
-      const packetId = generateId();
-      const name = packetNames[key]?.trim() || undefined;
-      for (const i of included) packetInfoByIndex.set(i, { id: packetId, name });
+    for (const groupPackets of Object.values(subPackets)) {
+      for (const p of groupPackets) {
+        if (p.memberIdxs.length < 2) continue;
+        const name = p.name.trim() || undefined;
+        for (const i of p.memberIdxs) {
+          if (skipped.has(i)) continue;
+          packetInfoByIndex.set(i, { id: p.id, name });
+        }
+      }
     }
 
     setSaving(true);
@@ -359,10 +640,7 @@ export default function ScanResultScreen() {
     }
   }
 
-  if (!currentItem) return null;
-
-  const isSkipped  = skipped.has(tabIndex);
-  const isExpanded = expanded.has(tabIndex);
+  if (items.length === 0) return null;
 
   const mealTimes = settings
     ? [
@@ -378,7 +656,7 @@ export default function ScanResultScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['bottom']}>
-      {/* 탭 — 글자 잘림 없게 minWidth 기반 */}
+      {/* 탭 — 글자 잘림 없게 minWidth 기반. 탭을 누르면 아래 슬라이드도 함께 이동한다 */}
       {items.length > 1 && (
         <View style={styles.tabWrap}>
           <ScrollView
@@ -405,7 +683,7 @@ export default function ScanResultScreen() {
                   tabIndex === i && styles.tabActive,
                   skipped.has(i) && styles.tabSkipped,
                 ]}
-                onPress={() => setTabIndex(i)}
+                onPress={() => goToIndex(i)}
               >
                 <Text
                   style={[styles.tabText, tabIndex === i && styles.tabTextActive]}
@@ -428,254 +706,130 @@ export default function ScanResultScreen() {
       )}
 
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={[styles.fieldGroup, isSkipped && styles.dimmed]}>
-        {!isExpanded ? (
-          <TouchableOpacity style={styles.summaryCard} onPress={toggleExpanded} activeOpacity={0.7}>
-            <View style={styles.summaryTopRow}>
-              <Text style={styles.summaryName} numberOfLines={2}>
-                {currentItem.medicationName || `약 ${tabIndex + 1}`}
-              </Text>
-              <View style={styles.summaryEditBadge}>
-                <Ionicons name="pencil" size={12} color="#3b82f6" />
-                <Text style={styles.summaryEditText}>수정</Text>
-              </View>
-            </View>
-
-            {(currentItem.dosageValue != null || currentItem.dosageUnit) && (
-              <Text style={styles.summaryLine}>
-                💊 {currentItem.dosageValue ?? ''}{currentItem.dosageUnit ?? ''}
-              </Text>
-            )}
-
-            <Text style={styles.summaryLine}>
-              ⏰ {currentItem.suggestedTimes.length > 0
-                    ? currentItem.suggestedTimes.join('  ·  ')
-                    : '복용 시간 미설정'}
-            </Text>
-
-            <Text style={styles.summaryLine}>
-              📅 {currentItem.durationDays ? `${currentItem.durationDays}일분` : '상시 복용'}
-              {currentItem.withFood ? `  ·  ${WITH_FOOD_LABELS[currentItem.withFood]}` : ''}
-            </Text>
-
-            {currentItem.note ? (
-              <Text style={styles.summaryNote} numberOfLines={2}>{currentItem.note}</Text>
-            ) : null}
-
-            <Text style={styles.summaryHint}>AI가 인식한 정보예요. 다르면 눌러서 수정하세요.</Text>
-          </TouchableOpacity>
-        ) : (
-        <>
-          <TouchableOpacity style={styles.collapseLink} onPress={toggleExpanded}>
-            <Text style={styles.collapseLinkText}>간단히 보기</Text>
-            <Ionicons name="chevron-up" size={14} color="#3b82f6" />
-          </TouchableOpacity>
-
-          {/* 약 이름 */}
-          <FieldLabel label="약 이름 *" />
-          <TextInput
-            style={styles.input}
-            value={currentItem.medicationName}
-            onChangeText={(v) => updateField('medicationName', v)}
-            placeholder="약 이름 입력"
-            editable={!isSkipped}
-          />
-
-          {/* 용량 */}
-          <FieldLabel label="용량" />
-          <TextInput
-            style={styles.input}
-            value={currentItem.dosageValue != null ? String(currentItem.dosageValue) : ''}
-            onChangeText={(v) => updateField('dosageValue', v ? Number(v) : undefined)}
-            keyboardType="numeric"
-            placeholder="숫자"
-            editable={!isSkipped}
-          />
-          <View style={styles.unitRow}>
-            {DOSAGE_UNITS.map((unit) => (
-              <TouchableOpacity
-                key={unit}
-                style={[
-                  styles.unitBtn,
-                  currentItem.dosageUnit === unit && styles.unitBtnActive,
-                  isSkipped && { opacity: 0.4 },
-                ]}
-                onPress={() => !isSkipped && updateField('dosageUnit', currentItem.dosageUnit === unit ? undefined : unit)}
-              >
-                <Text
-                  style={[styles.unitBtnText, currentItem.dosageUnit === unit && styles.unitBtnTextActive]}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                >
-                  {unit}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* 복용 시간 — 일정추가 화면과 동일 스타일 */}
-          <FieldLabel label="복용 시간" />
-          {/* 식사 시간 단축 선택 */}
-          <View style={styles.mealRow}>
-            {mealTimes.map(({ label, time }) => {
-              const selected = currentItem.suggestedTimes.includes(time);
-              return (
-                <TouchableOpacity
-                  key={label}
-                  style={[styles.mealBtn, selected && styles.mealBtnActive, isSkipped && { opacity: 0.4 }]}
-                  onPress={() => {
-                    if (isSkipped) return;
-                    const times = currentItem.suggestedTimes;
-                    const next  = selected
-                      ? times.filter((t) => t !== time)
-                      : [...times, time].sort();
-                    updateField('suggestedTimes', next);
-                  }}
-                >
-                  <Text style={[styles.mealTxt, selected && styles.mealTxtActive]}>{label}</Text>
-                  <Text style={[styles.mealTime, selected && styles.mealTimeActive]}>{time}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-          {/* 시간 드럼롤 선택기 */}
-          {!isSkipped && (
-            <TimePickerList
-              times={currentItem.suggestedTimes}
-              onAdd={(t) => {
-                const times = currentItem.suggestedTimes;
-                if (!times.includes(t)) {
-                  updateField('suggestedTimes', [...times, t].sort());
-                }
-              }}
-              onRemove={(t) => {
-                updateField('suggestedTimes', currentItem.suggestedTimes.filter((x) => x !== t));
-              }}
+        <ScrollView
+          ref={pagerRef}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          scrollEnabled={items.length > 1}
+          onLayout={handlePagerLayout}
+          onMomentumScrollEnd={handlePagerMomentumEnd}
+        >
+          {items.map((item, i) => (
+            <MedicationCard
+              key={i}
+              idx={i}
+              item={item}
+              isSkipped={skipped.has(i)}
+              isExpanded={expanded.has(i)}
+              startDate={startDates[i] ?? today}
+              endDate={endDates[i] ?? ''}
+              mealTimes={mealTimes}
+              width={pageWidth}
+              onUpdateField={updateField}
+              onToggleSkip={toggleSkip}
+              onToggleExpanded={toggleExpanded}
+              onDurationChange={handleDurationChange}
+              onStartDateChange={updateStartDate}
+              onEndDateChange={updateEndDate}
             />
-          )}
-
-          {/* 복용 기간 */}
-          <FieldLabel label="복용 기간 (일)" />
-          <TextInput
-            style={styles.input}
-            value={currentItem.durationDays != null ? String(currentItem.durationDays) : ''}
-            onChangeText={(v) => handleDurationChange(tabIndex, v ? Number(v) : undefined)}
-            keyboardType="numeric"
-            placeholder="예: 5 (비워두면 상시)"
-            editable={!isSkipped}
-          />
-
-          {/* 시작일 / 종료일 */}
-          <FieldLabel label="시작일" />
-          <DatePickerField
-            value={startDates[tabIndex]}
-            onChange={(v) => {
-              setStartDates((prev) => { const n = [...prev]; n[tabIndex] = v; return n; });
-              if (endDates[tabIndex] && endDates[tabIndex] < v) {
-                setEndDates((prev) => {
-                  const n = [...prev];
-                  n[tabIndex] = currentItem.durationDays
-                    ? addDays(v, currentItem.durationDays - 1)
-                    : v;
-                  return n;
-                });
-              }
-            }}
-            placeholder="시작일 선택"
-            disabled={isSkipped}
-          />
-
-          <FieldLabel label="종료일" />
-          <DatePickerField
-            value={endDates[tabIndex]}
-            onChange={(v) => setEndDates((prev) => { const n = [...prev]; n[tabIndex] = v; return n; })}
-            placeholder="종료일 선택 (비워두면 상시)"
-            minimumDate={startDates[tabIndex] ? new Date(startDates[tabIndex] + 'T00:00:00') : undefined}
-            disabled={isSkipped}
-          />
-
-          {/* 식전/식후 */}
-          <FieldLabel label="식전/식후" />
-          <View style={styles.row}>
-            {(['before', 'after', 'none'] as const).map((opt) => (
-              <TouchableOpacity
-                key={opt}
-                style={[styles.segBtn, currentItem.withFood === opt && styles.segBtnActive]}
-                onPress={() => !isSkipped && updateField('withFood', opt)}
-              >
-                <Text style={[styles.segBtnText, currentItem.withFood === opt && styles.segBtnTextActive]}>
-                  {WITH_FOOD_LABELS[opt]}
-                </Text>
-              </TouchableOpacity>
+          ))}
+        </ScrollView>
+        {items.length > 1 && (
+          <View style={styles.pageDots}>
+            {items.map((_, i) => (
+              <View key={i} style={[styles.pageDot, i === tabIndex && styles.pageDotActive]} />
             ))}
           </View>
-
-          {/* 메모 */}
-          {currentItem.note ? (
-            <>
-              <FieldLabel label="특이사항" />
-              <Text style={styles.noteText}>{currentItem.note}</Text>
-            </>
-          ) : null}
-        </>
         )}
-        </View>
 
-        {/* 건너뛰기 토글 */}
-        <TouchableOpacity style={styles.skipBtn} onPress={toggleSkip}>
-          <Text style={[styles.skipBtnText, isSkipped && { color: '#3b82f6' }]}>
-            {isSkipped ? '이 약 포함하기' : '이 약 건너뛰기'}
-          </Text>
-        </TouchableOpacity>
-
-        {/* 포 그룹화 — 같은 복용 시간을 가진 약끼리만 묶을 수 있다 */}
+        {/* 포 그룹화 — 같은 복용 시간을 가진 약끼리 직접 포를 만들고 지울 수 있다 */}
         {timeGroups.length > 0 ? (
           timeGroups.map(([key, idxs]) => {
-            const excluded = packetExcluded[key] ?? new Set<number>();
-            const includedCount = idxs.filter((i) => !excluded.has(i)).length;
+            const groupPackets = subPackets[key] ?? [];
+            const assignedIdxs = new Set(groupPackets.flatMap((p) => p.memberIdxs));
+            const availableIdxs = idxs.filter((i) => !assignedIdxs.has(i));
+            const pending = pendingSelection[key] ?? new Set<number>();
+            const pendingCount = availableIdxs.filter((i) => pending.has(i)).length;
             const times = key.split(',');
+
             return (
               <View key={key} style={styles.packetSection}>
                 <View style={styles.packetTitleRow}>
-                  <Text style={styles.packetTitle}>💊 {times.join('  ')} 한 포로 묶기</Text>
+                  <Text style={styles.packetTitle}>💊 {times.join('  ')} 복용 약</Text>
                   <Text style={styles.packetHint}>
-                    같은 시간에 복용하는 약만 묶을 수 있어요 · 홈에서 한 번에 복용 체크돼요
+                    같은 시간에 복용하는 약끼리 포로 묶을 수 있어요 · 홈에서 한 번에 복용 체크돼요
                   </Text>
                 </View>
 
-                <TextInput
-                  style={styles.input}
-                  value={packetNames[key] ?? ''}
-                  onChangeText={(v) => setPacketNames((prev) => ({ ...prev, [key]: v }))}
-                  placeholder="그룹 이름 (예: 아침약, 식후약)"
-                  maxLength={20}
-                />
-
-                {idxs.map((i) => {
-                  const item = items[i];
-                  const inPacket = !excluded.has(i);
-                  return (
-                    <TouchableOpacity
-                      key={i}
-                      style={styles.packetRow}
-                      onPress={() => togglePacketMember(key, i)}
-                      activeOpacity={0.7}
-                    >
-                      <View style={[styles.checkbox, inPacket && styles.checkboxChecked]}>
-                        {inPacket && <Text style={styles.checkmark}>✓</Text>}
+                {/* 이미 만든 포 */}
+                {groupPackets.map((p) => (
+                  <View key={p.id} style={styles.subPacketCard}>
+                    <View style={styles.subPacketHeader}>
+                      <TextInput
+                        style={styles.subPacketNameInput}
+                        value={p.name}
+                        onChangeText={(v) => updateSubPacketName(key, p.id, v)}
+                        placeholder="그룹 이름 (예: 아침약)"
+                        maxLength={20}
+                      />
+                      <TouchableOpacity
+                        style={styles.subPacketDeleteBtn}
+                        onPress={() => deleteSubPacket(key, p.id)}
+                      >
+                        <Text style={styles.subPacketDeleteTxt}>삭제</Text>
+                      </TouchableOpacity>
+                    </View>
+                    {p.memberIdxs.map((i) => (
+                      <View key={i} style={styles.packetRow}>
+                        <View style={[styles.checkbox, styles.checkboxChecked, styles.checkboxLocked]}>
+                          <Text style={styles.checkmark}>✓</Text>
+                        </View>
+                        <Text style={styles.packetItemName} numberOfLines={1}>
+                          {items[i]?.medicationName || `약 ${i + 1}`}
+                        </Text>
                       </View>
-                      <Text style={styles.packetItemName} numberOfLines={1}>
-                        {item.medicationName || `약 ${i + 1}`}
+                    ))}
+                  </View>
+                ))}
+
+                {/* 새 포 만들기 — 아직 어떤 포에도 속하지 않은 약만 선택 가능 */}
+                {availableIdxs.length >= 2 ? (
+                  <View style={styles.newPacketBox}>
+                    <Text style={styles.newPacketLabel}>새 포 만들기</Text>
+                    {availableIdxs.map((i) => {
+                      const checked = pending.has(i);
+                      return (
+                        <TouchableOpacity
+                          key={i}
+                          style={styles.packetRow}
+                          onPress={() => togglePending(key, i)}
+                          activeOpacity={0.7}
+                        >
+                          <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
+                            {checked && <Text style={styles.checkmark}>✓</Text>}
+                          </View>
+                          <Text style={styles.packetItemName} numberOfLines={1}>
+                            {items[i]?.medicationName || `약 ${i + 1}`}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                    <TouchableOpacity
+                      style={[styles.makePacketBtn, pendingCount < 2 && styles.makePacketBtnDisabled]}
+                      disabled={pendingCount < 2}
+                      onPress={() => createSubPacket(key)}
+                    >
+                      <Text style={styles.makePacketBtnText}>
+                        {pendingCount >= 2 ? `선택한 ${pendingCount}개 약으로 포 만들기` : '2개 이상 선택하면 포를 만들 수 있어요'}
                       </Text>
                     </TouchableOpacity>
-                  );
-                })}
-
-                {includedCount < 2 && (
+                  </View>
+                ) : availableIdxs.length === 1 ? (
                   <Text style={styles.packetWarning}>
-                    2개 이상 선택해야 포로 묶입니다
+                    남은 약이 1개뿐이라 포로 묶을 수 없어요
                   </Text>
-                )}
+                ) : null}
               </View>
             );
           })
@@ -728,7 +882,13 @@ const styles = StyleSheet.create({
   tabText:        { fontSize: 13, fontWeight: '500', color: '#6b7280' },
   tabTextActive:  { color: '#fff', fontWeight: '600' },
 
-  content:    { padding: 20, paddingBottom: 120 },
+  content:      { padding: 20, paddingBottom: 120 },
+  pageFallback: { width: '100%' },
+
+  pageDots:       { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 10 },
+  pageDot:        { width: 6, height: 6, borderRadius: 3, backgroundColor: '#d1d5db' },
+  pageDotActive:  { backgroundColor: '#3b82f6', width: 16 },
+
   fieldGroup: { backgroundColor: '#fff', borderRadius: 16, padding: 16, gap: 4 },
   dimmed:     { opacity: 0.4 },
 
@@ -804,9 +964,35 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', backgroundColor: '#f9fafb',
   },
   checkboxChecked: { backgroundColor: '#3b82f6', borderColor: '#3b82f6' },
+  checkboxLocked:  { opacity: 0.6 },
   checkmark:       { fontSize: 13, color: '#fff', fontWeight: '800' },
   packetItemName:  { flex: 1, fontSize: 14, fontWeight: '500', color: '#374151' },
   packetWarning:   { fontSize: 12, color: '#f59e0b', marginTop: 8, textAlign: 'center' },
+
+  subPacketCard: {
+    marginTop: 12, backgroundColor: '#f8faff', borderRadius: 12,
+    padding: 12, borderWidth: 1, borderColor: '#dbeafe',
+  },
+  subPacketHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  subPacketNameInput: {
+    flex: 1, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10,
+    paddingHorizontal: 12, paddingVertical: 8, fontSize: 14, color: '#111827',
+    backgroundColor: '#fff',
+  },
+  subPacketDeleteBtn: {
+    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10,
+    borderWidth: 1, borderColor: '#ef4444',
+  },
+  subPacketDeleteTxt: { fontSize: 13, color: '#ef4444', fontWeight: '600' },
+
+  newPacketBox: { marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: '#e0eaff' },
+  newPacketLabel: { fontSize: 13, fontWeight: '700', color: '#374151', marginBottom: 4 },
+  makePacketBtn: {
+    marginTop: 12, paddingVertical: 12, borderRadius: 10,
+    backgroundColor: '#3b82f6', alignItems: 'center',
+  },
+  makePacketBtnDisabled: { backgroundColor: '#d1d5db' },
+  makePacketBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
 
   footer: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
