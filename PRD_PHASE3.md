@@ -3,7 +3,7 @@
 > **전제 조건:** Phase 2가 완료되어 보호자 공유·포인트·AI 코칭이 실기기에서 정상 동작해야 한다.  
 > **목표:** 소셜 간편 로그인 추가, Railway 서버 배포, App Store 우선 배포 후 Google Play 배포
 >
-> **진행 상태 (2026-06-10):** iOS build 15 TestFlight 제출 완료. 소셜 로그인 전체 정상. pillarm.app 도메인 연결 완료. Android 빌드 대기. 오프라인 처리 및 관리자 패널 구현 완료.
+> **진행 상태 (2026-08-21):** iOS build 27 App Store 심사 승인 완료 — 정식 배포됨. 소셜 로그인(Apple/Google/Kakao) 전체 정상. pillarm.app 도메인 연결 완료. 오프라인 처리 및 관리자 패널 구현 완료. Android는 EAS 빌드까지 완료(versionCode 17), Google Play 정식 제출은 다음 단계(Phase 3 잔여 작업).
 
 ---
 
@@ -22,10 +22,10 @@
 
 | 항목 | 상태 |
 |------|------|
-| iOS build 15 (v1.0.0) | ✅ TestFlight 제출 완료 (2026-06-02) |
-| Android build | 📋 미시작 (iOS 안정화 후 진행 예정) |
-| Google Play Console | 📋 미등록 |
-| App Store 정식 심사 | 📋 테스트 완료 후 제출 예정 |
+| iOS build 27 (v1.0.0) | ✅ App Store 심사 승인·배포 완료 (2026-08-21) |
+| Android build | ✅ EAS 빌드 완료 (versionCode 17) — Play Console 제출 전 |
+| Google Play Console | 📋 미등록 — **다음 작업** |
+| App Store 정식 심사 | ✅ 승인 완료 (심사 중 Guideline 2.1 정보 요청 대응 경험) |
 
 ### 서버 (Railway)
 

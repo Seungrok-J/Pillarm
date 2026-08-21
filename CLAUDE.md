@@ -25,6 +25,8 @@ pillarm/
 ├── PRD_PHASE1.md              ← MVP 상세 요구사항
 ├── PRD_PHASE2.md              ← 확장 기능 요구사항
 ├── PRD_PHASE3.md              ← 간편 로그인 & 스토어 배포 (오프라인·관리자 포함)
+├── PRD_PHASE4.md              ← 약봉투 스캔 (Claude Vision AI) & 영양제 가이드
+├── PROJECT_SUMMARY.md         ← 프로젝트 진행 이력 요약 (포트폴리오·이력서용)
 ├── docs/
 │   ├── domain-model.md        ← 엔터티 정의
 │   └── erd.md                 ← ERD 다이어그램
@@ -62,8 +64,8 @@ pillarm/
 |-------|------|------|------|
 | 1 — MVP | `PRD_PHASE1.md` | 핵심 4기능: 등록·알림·체크·통계(기본) | ✅ 완료 |
 | 2 — 확장 | `PRD_PHASE2.md` | 보호자 공유·약 DB 연동·포인트·AI 코칭 | ✅ 완료 |
-| 3 — 배포 | `PRD_PHASE3.md` | 간편 로그인(Apple·Google·카카오) & App Store / Google Play 배포 + 오프라인 처리 + 관리자 패널 | 🔧 진행 중 |
-| 4 — 스캔 | `PRD_PHASE4.md` | 약봉투 촬영 → Claude Vision AI 자동 일정 생성 | 📋 계획 중 |
+| 3 — 배포 | `PRD_PHASE3.md` | 간편 로그인(Apple·Google·카카오) & App Store / Google Play 배포 + 오프라인 처리 + 관리자 패널 | 🔧 진행 중 (iOS 배포 ✅ · Android Play Store 제출 남음) |
+| 4 — 스캔 | `PRD_PHASE4.md` | 약봉투 촬영 → Claude Vision AI 자동 일정 생성 | ✅ 완료 (2026-06 배포, 지속 개선 중) |
 
 ## 작업 시작 전 체크리스트
 
