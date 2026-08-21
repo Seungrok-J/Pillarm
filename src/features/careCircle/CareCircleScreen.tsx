@@ -1,11 +1,11 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View, Text, TouchableOpacity, Modal,
   ActivityIndicator, Alert, StyleSheet,
   ScrollView, TextInput, Share, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RootStackParamList } from '../../navigation';
 import { useAuthStore } from '../../store/authStore';
@@ -135,7 +135,12 @@ export default function CareCircleScreen() {
     }
   }
 
-  useEffect(() => { loadCircles(); }, [loadCircles]);
+  // 탭을 다시 선택할 때마다 재조회 — 화면은 언마운트되지 않으므로 useEffect(마운트 1회)로는 갱신 안 됨
+  useFocusEffect(
+    useCallback(() => {
+      loadCircles();
+    }, [loadCircles]),
+  );
 
   const [showCreateForm, setShowCreateForm] = useState(false);
 
