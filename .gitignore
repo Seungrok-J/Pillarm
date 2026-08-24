@@ -10,6 +10,8 @@ ios/
 *.p12
 *.key
 *.mobileprovision
+google-play-service-account.json
+*-service-account*.json
 *.orig.*
 web-build/
 .env
