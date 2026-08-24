@@ -86,6 +86,8 @@ model CareCircle {
   policies    SharePolicy[]
   inviteCodes InviteCode[]
   snapshots   DoseEventSnapshot[]
+
+  @@index([ownerUserId])
 }
 
 model CareMember {
@@ -101,6 +103,7 @@ model CareMember {
   member     User       @relation("MemberUser", fields: [memberUserId], references: [id])
 
   @@unique([careCircleId, memberUserId])
+  @@index([memberUserId])
 }
 
 model SharePolicy {
