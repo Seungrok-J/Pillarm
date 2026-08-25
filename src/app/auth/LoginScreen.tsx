@@ -9,6 +9,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RootStackParamList } from '../../navigation';
 import { useAuthStore } from '../../store/authStore';
@@ -171,7 +172,12 @@ export default function LoginScreen() {
           >
             {loadingProvider === 'Apple'
               ? <ActivityIndicator color="#fff" />
-              : <Text style={styles.appleBtnText}> Apple로 계속하기</Text>
+              : (
+                <View style={styles.socialBtnRow}>
+                  <Ionicons name="logo-apple" size={20} color="#fff" />
+                  <Text style={styles.appleBtnText}>Apple로 계속하기</Text>
+                </View>
+              )
             }
           </TouchableOpacity>
         )}
@@ -186,7 +192,12 @@ export default function LoginScreen() {
         >
           {loadingProvider === 'Google'
             ? <ActivityIndicator color="#374151" />
-            : <Text style={styles.googleBtnText}>G  Google로 계속하기</Text>
+            : (
+              <View style={styles.socialBtnRow}>
+                <Ionicons name="logo-google" size={19} color="#4285F4" />
+                <Text style={styles.googleBtnText}>Google로 계속하기</Text>
+              </View>
+            )
           }
         </TouchableOpacity>
 
@@ -200,7 +211,12 @@ export default function LoginScreen() {
         >
           {loadingProvider === '카카오'
             ? <ActivityIndicator color="#191919" />
-            : <Text style={styles.kakaoBtnText}>💬  카카오로 계속하기</Text>
+            : (
+              <View style={styles.socialBtnRow}>
+                <Ionicons name="chatbubble" size={18} color="#191919" />
+                <Text style={styles.kakaoBtnText}>카카오로 계속하기</Text>
+              </View>
+            )
           }
         </TouchableOpacity>
       </View>
@@ -241,6 +257,9 @@ const styles = StyleSheet.create({
   socialBtn: {
     borderRadius: 14, paddingVertical: 16,
     alignItems: 'center', borderWidth: 1,
+  },
+  socialBtnRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
   },
 
   appleBtn:     { backgroundColor: '#000', borderColor: '#000' },

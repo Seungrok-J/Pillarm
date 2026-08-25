@@ -19,6 +19,7 @@ import { scheduleForSchedule } from '../../notifications';
 import { useAuthStore } from '../../store/authStore';
 import { useSettingsStore } from '../../store';
 import TimePickerList from '../../components/TimePickerList';
+import AlertModal from '../../components/AlertModal';
 
 type Nav   = StackNavigationProp<RootStackParamList>;
 type Route = RouteProp<RootStackParamList, 'ScanResult'>;
@@ -472,6 +473,7 @@ export default function ScanResultScreen() {
       });
   });
   const [saving, setSaving] = useState(false);
+  const [createdCount, setCreatedCount] = useState<number | null>(null);
 
   // 요약 카드(원터치 확인) ↔ 상세 편집 폼 토글. 약 이름이 비어 있으면
   // 바로 고쳐야 하니 처음부터 펼쳐서 보여준다.
@@ -852,11 +854,7 @@ export default function ScanResultScreen() {
       }
 
       savedRef.current = true;
-      Alert.alert(
-        '일정 등록 완료',
-        `${toCreate.length}개 약 일정이 등록되었습니다.`,
-        [{ text: '확인', onPress: () => navigation.popToTop() }],
-      );
+      setCreatedCount(toCreate.length);
     } catch {
       Alert.alert('오류', '일정 등록 중 문제가 발생했습니다. 다시 시도해주세요.');
     } finally {
@@ -1025,11 +1023,19 @@ export default function ScanResultScreen() {
 
                   {pack.times.length > 0 && candidates.length > 0 && (
                     <View style={styles.selectAllRow}>
-                      <TouchableOpacity onPress={() => selectAllCandidates(pack.id)}>
+                      <TouchableOpacity
+                        style={styles.selectAllBtn}
+                        onPress={() => selectAllCandidates(pack.id)}
+                        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                      >
                         <Text style={styles.selectAllText}>전체 선택</Text>
                       </TouchableOpacity>
                       {memberCount > 0 && (
-                        <TouchableOpacity onPress={() => deselectAllMembers(pack.id)}>
+                        <TouchableOpacity
+                          style={styles.selectAllBtn}
+                          onPress={() => deselectAllMembers(pack.id)}
+                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                        >
                           <Text style={styles.selectAllText}>전체 해제</Text>
                         </TouchableOpacity>
                       )}
@@ -1100,6 +1106,14 @@ export default function ScanResultScreen() {
       </View>
 
       {/* 취침전 시간 지정 피커 */}
+      <AlertModal
+        visible={createdCount !== null}
+        icon="🎉"
+        title="일정 등록 완료"
+        message={`${createdCount ?? 0}개 약 일정이 등록되었습니다.`}
+        buttons={[{ text: '확인', onPress: () => { setCreatedCount(null); navigation.popToTop(); } }]}
+      />
+
       {bedtimeTargetIdx !== null && (
         Platform.OS === 'ios' ? (
           <Modal visible transparent animationType="slide" onRequestClose={() => setBedtimeTargetIdx(null)}>
@@ -1262,8 +1276,13 @@ const styles = StyleSheet.create({
 
   packTimeLabel: { fontSize: 12, fontWeight: '600', color: '#6b7280', marginBottom: 6 },
   packTimeRow:   { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
-  selectAllRow:  { flexDirection: 'row', justifyContent: 'flex-end', gap: 14, marginTop: 6 },
-  selectAllText: { fontSize: 12, fontWeight: '700', color: '#3b82f6' },
+  selectAllRow:  { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 6, marginBottom: 2 },
+  selectAllBtn: {
+    minHeight: 44, minWidth: 44, paddingHorizontal: 14, paddingVertical: 10,
+    borderRadius: 10, borderWidth: 1, borderColor: '#bfdbfe', backgroundColor: '#eff6ff',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  selectAllText: { fontSize: 14, fontWeight: '700', color: '#3b82f6' },
   timeChip: {
     paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20,
     borderWidth: 1, borderColor: '#d1d5db', backgroundColor: '#f9fafb',

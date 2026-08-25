@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -28,6 +28,8 @@ import { useSettingsStore } from '../../store';
 import { isSyncEnabled, pushSchedule } from '../../sync/syncService';
 import { generateId, todayString } from '../../utils';
 import type { Schedule, Medication } from '../../domain';
+import AlertModal from '../../components/AlertModal';
+import MergeAnimation from '../../components/MergeAnimation';
 
 type Nav = StackNavigationProp<RootStackParamList>;
 
@@ -89,6 +91,13 @@ export default function ScheduleManageScreen() {
   const [isLoading,  setIsLoading]  = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showPast,   setShowPast]   = useState(false);
+  const [cannotMergeVisible, setCannotMergeVisible] = useState(false);
+  const [mergeConfirm, setMergeConfirm] = useState<
+    { draggedItem: ScheduleItem; target: ListEntry; targetName: string } | null
+  >(null);
+  const [mergeAnimNames, setMergeAnimNames] = useState<[string, string] | null>(null);
+  const pendingMergeRef = useRef<{ draggedItem: ScheduleItem; target: ListEntry } | null>(null);
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
 
   const today = todayString();
 
@@ -281,7 +290,7 @@ export default function ScheduleManageScreen() {
 
     if (mergeKeyOf(dragged.item.schedule) !== mergeKeyOf(representativeSchedule(target))) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
-      Alert.alert('합칠 수 없어요', '복용 시간과 기간(시작일·종료일)이 같은 일정끼리만 포로 합칠 수 있어요.');
+      setCannotMergeVisible(true);
       return;
     }
 
@@ -289,14 +298,7 @@ export default function ScheduleManageScreen() {
       ? (target.items.find((i) => i.schedule.packetName)?.schedule.packetName ?? `${target.items.length}개 약 묶음`)
       : target.item.medication.name;
 
-    Alert.alert(
-      '포로 합치기',
-      `'${dragged.item.medication.name}' 일정을 '${targetName}'와(과) 같은 포로 합칠까요?`,
-      [
-        { text: '취소', style: 'cancel' },
-        { text: '합치기', onPress: () => mergeIntoPacket(dragged.item, target) },
-      ],
-    );
+    setMergeConfirm({ draggedItem: dragged.item, target, targetName });
   }
 
   if (isLoading) {
@@ -307,12 +309,12 @@ export default function ScheduleManageScreen() {
     );
   }
 
-  function renderCard(item: ScheduleItem, isPast = false, drag?: () => void, isActive?: boolean) {
+  function renderCard(item: ScheduleItem, isPast = false, drag?: () => void, isActive?: boolean, isValidTarget?: boolean) {
     const Wrapper = drag ? TouchableOpacity : View;
     return (
       <Wrapper
         key={item.schedule.id}
-        style={[styles.card, isPast && styles.cardPast, isActive && styles.cardDragging]}
+        style={[styles.card, isPast && styles.cardPast, isActive && styles.cardDragging, isValidTarget && styles.cardValidTarget]}
         testID={isPast ? `card-past-${item.schedule.id}` : `card-${item.schedule.id}`}
         {...(drag ? { onLongPress: drag, delayLongPress: 200, activeOpacity: 0.9 } : {})}
       >
@@ -381,13 +383,13 @@ export default function ScheduleManageScreen() {
     );
   }
 
-  function renderPacketGroup(group: PacketGroup, drag?: () => void, isActive?: boolean) {
+  function renderPacketGroup(group: PacketGroup, drag?: () => void, isActive?: boolean, isValidTarget?: boolean) {
     const times = [...new Set(group.items.flatMap((i) => i.schedule.times))].sort();
     const packetName = group.items.find((i) => i.schedule.packetName)?.schedule.packetName;
     return (
       <TouchableOpacity
         key={group.packetId}
-        style={[styles.packetCard, isActive && styles.cardDragging]}
+        style={[styles.packetCard, isActive && styles.cardDragging, isValidTarget && styles.cardValidTarget]}
         onLongPress={drag}
         delayLongPress={200}
         activeOpacity={0.9}
@@ -483,17 +485,70 @@ export default function ScheduleManageScreen() {
             </View>
           ) : null
         }
-        renderItem={({ item: entry, drag, isActive }) => (
-          <DragScale isActive={isActive}>
-            {entry.kind === 'packet'
-              ? renderPacketGroup(entry, drag, isActive)
-              : renderCard(entry.item, false, drag, isActive)}
-          </DragScale>
-        )}
-        onDragBegin={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {}); }}
-        onDragEnd={handleDragEnd}
+        renderItem={({ item: entry, drag, isActive, getIndex }) => {
+          const draggedEntry = draggingIndex != null ? groupedActiveItems[draggingIndex] : null;
+          const isValidTarget =
+            !isActive &&
+            !!draggedEntry &&
+            draggedEntry.kind === 'single' &&
+            getIndex() !== draggingIndex &&
+            mergeKeyOf(draggedEntry.item.schedule) === mergeKeyOf(representativeSchedule(entry));
+          return (
+            <DragScale isActive={isActive}>
+              {entry.kind === 'packet'
+                ? renderPacketGroup(entry, drag, isActive, isValidTarget)
+                : renderCard(entry.item, false, drag, isActive, isValidTarget)}
+            </DragScale>
+          );
+        }}
+        onDragBegin={(index) => {
+          setDraggingIndex(index);
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+        }}
+        onDragEnd={(params) => { setDraggingIndex(null); handleDragEnd(params); }}
+        onRelease={() => setDraggingIndex(null)}
         ListFooterComponent={pastToggle}
       />
+
+      <AlertModal
+        visible={cannotMergeVisible}
+        icon="🚫"
+        title="합칠 수 없어요"
+        message="복용 시간과 기간(시작일·종료일)이 같은 일정끼리만 포로 합칠 수 있어요."
+        buttons={[{ text: '확인', onPress: () => setCannotMergeVisible(false) }]}
+      />
+
+      <AlertModal
+        visible={mergeConfirm !== null}
+        icon="💊"
+        title="포로 합치기"
+        message={mergeConfirm ? `'${mergeConfirm.draggedItem.medication.name}' 일정을 '${mergeConfirm.targetName}'와(과) 같은 포로 합칠까요?` : undefined}
+        buttons={[
+          { text: '취소', style: 'cancel', onPress: () => setMergeConfirm(null) },
+          {
+            text: '합치기',
+            onPress: () => {
+              if (mergeConfirm) {
+                pendingMergeRef.current = { draggedItem: mergeConfirm.draggedItem, target: mergeConfirm.target };
+                setMergeAnimNames([mergeConfirm.draggedItem.medication.name, mergeConfirm.targetName]);
+              }
+              setMergeConfirm(null);
+            },
+          },
+        ]}
+      />
+
+      {mergeAnimNames && (
+        <MergeAnimation
+          names={mergeAnimNames}
+          onComplete={() => {
+            const pending = pendingMergeRef.current;
+            setMergeAnimNames(null);
+            pendingMergeRef.current = null;
+            if (pending) mergeIntoPacket(pending.draggedItem, pending.target);
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -508,6 +563,10 @@ const styles = StyleSheet.create({
   cardDragging: {
     opacity: 0.85, shadowOpacity: 0.2, shadowRadius: 10, elevation: 6,
     borderColor: '#3b82f6', borderWidth: 1.5,
+  },
+  // 드래그 중인 일정과 합칠 수 있는 카드에 표시 — 어디에 놓아야 하는지 미리 알 수 있게
+  cardValidTarget: {
+    borderColor: '#22c55e', borderWidth: 2, backgroundColor: '#f0fdf4',
   },
 
   headerDeleteAllBtn: { marginRight: 12, paddingVertical: 6, paddingHorizontal: 4 },
