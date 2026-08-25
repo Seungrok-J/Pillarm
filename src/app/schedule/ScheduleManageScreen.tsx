@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
-  FlatList,
   TouchableOpacity,
   StyleSheet,
   Alert,
@@ -10,6 +9,9 @@ import {
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import DraggableFlatList from 'react-native-draggable-flatlist';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RootStackParamList } from '../../navigation';
@@ -18,10 +20,13 @@ import {
   getAllMedications,
   deleteSchedule,
   deleteFutureDoseEvents,
+  upsertSchedule,
 } from '../../db';
-import { cancelForSchedule } from '../../notifications';
+import { cancelForSchedule, scheduleForSchedule } from '../../notifications';
 import { useAuthStore } from '../../store/authStore';
-import { todayString } from '../../utils';
+import { useSettingsStore } from '../../store';
+import { isSyncEnabled, pushSchedule } from '../../sync/syncService';
+import { generateId, todayString } from '../../utils';
 import type { Schedule, Medication } from '../../domain';
 
 type Nav = StackNavigationProp<RootStackParamList>;
@@ -43,6 +48,25 @@ interface SingleItem {
   item: ScheduleItem;
 }
 type ListEntry = PacketGroup | SingleItem;
+
+/** 포로 합칠 수 있는지 비교하는 기준 — 복용 시간과 기간(시작일·종료일)이 완전히 같아야 함 */
+function mergeKeyOf(schedule: Schedule): string {
+  return [...schedule.times].sort().join(',') + '|' + schedule.startDate + '|' + (schedule.endDate ?? '');
+}
+
+function representativeSchedule(entry: ListEntry): Schedule {
+  return entry.kind === 'packet' ? entry.items[0].schedule : entry.item.schedule;
+}
+
+/** 드래그 중인 카드를 살짝 확대해 부드럽게 떠오르는 느낌을 준다 */
+function DragScale({ isActive, children }: { isActive: boolean; children: React.ReactNode }) {
+  const scale = useSharedValue(1);
+  useEffect(() => {
+    scale.value = withSpring(isActive ? 1.04 : 1, { damping: 16, stiffness: 200 });
+  }, [isActive, scale]);
+  const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  return <Animated.View style={animatedStyle}>{children}</Animated.View>;
+}
 
 function repeatLabel(schedule: Schedule): string {
   if (!schedule.daysOfWeek || schedule.daysOfWeek.length === 0) return '매일';
@@ -224,6 +248,57 @@ export default function ScheduleManageScreen() {
     );
   }
 
+  // 개별 일정을 다른 개별/포 위로 드래그해서 포로 합치기 — 시간·기간이 완전히 같을 때만 허용
+  async function mergeIntoPacket(dragged: ScheduleItem, target: ListEntry) {
+    const now = new Date().toISOString();
+    const settings = useSettingsStore.getState().settings;
+
+    async function applyPacket(item: ScheduleItem, packetId: string, packetName: string | undefined) {
+      const updated: Schedule = { ...item.schedule, packetId, packetName, updatedAt: now };
+      await upsertSchedule(updated, uid);
+      await deleteFutureDoseEvents(updated.id);
+      if (settings) await scheduleForSchedule(updated, item.medication, settings);
+      if (isSyncEnabled()) pushSchedule(updated).catch(() => {});
+    }
+
+    if (target.kind === 'packet') {
+      const packetName = target.items.find((i) => i.schedule.packetName)?.schedule.packetName;
+      await applyPacket(dragged, target.packetId, packetName);
+    } else {
+      const packetId = generateId();
+      await applyPacket(target.item, packetId, undefined);
+      await applyPacket(dragged, packetId, undefined);
+    }
+    await loadData();
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+  }
+
+  function handleDragEnd({ from, to }: { data: ListEntry[]; from: number; to: number }) {
+    if (from === to) return;
+    const dragged = groupedActiveItems[from];
+    const target = groupedActiveItems[to];
+    if (!dragged || !target || dragged.kind !== 'single') return; // 포끼리 합치기는 지원하지 않음
+
+    if (mergeKeyOf(dragged.item.schedule) !== mergeKeyOf(representativeSchedule(target))) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+      Alert.alert('합칠 수 없어요', '복용 시간과 기간(시작일·종료일)이 같은 일정끼리만 포로 합칠 수 있어요.');
+      return;
+    }
+
+    const targetName = target.kind === 'packet'
+      ? (target.items.find((i) => i.schedule.packetName)?.schedule.packetName ?? `${target.items.length}개 약 묶음`)
+      : target.item.medication.name;
+
+    Alert.alert(
+      '포로 합치기',
+      `'${dragged.item.medication.name}' 일정을 '${targetName}'와(과) 같은 포로 합칠까요?`,
+      [
+        { text: '취소', style: 'cancel' },
+        { text: '합치기', onPress: () => mergeIntoPacket(dragged.item, target) },
+      ],
+    );
+  }
+
   if (isLoading) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -232,12 +307,14 @@ export default function ScheduleManageScreen() {
     );
   }
 
-  function renderCard(item: ScheduleItem, isPast = false) {
+  function renderCard(item: ScheduleItem, isPast = false, drag?: () => void, isActive?: boolean) {
+    const Wrapper = drag ? TouchableOpacity : View;
     return (
-      <View
+      <Wrapper
         key={item.schedule.id}
-        style={[styles.card, isPast && styles.cardPast]}
+        style={[styles.card, isPast && styles.cardPast, isActive && styles.cardDragging]}
         testID={isPast ? `card-past-${item.schedule.id}` : `card-${item.schedule.id}`}
+        {...(drag ? { onLongPress: drag, delayLongPress: 200, activeOpacity: 0.9 } : {})}
       >
         <View style={styles.cardHeader}>
           <View style={[styles.colorDot, { backgroundColor: item.medication.color ?? '#d1d5db' }]} />
@@ -300,15 +377,21 @@ export default function ScheduleManageScreen() {
             <Text style={styles.deleteBtnTxt}>삭제</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </Wrapper>
     );
   }
 
-  function renderPacketGroup(group: PacketGroup) {
+  function renderPacketGroup(group: PacketGroup, drag?: () => void, isActive?: boolean) {
     const times = [...new Set(group.items.flatMap((i) => i.schedule.times))].sort();
     const packetName = group.items.find((i) => i.schedule.packetName)?.schedule.packetName;
     return (
-      <View key={group.packetId} style={styles.packetCard}>
+      <TouchableOpacity
+        key={group.packetId}
+        style={[styles.packetCard, isActive && styles.cardDragging]}
+        onLongPress={drag}
+        delayLongPress={200}
+        activeOpacity={0.9}
+      >
         {/* 포 그룹 헤더 */}
         <View style={styles.packetHeader}>
           <View style={styles.packetBadge}>
@@ -351,7 +434,7 @@ export default function ScheduleManageScreen() {
         >
           <Text style={styles.deleteBtnTxt}>포 전체 삭제</Text>
         </TouchableOpacity>
-      </View>
+      </TouchableOpacity>
     );
   }
 
@@ -374,7 +457,10 @@ export default function ScheduleManageScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <FlatList
+      {groupedActiveItems.length > 1 && (
+        <Text style={styles.dragHint}>일정을 길게 눌러 다른 일정 위로 끌면 포로 합칠 수 있어요</Text>
+      )}
+      <DraggableFlatList
         data={groupedActiveItems}
         keyExtractor={(entry) =>
           entry.kind === 'packet' ? `packet-${entry.packetId}` : entry.item.schedule.id
@@ -397,11 +483,15 @@ export default function ScheduleManageScreen() {
             </View>
           ) : null
         }
-        renderItem={({ item: entry }) =>
-          entry.kind === 'packet'
-            ? renderPacketGroup(entry)
-            : renderCard(entry.item)
-        }
+        renderItem={({ item: entry, drag, isActive }) => (
+          <DragScale isActive={isActive}>
+            {entry.kind === 'packet'
+              ? renderPacketGroup(entry, drag, isActive)
+              : renderCard(entry.item, false, drag, isActive)}
+          </DragScale>
+        )}
+        onDragBegin={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {}); }}
+        onDragEnd={handleDragEnd}
         ListFooterComponent={pastToggle}
       />
     </SafeAreaView>
@@ -411,6 +501,14 @@ export default function ScheduleManageScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#f9fafb' },
   list: { padding: 16, paddingBottom: 48 },
+  dragHint: {
+    fontSize: 12, color: '#9ca3af', textAlign: 'center',
+    paddingTop: 10, paddingBottom: 2, paddingHorizontal: 16,
+  },
+  cardDragging: {
+    opacity: 0.85, shadowOpacity: 0.2, shadowRadius: 10, elevation: 6,
+    borderColor: '#3b82f6', borderWidth: 1.5,
+  },
 
   headerDeleteAllBtn: { marginRight: 12, paddingVertical: 6, paddingHorizontal: 4 },
   headerDeleteAllTxt: { color: '#ef4444', fontSize: 15, fontWeight: '600' },

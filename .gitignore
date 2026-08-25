@@ -20,3 +20,5 @@ web-build/
 server/.env
 server/.env.local
 server/.env.*
+.claude/settings.local.json
+server/supabase/.temp/

@@ -10,6 +10,7 @@ import {
   Platform,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
@@ -393,6 +394,7 @@ export default function ScheduleFormScreen() {
   }
 
   return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }} edges={['bottom']}>
     <ScrollView style={{ flex: 1, backgroundColor: '#fff' }} contentContainerStyle={{ padding: 20 }}>
       {/* ── 약봉투 스캔 바로가기 ── */}
       {!isEdit && (
@@ -589,6 +591,7 @@ export default function ScheduleFormScreen() {
         )}
       </TouchableOpacity>
     </ScrollView>
+    </SafeAreaView>
   );
 }
 

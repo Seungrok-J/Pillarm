@@ -25,7 +25,7 @@
     },
     "android": {
       "package": "com.seungrokj.pillarm",
-      "versionCode": 21,
+      "versionCode": 22,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundImage": "./assets/adaptive-icon-background.png"
@@ -63,7 +63,10 @@
         "@react-native-kakao/core",
         {
           "nativeAppKey": "8dc3f74482bc4d09a9c1c8502acf99c4",
-          "isKakaoTalkLoginAvailable": true
+          "isKakaoTalkLoginAvailable": true,
+          "android": {
+            "authCodeHandlerActivity": true
+          }
         }
       ],
       [

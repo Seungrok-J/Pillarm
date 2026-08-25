@@ -3,6 +3,7 @@ import {
   View, Text, ScrollView, RefreshControl,
   StyleSheet, ActivityIndicator, TouchableOpacity, AppState,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../../navigation';
@@ -161,6 +162,7 @@ export default function CareMonitorScreen() {
   const today = new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' });
 
   return (
+    <SafeAreaView style={styles.container} edges={['bottom']}>
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
@@ -273,6 +275,7 @@ export default function CareMonitorScreen() {
         </Text>
       )}
     </ScrollView>
+    </SafeAreaView>
   );
 }
 

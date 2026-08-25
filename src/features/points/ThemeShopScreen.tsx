@@ -6,8 +6,8 @@ import {
   TouchableOpacity,
   Modal,
   StyleSheet,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { THEMES, type Theme } from '../../utils/themeManager';
 import { useThemeStore } from '../../store';
 import { usePointStore } from '../../store';
@@ -87,7 +87,7 @@ export default function ThemeShopScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} testID="screen-theme-shop">
+    <SafeAreaView style={styles.container} edges={['bottom']} testID="screen-theme-shop">
       {/* 잔액 표시 */}
       <View style={styles.balanceRow}>
         <Text style={styles.balanceLabel}>보유 포인트</Text>

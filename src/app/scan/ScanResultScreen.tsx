@@ -3,7 +3,7 @@ import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
   StyleSheet, Alert, Modal, Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RouteProp } from '@react-navigation/native';
@@ -25,12 +25,6 @@ type Route = RouteProp<RootStackParamList, 'ScanResult'>;
 
 const WITH_FOOD_LABELS = { before: '식전', after: '식후', none: '무관' } as const;
 
-interface SubPacket {
-  id:         string;
-  name:       string;
-  memberIdxs: number[];
-}
-
 // ── 날짜 헬퍼 ─────────────────────────────────────────────────────────────────
 
 function toLocalDateString(d: Date): string {
@@ -51,9 +45,21 @@ function formatDisplayDate(dateStr: string): string {
   return `${y}년 ${Number(m)}월 ${Number(day)}일`;
 }
 
-/** 복용 시간 배열을 정렬해 묶음 키로 사용 (같은 시간 조합만 한 포로 묶을 수 있음) */
+/** 복용 시간 배열을 정렬해 묶음 키로 사용 (초기 자동 포 제안에 사용) */
 function timeKeyOf(item: MedicationScanResult): string {
   return [...item.suggestedTimes].sort().join(',');
+}
+
+/**
+ * 포(Pack) — 특정 시간대(들)에 여러 약을 묶어 하나의 알림/체크로 처리.
+ * 같은 약이 시간대가 다른 여러 포에 겹쳐 들어갈 수 있다
+ * (예: 약1이 "아침·저녁 포"와 "점심 포"에 동시에 속함 — 실제 약국 포장과 동일한 개념).
+ */
+interface Pack {
+  id:         string;
+  name:       string;
+  times:      string[];
+  memberIdxs: number[];
 }
 
 // ── DatePickerField ──────────────────────────────────────────────────────────
@@ -380,13 +386,25 @@ export default function ScanResultScreen() {
   const navigation = useNavigation<Nav>();
   const { params } = useRoute<Route>();
   const settings = useSettingsStore.getState().settings;
+  const insets = useSafeAreaInsets();
 
   const [items, setItems] = useState<MedicationScanResult[]>(params.results);
   const [tabIndex, setTabIndex] = useState(0);
   const [skipped, setSkipped] = useState<Set<number>>(new Set());
-  // 포 그룹화: 같은 복용 시간을 가진 약끼리 사용자가 직접 만들고 지울 수 있다.
-  const [subPackets, setSubPackets] = useState<Record<string, SubPacket[]>>({});
-  const [pendingSelection, setPendingSelection] = useState<Record<string, Set<number>>>({});
+  // 포 목록 — 완전히 같은 시간 조합을 가진 약(2개 이상)은 시작할 때 기본 포로 자동 생성해두고,
+  // 사용자가 시간·멤버를 자유롭게 편집하거나 "+ 새 포 만들기"로 더 추가할 수 있다.
+  const [packs, setPacks] = useState<Pack[]>(() => {
+    const groups = new Map<string, number[]>();
+    params.results.forEach((item, i) => {
+      if (item.suggestedTimes.length === 0) return;
+      const key = timeKeyOf(item);
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(i);
+    });
+    return [...groups.entries()]
+      .filter(([, idxs]) => idxs.length >= 2)
+      .map(([key, idxs]) => ({ id: generateId(), name: '', times: key.split(','), memberIdxs: idxs }));
+  });
   const [saving, setSaving] = useState(false);
 
   // 요약 카드(원터치 확인) ↔ 상세 편집 폼 토글. 약 이름이 비어 있으면
@@ -477,50 +495,70 @@ export default function ScanResultScreen() {
     });
   }, [navigation]);
 
-  // 같은 복용 시간을 가진(2개 이상) 약들만 포 묶음 후보가 된다.
-  const timeGroups = useMemo(() => {
-    const map = new Map<string, number[]>();
+  // 포 시간 선택지 — 건너뛰지 않은 약들이 가진 시간을 모두 모은 목록
+  const allTimes = useMemo(() => {
+    const s = new Set<string>();
     items.forEach((item, i) => {
       if (skipped.has(i)) return;
-      if (item.suggestedTimes.length === 0) return;
-      const key = timeKeyOf(item);
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(i);
+      item.suggestedTimes.forEach((t) => s.add(t));
     });
-    return [...map.entries()].filter(([, idxs]) => idxs.length >= 2);
+    return [...s].sort();
   }, [items, skipped]);
 
-  function togglePending(key: string, idx: number) {
-    setPendingSelection((prev) => {
-      const cur = new Set(prev[key] ?? []);
-      cur.has(idx) ? cur.delete(idx) : cur.add(idx);
-      return { ...prev, [key]: cur };
-    });
+  function labelForTime(t: string): string {
+    const found = mealTimes.find((m) => m.time === t);
+    return found ? `${found.label} ${t}` : t;
   }
 
-  function createSubPacket(key: string) {
-    const pending = pendingSelection[key];
-    if (!pending || pending.size < 2) return;
-    const memberIdxs = [...pending].sort((a, b) => a - b);
-    setSubPackets((prev) => ({
-      ...prev,
-      [key]: [...(prev[key] ?? []), { id: generateId(), name: '', memberIdxs }],
-    }));
-    setPendingSelection((prev) => ({ ...prev, [key]: new Set() }));
+  /** 특정 포의 후보(체크 가능) 약 — 포가 선택한 시간을 전부 가지고 있고,
+   *  그 시간이 다른 포에 이미 겹쳐 점유되지 않은 약만 후보가 된다. */
+  function candidateIdxsFor(pack: Pack): number[] {
+    return items
+      .map((_, i) => i)
+      .filter((i) => !skipped.has(i))
+      .filter((i) => pack.times.length > 0 && pack.times.every((t) => items[i].suggestedTimes.includes(t)))
+      .filter((i) => {
+        const claimedByOthers = packs
+          .filter((p) => p.id !== pack.id && p.memberIdxs.includes(i))
+          .flatMap((p) => p.times);
+        return !pack.times.some((t) => claimedByOthers.includes(t));
+      });
   }
 
-  function deleteSubPacket(key: string, packetId: string) {
-    setSubPackets((prev) => ({
-      ...prev,
-      [key]: (prev[key] ?? []).filter((p) => p.id !== packetId),
-    }));
+  function addPack() {
+    setPacks((prev) => [...prev, { id: generateId(), name: '', times: [], memberIdxs: [] }]);
   }
 
-  function updateSubPacketName(key: string, packetId: string, name: string) {
-    setSubPackets((prev) => ({
-      ...prev,
-      [key]: (prev[key] ?? []).map((p) => (p.id === packetId ? { ...p, name } : p)),
-    }));
+  function deletePack(packId: string) {
+    setPacks((prev) => prev.filter((p) => p.id !== packId));
+  }
+
+  function updatePackName(packId: string, name: string) {
+    setPacks((prev) => prev.map((p) => (p.id === packId ? { ...p, name } : p)));
+  }
+
+  function togglePackTime(packId: string, time: string) {
+    setPacks((prev) =>
+      prev.map((p) => {
+        if (p.id !== packId) return p;
+        const times = p.times.includes(time) ? p.times.filter((t) => t !== time) : [...p.times, time].sort();
+        // 시간이 바뀌면 더 이상 그 시간을 다 갖지 못하는 멤버는 자동으로 빠진다
+        const memberIdxs = p.memberIdxs.filter((i) => times.every((t) => items[i].suggestedTimes.includes(t)));
+        return { ...p, times, memberIdxs };
+      }),
+    );
+  }
+
+  function togglePackMember(packId: string, idx: number) {
+    setPacks((prev) =>
+      prev.map((p) => {
+        if (p.id !== packId) return p;
+        const memberIdxs = p.memberIdxs.includes(idx)
+          ? p.memberIdxs.filter((i) => i !== idx)
+          : [...p.memberIdxs, idx];
+        return { ...p, memberIdxs };
+      }),
+    );
   }
 
   function updateField<K extends keyof MedicationScanResult>(
@@ -563,18 +601,10 @@ export default function ScanResultScreen() {
       return;
     }
 
-    // 사용자가 직접 만든 포(subPacket) 기준으로 packetId·이름을 부여한다.
-    const packetInfoByIndex = new Map<number, { id: string; name?: string }>();
-    for (const groupPackets of Object.values(subPackets)) {
-      for (const p of groupPackets) {
-        if (p.memberIdxs.length < 2) continue;
-        const name = p.name.trim() || undefined;
-        for (const i of p.memberIdxs) {
-          if (skipped.has(i)) continue;
-          packetInfoByIndex.set(i, { id: p.id, name });
-        }
-      }
-    }
+    // 2개 이상 멤버를 가진 포만 유효 — 그 외엔 개별 일정으로 취급
+    const validPacks = packs.filter(
+      (p) => p.times.length > 0 && p.memberIdxs.filter((i) => !skipped.has(i)).length >= 2,
+    );
 
     setSaving(true);
     try {
@@ -585,7 +615,6 @@ export default function ScanResultScreen() {
         const ed = endDates[origIdx] || undefined;
 
         const medicationId = generateId();
-        const scheduleId   = generateId();
         const now          = new Date().toISOString();
 
         await upsertMedication(
@@ -601,29 +630,43 @@ export default function ScanResultScreen() {
           userId,
         );
 
-        const packetInfo = packetInfoByIndex.get(origIdx);
+        const med = { id: medicationId, name: item.medicationName.trim(), isActive: true, createdAt: now, updatedAt: now };
 
-        const schedule = {
-          id:           scheduleId,
-          medicationId,
-          scheduleType: 'fixed' as const,
-          startDate:    sd,
-          endDate:      ed,
-          times:        item.suggestedTimes.length > 0 ? item.suggestedTimes : ['08:00'],
-          withFood:     item.withFood ?? ('none' as const),
-          graceMinutes: 120,
-          isActive:     true,
-          packetId:     packetInfo?.id,
-          packetName:   packetInfo?.name,
-          createdAt:    now,
-          updatedAt:    now,
-        };
+        async function createOneSchedule(times: string[], packetId?: string, packetName?: string) {
+          const schedule = {
+            id:           generateId(),
+            medicationId,
+            scheduleType: 'fixed' as const,
+            startDate:    sd,
+            endDate:      ed,
+            times,
+            withFood:     item.withFood ?? ('none' as const),
+            graceMinutes: 120,
+            isActive:     true,
+            packetId,
+            packetName,
+            createdAt:    now,
+            updatedAt:    now,
+          };
+          await upsertSchedule(schedule, userId);
+          if (s) await scheduleForSchedule(schedule, med, s);
+        }
 
-        await upsertSchedule(schedule, userId);
+        // 이 약이 속한 유효한 포들 — 같은 약이 여러 포(예: 아침·저녁 포 + 점심 포)에 겹쳐 속할 수 있다.
+        const memberPacks = validPacks.filter((p) => p.memberIdxs.includes(origIdx));
+        const claimedTimes = new Set(memberPacks.flatMap((p) => p.times));
+        const leftoverTimes = item.suggestedTimes.filter((t) => !claimedTimes.has(t));
 
-        if (s) {
-          const med = { id: medicationId, name: item.medicationName.trim(), isActive: true, createdAt: now, updatedAt: now };
-          await scheduleForSchedule(schedule, med, s);
+        for (const pack of memberPacks) {
+          await createOneSchedule(pack.times, pack.id, pack.name.trim() || undefined);
+        }
+
+        if (memberPacks.length === 0) {
+          // 어떤 포에도 속하지 않음 — 원래 시간 그대로 개별 일정
+          await createOneSchedule(item.suggestedTimes.length > 0 ? item.suggestedTimes : ['08:00']);
+        } else if (leftoverTimes.length > 0) {
+          // 포에 포함되지 않은 나머지 시간 — 개별 일정으로 별도 등록
+          await createOneSchedule(leftoverTimes);
         }
       }
 
@@ -743,67 +786,66 @@ export default function ScanResultScreen() {
           </View>
         )}
 
-        {/* 포 그룹화 — 같은 복용 시간을 가진 약끼리 직접 포를 만들고 지울 수 있다 */}
-        {timeGroups.length > 0 ? (
-          timeGroups.map(([key, idxs]) => {
-            const groupPackets = subPackets[key] ?? [];
-            const assignedIdxs = new Set(groupPackets.flatMap((p) => p.memberIdxs));
-            const availableIdxs = idxs.filter((i) => !assignedIdxs.has(i));
-            const pending = pendingSelection[key] ?? new Set<number>();
-            const pendingCount = availableIdxs.filter((i) => pending.has(i)).length;
-            const times = key.split(',');
+        {/* 포 만들기 — 시간(들)과 멤버 약을 직접 골라 여러 포를 만들 수 있다.
+            같은 약이 시간대가 다른 여러 포에 겹쳐 들어갈 수 있음(예: 약1이 아침저녁 포 + 점심 포) */}
+        {items.length >= 2 && (
+          <View style={styles.packetSection}>
+            <View style={styles.packetTitleRow}>
+              <Text style={styles.packetTitle}>💊 포 만들기</Text>
+              <Text style={styles.packetHint}>
+                같은 시간에 함께 먹는 약끼리 포로 묶으면 홈에서 한 번에 체크돼요 · 같은 약도 시간대별로 여러 포에 나눠 넣을 수 있어요
+              </Text>
+            </View>
 
-            return (
-              <View key={key} style={styles.packetSection}>
-                <View style={styles.packetTitleRow}>
-                  <Text style={styles.packetTitle}>💊 {times.join('  ')} 복용 약</Text>
-                  <Text style={styles.packetHint}>
-                    같은 시간에 복용하는 약끼리 포로 묶을 수 있어요 · 홈에서 한 번에 복용 체크돼요
-                  </Text>
-                </View>
+            {packs.map((pack) => {
+              const candidates = candidateIdxsFor(pack);
+              const memberCount = pack.memberIdxs.length;
 
-                {/* 이미 만든 포 */}
-                {groupPackets.map((p) => (
-                  <View key={p.id} style={styles.subPacketCard}>
-                    <View style={styles.subPacketHeader}>
-                      <TextInput
-                        style={styles.subPacketNameInput}
-                        value={p.name}
-                        onChangeText={(v) => updateSubPacketName(key, p.id, v)}
-                        placeholder="그룹 이름 (예: 아침약)"
-                        maxLength={20}
-                      />
-                      <TouchableOpacity
-                        style={styles.subPacketDeleteBtn}
-                        onPress={() => deleteSubPacket(key, p.id)}
-                      >
-                        <Text style={styles.subPacketDeleteTxt}>삭제</Text>
-                      </TouchableOpacity>
-                    </View>
-                    {p.memberIdxs.map((i) => (
-                      <View key={i} style={styles.packetRow}>
-                        <View style={[styles.checkbox, styles.checkboxChecked, styles.checkboxLocked]}>
-                          <Text style={styles.checkmark}>✓</Text>
-                        </View>
-                        <Text style={styles.packetItemName} numberOfLines={1}>
-                          {items[i]?.medicationName || `약 ${i + 1}`}
-                        </Text>
-                      </View>
-                    ))}
+              return (
+                <View key={pack.id} style={styles.subPacketCard}>
+                  <View style={styles.subPacketHeader}>
+                    <TextInput
+                      style={styles.subPacketNameInput}
+                      value={pack.name}
+                      onChangeText={(v) => updatePackName(pack.id, v)}
+                      placeholder="포 이름 (예: 아침저녁 포)"
+                      maxLength={20}
+                    />
+                    <TouchableOpacity onPress={() => deletePack(pack.id)}>
+                      <Text style={styles.deletePackText}>삭제</Text>
+                    </TouchableOpacity>
                   </View>
-                ))}
 
-                {/* 새 포 만들기 — 아직 어떤 포에도 속하지 않은 약만 선택 가능 */}
-                {availableIdxs.length >= 2 ? (
-                  <View style={styles.newPacketBox}>
-                    <Text style={styles.newPacketLabel}>새 포 만들기</Text>
-                    {availableIdxs.map((i) => {
-                      const checked = pending.has(i);
+                  <Text style={styles.packTimeLabel}>복용 시간</Text>
+                  <View style={styles.packTimeRow}>
+                    {allTimes.map((t) => {
+                      const selected = pack.times.includes(t);
+                      return (
+                        <TouchableOpacity
+                          key={t}
+                          style={[styles.timeChip, selected && styles.timeChipActive]}
+                          onPress={() => togglePackTime(pack.id, t)}
+                        >
+                          <Text style={[styles.timeChipText, selected && styles.timeChipTextActive]}>
+                            {labelForTime(t)}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+
+                  {pack.times.length === 0 ? (
+                    <Text style={styles.packetWarning}>시간을 먼저 선택하면 넣을 수 있는 약이 나와요</Text>
+                  ) : candidates.length === 0 ? (
+                    <Text style={styles.packetWarning}>선택한 시간을 모두 가진 약이 없어요</Text>
+                  ) : (
+                    candidates.map((i) => {
+                      const checked = pack.memberIdxs.includes(i);
                       return (
                         <TouchableOpacity
                           key={i}
                           style={styles.packetRow}
-                          onPress={() => togglePending(key, i)}
+                          onPress={() => togglePackMember(pack.id, i)}
                           activeOpacity={0.7}
                         >
                           <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
@@ -814,36 +856,27 @@ export default function ScanResultScreen() {
                           </Text>
                         </TouchableOpacity>
                       );
-                    })}
-                    <TouchableOpacity
-                      style={[styles.makePacketBtn, pendingCount < 2 && styles.makePacketBtnDisabled]}
-                      disabled={pendingCount < 2}
-                      onPress={() => createSubPacket(key)}
-                    >
-                      <Text style={styles.makePacketBtnText}>
-                        {pendingCount >= 2 ? `선택한 ${pendingCount}개 약으로 포 만들기` : '2개 이상 선택하면 포를 만들 수 있어요'}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                ) : availableIdxs.length === 1 ? (
-                  <Text style={styles.packetWarning}>
-                    남은 약이 1개뿐이라 포로 묶을 수 없어요
-                  </Text>
-                ) : null}
-              </View>
-            );
-          })
-        ) : items.length >= 2 ? (
-          <View style={styles.packetSection}>
-            <Text style={styles.packetHint}>
-              복용 시간이 같은 약이 2개 이상 있어야 한 포로 묶을 수 있어요
-            </Text>
+                    })
+                  )}
+
+                  {pack.times.length > 0 && candidates.length > 0 && memberCount < 2 && (
+                    <Text style={styles.packetWarning}>
+                      2개 이상 선택해야 포로 묶여요 · 지금은 개별 일정으로 등록돼요
+                    </Text>
+                  )}
+                </View>
+              );
+            })}
+
+            <TouchableOpacity style={styles.addPackBtn} onPress={addPack}>
+              <Text style={styles.addPackBtnText}>＋ 새 포 만들기</Text>
+            </TouchableOpacity>
           </View>
-        ) : null}
+        )}
       </ScrollView>
 
       {/* 하단 버튼 */}
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: 24 + insets.bottom }]}>
         <Text style={styles.footerHint}>
           {items.length - skipped.size}개 약 일정 등록 예정
         </Text>
@@ -964,35 +997,36 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', backgroundColor: '#f9fafb',
   },
   checkboxChecked: { backgroundColor: '#3b82f6', borderColor: '#3b82f6' },
-  checkboxLocked:  { opacity: 0.6 },
   checkmark:       { fontSize: 13, color: '#fff', fontWeight: '800' },
   packetItemName:  { flex: 1, fontSize: 14, fontWeight: '500', color: '#374151' },
   packetWarning:   { fontSize: 12, color: '#f59e0b', marginTop: 8, textAlign: 'center' },
 
   subPacketCard: {
-    marginTop: 12, backgroundColor: '#f8faff', borderRadius: 12,
-    padding: 12, borderWidth: 1, borderColor: '#dbeafe',
+    marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: '#e0eaff',
   },
-  subPacketHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  subPacketHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
   subPacketNameInput: {
     flex: 1, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10,
     paddingHorizontal: 12, paddingVertical: 8, fontSize: 14, color: '#111827',
     backgroundColor: '#fff',
   },
-  subPacketDeleteBtn: {
-    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10,
-    borderWidth: 1, borderColor: '#ef4444',
-  },
-  subPacketDeleteTxt: { fontSize: 13, color: '#ef4444', fontWeight: '600' },
+  deletePackText: { fontSize: 13, fontWeight: '600', color: '#ef4444', paddingHorizontal: 4 },
 
-  newPacketBox: { marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: '#e0eaff' },
-  newPacketLabel: { fontSize: 13, fontWeight: '700', color: '#374151', marginBottom: 4 },
-  makePacketBtn: {
-    marginTop: 12, paddingVertical: 12, borderRadius: 10,
-    backgroundColor: '#3b82f6', alignItems: 'center',
+  packTimeLabel: { fontSize: 12, fontWeight: '600', color: '#6b7280', marginBottom: 6 },
+  packTimeRow:   { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
+  timeChip: {
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20,
+    borderWidth: 1, borderColor: '#d1d5db', backgroundColor: '#f9fafb',
   },
-  makePacketBtnDisabled: { backgroundColor: '#d1d5db' },
-  makePacketBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  timeChipActive:     { backgroundColor: '#eff6ff', borderColor: '#3b82f6' },
+  timeChipText:       { fontSize: 13, fontWeight: '600', color: '#374151' },
+  timeChipTextActive: { color: '#3b82f6' },
+
+  addPackBtn: {
+    marginTop: 14, paddingVertical: 12, borderRadius: 10,
+    borderWidth: 1, borderColor: '#3b82f6', borderStyle: 'dashed', alignItems: 'center',
+  },
+  addPackBtnText: { fontSize: 14, fontWeight: '700', color: '#3b82f6' },
 
   footer: {
     position: 'absolute', bottom: 0, left: 0, right: 0,

@@ -453,7 +453,7 @@ export default function CareCircleScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <View style={styles.center}>
           <ActivityIndicator size="large" color="#3b82f6" />
         </View>
@@ -462,7 +462,7 @@ export default function CareCircleScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}

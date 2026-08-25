@@ -4,6 +4,7 @@ import { AppState, AppStateStatus, Text, TextInput, View } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as SplashScreen from 'expo-splash-screen';
 import { initializeKakaoSDK } from '@react-native-kakao/core';
 import { configureGoogle } from './src/features/socialAuth/googleAuth';
@@ -92,12 +93,14 @@ export default function App() {
   if (!isReady) return null;
 
   return (
-    <SafeAreaProvider>
-      <View style={{ flex: 1 }}>
-        <RootNavigator />
-        <OfflineBanner />
-      </View>
-      <StatusBar style="dark" />
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <View style={{ flex: 1 }}>
+          <RootNavigator />
+          <OfflineBanner />
+        </View>
+        <StatusBar style="dark" />
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
