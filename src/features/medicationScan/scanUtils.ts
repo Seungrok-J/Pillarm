@@ -28,6 +28,12 @@ export interface MedicationScanResult {
   withFood?:      'before' | 'after' | 'none';
   suggestedTimes: string[];
   note?:          string;
+  /** 체크된(또는 사용자가 선택한) 복용 시점 — 아침/점심/저녁/취침전. suggestedTimes 중 이 시점들에서 계산된 시간을 추적하는 용도 */
+  mealSlots?:     MealSlot[];
+  /** 시점 체크와 무관하게 사용자가 "+ 시간 추가"로 직접 넣은 시간 */
+  manualTimes?:   string[];
+  /** '취침전' 시점을 선택했을 때 사용자가 지정한 시간 (없으면 기본값 사용) */
+  bedtimeTime?:   string;
 }
 
 /** AI 인식 결과 단위 문자열 → DosageUnit 정규화. 정/정제/캡슐 등은 "정"으로 우선 처리. */
@@ -40,13 +46,13 @@ export function normalizeUnit(raw: string | undefined): DosageUnit | undefined {
   return undefined;
 }
 
-function addMinutes(time: string, minutes: number): string {
+export function addMinutes(time: string, minutes: number): string {
   const [h, m] = time.split(':').map(Number);
   const total = Math.max(0, Math.min(1439, h * 60 + m + minutes));
   return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
 }
 
-function inferMealSlots(timesPerDay: number | undefined): MealSlot[] {
+export function inferMealSlots(timesPerDay: number | undefined): MealSlot[] {
   switch (timesPerDay) {
     case 1:  return ['morning'];
     case 2:  return ['morning', 'dinner'];
@@ -56,25 +62,36 @@ function inferMealSlots(timesPerDay: number | undefined): MealSlot[] {
   }
 }
 
-/** 식사 시간 설정 + AI 인식 결과(mealSlots, withFoodMinutes)로 복용 시간 계산 */
+/** 복용 시점(slot) 하나의 기준 시간 계산 — 아침/점심/저녁은 사용자 설정값, 취침전은 지정한 시간(없으면 기본값) */
+export function timeForMealSlot(
+  slot:         MealSlot,
+  mealSettings: MealSettings | null,
+  bedtimeOverride?: string | null,
+): string {
+  const settings = mealSettings ?? FALLBACK_MEAL;
+  if (slot === 'morning') return settings.mealTimeBreakfast;
+  if (slot === 'lunch')   return settings.mealTimeLunch;
+  if (slot === 'dinner')  return settings.mealTimeDinner;
+  return bedtimeOverride || BEDTIME_DEFAULT;
+}
+
+/** 식사 시간 설정 + AI 인식 결과(mealSlots, withFoodMinutes)로 복용 시간 계산.
+ *  noFallback이 true면 mealSlots가 비어있을 때 timesPerDay로 추론하지 않고 빈 배열을 반환한다
+ *  (사용자가 시점 체크를 전부 해제한 경우처럼, 의도적으로 "시점 기반 시간 없음"을 표현할 때 사용). */
 export function suggestTimesFromMeals(
   mealSlots:       MealSlot[] | null | undefined,
   withFoodMinutes: number | null | undefined,
   timesPerDay:     number | undefined,
   mealSettings:    MealSettings | null,
+  opts?: { bedtimeOverride?: string | null; noFallback?: boolean },
 ): string[] {
-  const settings = mealSettings ?? FALLBACK_MEAL;
-  const slots    = (mealSlots && mealSlots.length > 0) ? mealSlots : inferMealSlots(timesPerDay);
-  const offset   = withFoodMinutes ?? 0;
+  const slots  = (mealSlots && mealSlots.length > 0)
+    ? mealSlots
+    : opts?.noFallback ? [] : inferMealSlots(timesPerDay);
+  const offset = withFoodMinutes ?? 0;
 
   return slots
-    .map((slot) => {
-      const base = slot === 'morning' ? settings.mealTimeBreakfast
-        : slot === 'lunch'   ? settings.mealTimeLunch
-        : slot === 'dinner'  ? settings.mealTimeDinner
-        : BEDTIME_DEFAULT;
-      return addMinutes(base, offset);
-    })
+    .map((slot) => addMinutes(timeForMealSlot(slot, mealSettings, opts?.bedtimeOverride), offset))
     .sort();
 }
 

@@ -11,8 +11,8 @@ import type { NativeSyntheticEvent, NativeScrollEvent, LayoutChangeEvent } from 
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import type { RootStackParamList } from '../../navigation';
-import type { MedicationScanResult } from '../../features/medicationScan/scanUtils';
-import { DOSAGE_UNITS } from '../../features/medicationScan/scanUtils';
+import type { MedicationScanResult, MealSlot } from '../../features/medicationScan/scanUtils';
+import { DOSAGE_UNITS, suggestTimesFromMeals, addMinutes, timeForMealSlot } from '../../features/medicationScan/scanUtils';
 import { generateId, todayString } from '../../utils';
 import { upsertMedication, upsertSchedule } from '../../db';
 import { scheduleForSchedule } from '../../notifications';
@@ -23,7 +23,12 @@ import TimePickerList from '../../components/TimePickerList';
 type Nav   = StackNavigationProp<RootStackParamList>;
 type Route = RouteProp<RootStackParamList, 'ScanResult'>;
 
-const WITH_FOOD_LABELS = { before: '식전', after: '식후', none: '무관' } as const;
+const WITH_FOOD_LABELS = { before: '식전 30분', after: '식후 30분', none: '무관' } as const;
+const WITH_FOOD_OFFSET: Record<'before' | 'after' | 'none', number> = { before: -30, after: 30, none: 0 };
+
+const MEAL_SLOT_LABELS: Record<MealSlot, string> = {
+  morning: '아침', lunch: '점심', dinner: '저녁', bedtime: '취침전',
+};
 
 // ── 날짜 헬퍼 ─────────────────────────────────────────────────────────────────
 
@@ -38,6 +43,10 @@ function addDays(dateStr: string, days: number): string {
   const d = new Date(dateStr + 'T00:00:00');
   d.setDate(d.getDate() + days);
   return toLocalDateString(d);
+}
+
+function toHHmm(d: Date): string {
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
 function formatDisplayDate(dateStr: string): string {
@@ -166,7 +175,7 @@ interface MedicationCardProps {
   isExpanded:  boolean;
   startDate:   string;
   endDate:     string;
-  mealTimes:   { label: string; time: string }[];
+  mealSlotOptions: MealSlot[];
   width:       number;
   onUpdateField: <K extends keyof MedicationScanResult>(idx: number, key: K, value: MedicationScanResult[K]) => void;
   onToggleSkip:      (idx: number) => void;
@@ -174,12 +183,18 @@ interface MedicationCardProps {
   onDurationChange:  (idx: number, days: number | undefined) => void;
   onStartDateChange: (idx: number, v: string) => void;
   onEndDateChange:   (idx: number, v: string) => void;
+  onToggleMealSlot:  (idx: number, slot: MealSlot) => void;
+  onSetWithFood:     (idx: number, opt: 'before' | 'after' | 'none') => void;
+  onAddManualTime:   (idx: number, time: string) => void;
+  onRemoveTime:      (idx: number, time: string) => void;
+  slotTimeLabel:     (item: MedicationScanResult, slot: MealSlot) => string;
 }
 
 function MedicationCard({
-  idx, item, isSkipped, isExpanded, startDate, endDate, mealTimes, width,
+  idx, item, isSkipped, isExpanded, startDate, endDate, mealSlotOptions, width,
   onUpdateField, onToggleSkip, onToggleExpanded, onDurationChange,
   onStartDateChange, onEndDateChange,
+  onToggleMealSlot, onSetWithFood, onAddManualTime, onRemoveTime, slotTimeLabel,
 }: MedicationCardProps) {
   return (
     <View style={width ? { width } : styles.pageFallback}>
@@ -270,42 +285,46 @@ function MedicationCard({
 
             {/* 복용 시간 — 일정추가 화면과 동일 스타일 */}
             <FieldLabel label="복용 시간" />
-            {/* 식사 시간 단축 선택 */}
+            {/* 복용 시점 체크 — 아침·점심·저녁은 설정값, 취침전은 직접 지정한 시간 */}
             <View style={styles.mealRow}>
-              {mealTimes.map(({ label, time }) => {
-                const selected = item.suggestedTimes.includes(time);
+              {mealSlotOptions.map((slot) => {
+                const selected = (item.mealSlots ?? []).includes(slot);
                 return (
                   <TouchableOpacity
-                    key={label}
+                    key={slot}
                     style={[styles.mealBtn, selected && styles.mealBtnActive, isSkipped && { opacity: 0.4 }]}
-                    onPress={() => {
-                      if (isSkipped) return;
-                      const times = item.suggestedTimes;
-                      const next  = selected
-                        ? times.filter((t) => t !== time)
-                        : [...times, time].sort();
-                      onUpdateField(idx, 'suggestedTimes', next);
-                    }}
+                    onPress={() => !isSkipped && onToggleMealSlot(idx, slot)}
                   >
-                    <Text style={[styles.mealTxt, selected && styles.mealTxtActive]}>{label}</Text>
-                    <Text style={[styles.mealTime, selected && styles.mealTimeActive]}>{time}</Text>
+                    <Text style={[styles.mealTxt, selected && styles.mealTxtActive]}>
+                      {MEAL_SLOT_LABELS[slot]}
+                    </Text>
+                    <Text style={[styles.mealTime, selected && styles.mealTimeActive]}>
+                      {slot === 'bedtime' && !item.bedtimeTime ? '시간 선택' : slotTimeLabel(item, slot)}
+                    </Text>
                   </TouchableOpacity>
                 );
               })}
             </View>
-            {/* 시간 드럼롤 선택기 */}
+            {/* 식전/식후 30분 — 선택하면 위 체크된 시점들의 시간에 반영됨 */}
+            <View style={styles.row}>
+              {(['before', 'after', 'none'] as const).map((opt) => (
+                <TouchableOpacity
+                  key={opt}
+                  style={[styles.segBtn, item.withFood === opt && styles.segBtnActive]}
+                  onPress={() => !isSkipped && onSetWithFood(idx, opt)}
+                >
+                  <Text style={[styles.segBtnText, item.withFood === opt && styles.segBtnTextActive]}>
+                    {WITH_FOOD_LABELS[opt]}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            {/* 시간 드럼롤 선택기 — 시점 체크와 무관하게 시간을 직접 추가/삭제 */}
             {!isSkipped && (
               <TimePickerList
                 times={item.suggestedTimes}
-                onAdd={(t) => {
-                  const times = item.suggestedTimes;
-                  if (!times.includes(t)) {
-                    onUpdateField(idx, 'suggestedTimes', [...times, t].sort());
-                  }
-                }}
-                onRemove={(t) => {
-                  onUpdateField(idx, 'suggestedTimes', item.suggestedTimes.filter((x) => x !== t));
-                }}
+                onAdd={(t) => onAddManualTime(idx, t)}
+                onRemove={(t) => onRemoveTime(idx, t)}
               />
             )}
 
@@ -342,22 +361,6 @@ function MedicationCard({
               minimumDate={startDate ? new Date(startDate + 'T00:00:00') : undefined}
               disabled={isSkipped}
             />
-
-            {/* 식전/식후 */}
-            <FieldLabel label="식전/식후" />
-            <View style={styles.row}>
-              {(['before', 'after', 'none'] as const).map((opt) => (
-                <TouchableOpacity
-                  key={opt}
-                  style={[styles.segBtn, item.withFood === opt && styles.segBtnActive]}
-                  onPress={() => !isSkipped && onUpdateField(idx, 'withFood', opt)}
-                >
-                  <Text style={[styles.segBtnText, item.withFood === opt && styles.segBtnTextActive]}>
-                    {WITH_FOOD_LABELS[opt]}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
 
             {/* 메모 */}
             {item.note ? (
@@ -506,23 +509,24 @@ export default function ScanResultScreen() {
   }, [items, skipped]);
 
   function labelForTime(t: string): string {
-    const found = mealTimes.find((m) => m.time === t);
+    const found = mealTimeLabels.find((m) => m.time === t);
     return found ? `${found.label} ${t}` : t;
   }
 
-  /** 특정 포의 후보(체크 가능) 약 — 포가 선택한 시간을 전부 가지고 있고,
-   *  그 시간이 다른 포에 이미 겹쳐 점유되지 않은 약만 후보가 된다. */
+  /** 특정 포의 후보(체크 가능) 약 — 포가 선택한 시간을 전부 가지고 있는 약.
+   *  다른 포에 이미 속한 약도 후보에 포함하고(탭하면 옮길 수 있게), UI에서 "다른 포에 있음"으로 표시한다. */
   function candidateIdxsFor(pack: Pack): number[] {
     return items
       .map((_, i) => i)
       .filter((i) => !skipped.has(i))
-      .filter((i) => pack.times.length > 0 && pack.times.every((t) => items[i].suggestedTimes.includes(t)))
-      .filter((i) => {
-        const claimedByOthers = packs
-          .filter((p) => p.id !== pack.id && p.memberIdxs.includes(i))
-          .flatMap((p) => p.times);
-        return !pack.times.some((t) => claimedByOthers.includes(t));
-      });
+      .filter((i) => pack.times.length > 0 && pack.times.every((t) => items[i].suggestedTimes.includes(t)));
+  }
+
+  /** 이 약이 시간이 겹치는 다른 포에 이미 속해 있다면 그 포를 반환 (없으면 undefined) */
+  function claimedByOtherPack(pack: Pack, idx: number): Pack | undefined {
+    return packs.find(
+      (p) => p.id !== pack.id && p.memberIdxs.includes(idx) && pack.times.some((t) => p.times.includes(t)),
+    );
   }
 
   function addPack() {
@@ -549,16 +553,26 @@ export default function ScanResultScreen() {
     );
   }
 
+  /** 포에 약을 체크/해제. 이미 시간이 겹치는 다른 포에 속한 약을 체크하면,
+   *  그 포에서는 자동으로 빠지고 이 포로 옮겨진다(같은 시간에 두 포로 중복 등록되는 걸 방지). */
   function togglePackMember(packId: string, idx: number) {
-    setPacks((prev) =>
-      prev.map((p) => {
-        if (p.id !== packId) return p;
-        const memberIdxs = p.memberIdxs.includes(idx)
-          ? p.memberIdxs.filter((i) => i !== idx)
-          : [...p.memberIdxs, idx];
-        return { ...p, memberIdxs };
-      }),
-    );
+    setPacks((prev) => {
+      const target = prev.find((p) => p.id === packId);
+      if (!target) return prev;
+      const alreadyIn = target.memberIdxs.includes(idx);
+      return prev.map((p) => {
+        if (p.id === packId) {
+          return {
+            ...p,
+            memberIdxs: alreadyIn ? p.memberIdxs.filter((i) => i !== idx) : [...p.memberIdxs, idx],
+          };
+        }
+        if (!alreadyIn && p.memberIdxs.includes(idx) && target.times.some((t) => p.times.includes(t))) {
+          return { ...p, memberIdxs: p.memberIdxs.filter((i) => i !== idx) };
+        }
+        return p;
+      });
+    });
   }
 
   function updateField<K extends keyof MedicationScanResult>(
@@ -569,6 +583,77 @@ export default function ScanResultScreen() {
     setItems((prev) =>
       prev.map((item, i) => (i === idx ? { ...item, [key]: value } : item)),
     );
+  }
+
+  // ── 복용 시점(아침/점심/저녁/취침전) 체크 + 식전/식후 30분 → suggestedTimes 재계산 ──
+  // '+ 시간 추가'로 직접 넣은 시간(manualTimes)과 시점에서 계산된 시간(derived)을 합쳐서 최종 suggestedTimes를 만든다.
+  const [bedtimeTargetIdx, setBedtimeTargetIdx] = useState<number | null>(null);
+  const [bedtimeTemp, setBedtimeTemp] = useState<Date>(new Date());
+
+  function updateItemDerived(idx: number, patch: Partial<MedicationScanResult>) {
+    setItems((prev) =>
+      prev.map((item, i) => {
+        if (i !== idx) return item;
+        const merged  = { ...item, ...patch };
+        const offset  = WITH_FOOD_OFFSET[merged.withFood ?? 'none'];
+        const derived = suggestTimesFromMeals(
+          merged.mealSlots ?? [], offset, undefined, settings,
+          { bedtimeOverride: merged.bedtimeTime, noFallback: true },
+        );
+        const suggestedTimes = [...new Set([...(merged.manualTimes ?? []), ...derived])].sort();
+        return { ...merged, suggestedTimes };
+      }),
+    );
+  }
+
+  /** 특정 약·시점에 지금 적용될 시간(식전/식후 30분 오프셋 반영) — 미리보기 및 시간 역추적용 */
+  function slotTimeLabel(item: MedicationScanResult, slot: MealSlot): string {
+    const offset = WITH_FOOD_OFFSET[item.withFood ?? 'none'];
+    return addMinutes(timeForMealSlot(slot, settings, item.bedtimeTime), offset);
+  }
+
+  function toggleMealSlot(idx: number, slot: MealSlot) {
+    const item = items[idx];
+    const has  = (item.mealSlots ?? []).includes(slot);
+    // 취침전을 처음 체크하면 시간을 직접 지정하도록 피커를 띄운다
+    if (!has && slot === 'bedtime' && !item.bedtimeTime) {
+      setBedtimeTemp(new Date());
+      setBedtimeTargetIdx(idx);
+      return;
+    }
+    const mealSlots = has
+      ? (item.mealSlots ?? []).filter((s) => s !== slot)
+      : [...(item.mealSlots ?? []), slot];
+    updateItemDerived(idx, { mealSlots });
+  }
+
+  function confirmBedtimeTime(time: string) {
+    if (bedtimeTargetIdx == null) return;
+    const item = items[bedtimeTargetIdx];
+    const mealSlots = [...(item.mealSlots ?? []).filter((s) => s !== 'bedtime'), 'bedtime' as MealSlot];
+    updateItemDerived(bedtimeTargetIdx, { mealSlots, bedtimeTime: time });
+    setBedtimeTargetIdx(null);
+  }
+
+  function setWithFood(idx: number, opt: 'before' | 'after' | 'none') {
+    updateItemDerived(idx, { withFood: opt });
+  }
+
+  function addManualTime(idx: number, time: string) {
+    const item = items[idx];
+    if (item.suggestedTimes.includes(time)) return;
+    updateItemDerived(idx, { manualTimes: [...(item.manualTimes ?? []), time] });
+  }
+
+  /** 시간 칩 삭제 — 시점에서 파생된 시간이면 그 시점 체크를 해제하고, 직접 추가한 시간이면 그냥 제거한다 */
+  function removeTime(idx: number, time: string) {
+    const item = items[idx];
+    const matchedSlot = (item.mealSlots ?? []).find((s) => slotTimeLabel(item, s) === time);
+    if (matchedSlot) {
+      updateItemDerived(idx, { mealSlots: (item.mealSlots ?? []).filter((s) => s !== matchedSlot) });
+    } else {
+      updateItemDerived(idx, { manualTimes: (item.manualTimes ?? []).filter((x) => x !== time) });
+    }
   }
 
   function toggleSkip(idx: number) {
@@ -685,7 +770,9 @@ export default function ScanResultScreen() {
 
   if (items.length === 0) return null;
 
-  const mealTimes = settings
+  const mealSlotOptions: MealSlot[] = ['morning', 'lunch', 'dinner', 'bedtime'];
+
+  const mealTimeLabels = settings
     ? [
         { label: '아침', time: settings.mealTimeBreakfast },
         { label: '점심', time: settings.mealTimeLunch },
@@ -767,7 +854,7 @@ export default function ScanResultScreen() {
               isExpanded={expanded.has(i)}
               startDate={startDates[i] ?? today}
               endDate={endDates[i] ?? ''}
-              mealTimes={mealTimes}
+              mealSlotOptions={mealSlotOptions}
               width={pageWidth}
               onUpdateField={updateField}
               onToggleSkip={toggleSkip}
@@ -775,6 +862,11 @@ export default function ScanResultScreen() {
               onDurationChange={handleDurationChange}
               onStartDateChange={updateStartDate}
               onEndDateChange={updateEndDate}
+              onToggleMealSlot={toggleMealSlot}
+              onSetWithFood={setWithFood}
+              onAddManualTime={addManualTime}
+              onRemoveTime={removeTime}
+              slotTimeLabel={slotTimeLabel}
             />
           ))}
         </ScrollView>
@@ -793,7 +885,7 @@ export default function ScanResultScreen() {
             <View style={styles.packetTitleRow}>
               <Text style={styles.packetTitle}>💊 포 만들기</Text>
               <Text style={styles.packetHint}>
-                같은 시간에 함께 먹는 약끼리 포로 묶으면 홈에서 한 번에 체크돼요 · 같은 약도 시간대별로 여러 포에 나눠 넣을 수 있어요
+                같은 시간에 함께 먹는 약끼리 포로 묶으면 홈에서 한 번에 체크돼요 · 같은 약도 시간대별로 여러 포에 나눠 넣을 수 있어요 · 다른 포에 있는 약도 탭하면 이 포로 옮겨져요
               </Text>
             </View>
 
@@ -840,7 +932,8 @@ export default function ScanResultScreen() {
                     <Text style={styles.packetWarning}>선택한 시간을 모두 가진 약이 없어요</Text>
                   ) : (
                     candidates.map((i) => {
-                      const checked = pack.memberIdxs.includes(i);
+                      const checked    = pack.memberIdxs.includes(i);
+                      const otherPack  = !checked ? claimedByOtherPack(pack, i) : undefined;
                       return (
                         <TouchableOpacity
                           key={i}
@@ -854,6 +947,11 @@ export default function ScanResultScreen() {
                           <Text style={styles.packetItemName} numberOfLines={1}>
                             {items[i]?.medicationName || `약 ${i + 1}`}
                           </Text>
+                          {otherPack && (
+                            <Text style={styles.packetClaimedTag} numberOfLines={1}>
+                              {otherPack.name.trim() || '다른 포'}에 있음 · 탭해서 옮기기
+                            </Text>
+                          )}
                         </TouchableOpacity>
                       );
                     })
@@ -890,6 +988,43 @@ export default function ScanResultScreen() {
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* 취침전 시간 지정 피커 */}
+      {bedtimeTargetIdx !== null && (
+        Platform.OS === 'ios' ? (
+          <Modal visible transparent animationType="slide" onRequestClose={() => setBedtimeTargetIdx(null)}>
+            <View style={dpStyles.overlay}>
+              <View style={dpStyles.sheet}>
+                <View style={dpStyles.toolbar}>
+                  <TouchableOpacity onPress={() => setBedtimeTargetIdx(null)}>
+                    <Text style={dpStyles.cancelTxt}>취소</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => confirmBedtimeTime(toHHmm(bedtimeTemp))}>
+                    <Text style={dpStyles.confirmTxt}>확인</Text>
+                  </TouchableOpacity>
+                </View>
+                <DateTimePicker
+                  value={bedtimeTemp}
+                  mode="time"
+                  display="spinner"
+                  locale="ko-KR"
+                  onChange={(_, selected) => { if (selected) setBedtimeTemp(selected); }}
+                />
+              </View>
+            </View>
+          </Modal>
+        ) : (
+          <DateTimePicker
+            value={bedtimeTemp}
+            mode="time"
+            display="default"
+            onChange={(_, selected) => {
+              if (selected) confirmBedtimeTime(toHHmm(selected));
+              else setBedtimeTargetIdx(null);
+            }}
+          />
+        )
+      )}
     </SafeAreaView>
   );
 }
@@ -999,6 +1134,7 @@ const styles = StyleSheet.create({
   checkboxChecked: { backgroundColor: '#3b82f6', borderColor: '#3b82f6' },
   checkmark:       { fontSize: 13, color: '#fff', fontWeight: '800' },
   packetItemName:  { flex: 1, fontSize: 14, fontWeight: '500', color: '#374151' },
+  packetClaimedTag:{ fontSize: 11, color: '#9ca3af', maxWidth: 130 },
   packetWarning:   { fontSize: 12, color: '#f59e0b', marginTop: 8, textAlign: 'center' },
 
   subPacketCard: {

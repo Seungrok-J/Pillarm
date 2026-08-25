@@ -1,6 +1,6 @@
 import { api } from '../careCircle/careCircleApi';
 import type { MedicationScanResult, MealSettings, MealSlot } from './scanUtils';
-import { suggestTimesFromMeals, normalizeUnit } from './scanUtils';
+import { suggestTimesFromMeals, normalizeUnit, inferMealSlots } from './scanUtils';
 
 interface RawScanItem {
   medicationName: string;
@@ -42,20 +42,25 @@ export async function scanMedicationImage(
     throw new Error('약봉투 정보를 인식하지 못했습니다.\n사진을 다시 찍거나 직접 입력해주세요.');
   }
 
-  return data.results.map((r) => ({
-    medicationName: r.medicationName,
-    dosageValue:    r.dosageValue ?? undefined,
-    dosageUnit:     normalizeUnit(r.dosageUnit ?? undefined),
-    timesPerDay:    r.timesPerDay ?? undefined,
-    dosePerIntake:  r.dosePerIntake ?? undefined,
-    durationDays:   r.durationDays ?? undefined,
-    withFood:       r.withFood ?? undefined,
-    suggestedTimes: suggestTimesFromMeals(
-      r.mealSlots as MealSlot[] | null,
-      r.withFoodMinutes ?? null,
-      r.timesPerDay ?? undefined,
-      mealSettings,
-    ),
-    note:           r.note ?? undefined,
-  }));
+  return data.results.map((r) => {
+    const mealSlots = (r.mealSlots as MealSlot[] | null) ?? inferMealSlots(r.timesPerDay ?? undefined);
+    return {
+      medicationName: r.medicationName,
+      dosageValue:    r.dosageValue ?? undefined,
+      dosageUnit:     normalizeUnit(r.dosageUnit ?? undefined),
+      timesPerDay:    r.timesPerDay ?? undefined,
+      dosePerIntake:  r.dosePerIntake ?? undefined,
+      durationDays:   r.durationDays ?? undefined,
+      withFood:       r.withFood ?? undefined,
+      mealSlots,
+      manualTimes:    [],
+      suggestedTimes: suggestTimesFromMeals(
+        mealSlots,
+        r.withFoodMinutes ?? null,
+        r.timesPerDay ?? undefined,
+        mealSettings,
+      ),
+      note:           r.note ?? undefined,
+    };
+  });
 }
