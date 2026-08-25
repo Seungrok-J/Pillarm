@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View, Text, TouchableOpacity, Modal, ScrollView, StyleSheet, TextInput,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // ── 상수 ─────────────────────────────────────────────────────────────────────
 
@@ -98,6 +99,7 @@ interface Props {
 }
 
 export default function TimePickerList({ times, onAdd, onRemove }: Props) {
+  const insets = useSafeAreaInsets();
   const [open,      setOpen]      = useState(false);
   const [modalKey,  setModalKey]  = useState(0);
   const [periodIdx, setPeriodIdx] = useState(0);
@@ -147,7 +149,7 @@ export default function TimePickerList({ times, onAdd, onRemove }: Props) {
         onRequestClose={() => setOpen(false)}
       >
         <View style={styles.overlay}>
-          <View style={styles.sheet}>
+          <View style={[styles.sheet, { paddingBottom: 40 + insets.bottom }]}>
             <Text style={styles.sheetTitle}>복용 시간 선택</Text>
 
             {/* 직접 입력 (테스트 및 UX 편의) */}

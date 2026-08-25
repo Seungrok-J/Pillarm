@@ -12,6 +12,9 @@
   },
   "jest": {
     "preset": "jest-expo",
+    "setupFiles": [
+      "<rootDir>/jest.setup.js"
+    ],
     "testMatch": [
       "<rootDir>/__tests__/**/*.test.{ts,tsx}",
       "<rootDir>/src/**/*.test.{ts,tsx}"
@@ -28,7 +31,7 @@
       "^expo-sqlite$": "<rootDir>/__mocks__/expo-sqlite.js"
     },
     "transformIgnorePatterns": [
-      "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg|nativewind|zustand|react-native-calendars|react-native-swipe-gestures)"
+      "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg|nativewind|zustand|react-native-calendars|react-native-swipe-gestures|react-native-safe-area-context)"
     ],
     "collectCoverageFrom": [
       "src/**/*.{ts,tsx}",

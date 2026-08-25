@@ -301,7 +301,7 @@ export default function ScheduleManageScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <ActivityIndicator style={{ marginTop: 60 }} />
       </SafeAreaView>
     );
@@ -456,7 +456,7 @@ export default function ScheduleManageScreen() {
   ) : null;
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       {groupedActiveItems.length > 1 && (
         <Text style={styles.dragHint}>일정을 길게 눌러 다른 일정 위로 끌면 포로 합칠 수 있어요</Text>
       )}

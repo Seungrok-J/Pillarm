@@ -22,6 +22,7 @@ import {
   upsertSchedule,
   getMedicationById,
   getScheduleById,
+  getAllSchedules,
   deleteFutureDoseEvents,
   getDoseEventsByDate,
 } from '../../db';
@@ -226,6 +227,9 @@ export default function ScheduleFormScreen() {
   const [startDate, setStartDate] = useState(todayString());
   const [endDate,   setEndDate]   = useState(() => addDays(todayString(), 7));
   const [withFood, setWithFood] = useState<WithFood>('none');
+  const [packetId, setPacketId] = useState<string | undefined>();
+  const [packetName, setPacketName] = useState<string | undefined>();
+  const [packetMemberCount, setPacketMemberCount] = useState(0);
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(isEdit);
@@ -258,6 +262,12 @@ export default function ScheduleFormScreen() {
           if (sched.daysOfWeek) {
             setRepeatType('weekly');
             setSelectedDays(sched.daysOfWeek);
+          }
+          if (sched.packetId) {
+            setPacketId(sched.packetId);
+            setPacketName(sched.packetName);
+            const all = await getAllSchedules(useAuthStore.getState().userId ?? 'local');
+            setPacketMemberCount(all.filter((s) => s.packetId === sched.packetId).length);
           }
         }
       } finally {
@@ -319,7 +329,8 @@ export default function ScheduleFormScreen() {
       };
       await upsertMedication(med, useAuthStore.getState().userId ?? 'local');
 
-      // Step 2 — Schedule upsert
+      // Step 2 — Schedule upsert (포에 속해있으면 packetId/packetName을 그대로 유지해서
+      // 수정해도 포에서 분리되지 않게 한다)
       const sched: Schedule = {
         id: scheduleId,
         medicationId,
@@ -331,10 +342,13 @@ export default function ScheduleFormScreen() {
         withFood,
         graceMinutes: 120,
         isActive: true,
+        packetId,
+        packetName,
         createdAt: schedCreatedAt,
         updatedAt: now,
       };
-      await upsertSchedule(sched, useAuthStore.getState().userId ?? 'local');
+      const uid = useAuthStore.getState().userId ?? 'local';
+      await upsertSchedule(sched, uid);
 
       // Step 3 — 수정 시 기존 미래 DoseEvent 삭제
       if (isEdit) {
@@ -345,13 +359,35 @@ export default function ScheduleFormScreen() {
       await scheduleForSchedule(sched, med, settings);
 
       // Step 6 — 서버 동기화 및 보호자 스냅샷 업로드
-      const uid = useAuthStore.getState().userId ?? 'local';
       if (isSyncEnabled()) {
         pushMedication(med).catch(() => {});
         pushSchedule(sched).catch(() => {});
         const todayEvents = await getDoseEventsByDate(todayString(), uid);
         if (todayEvents.length > 0) {
           uploadTodaySnapshot(uid, todayEvents).catch(() => {});
+        }
+      }
+
+      // Step 6.5 — 포에 속한 다른 약들도 시간·기간을 함께 맞춰서 포가 깨지지 않게 한다
+      // (포의 정의 자체가 "시간·기간이 같은 일정끼리"이므로, 나머지 필드(용량·식전후 등)는 각자 유지)
+      if (packetId && isEdit) {
+        const siblings = (await getAllSchedules(uid)).filter(
+          (s) => s.packetId === packetId && s.id !== scheduleId,
+        );
+        for (const sibling of siblings) {
+          const siblingMed = await getMedicationById(sibling.medicationId);
+          if (!siblingMed) continue;
+          const updatedSibling: Schedule = {
+            ...sibling,
+            startDate,
+            endDate: endDate || undefined,
+            times,
+            updatedAt: now,
+          };
+          await upsertSchedule(updatedSibling, uid);
+          await deleteFutureDoseEvents(sibling.id);
+          await scheduleForSchedule(updatedSibling, siblingMed, settings);
+          if (isSyncEnabled()) pushSchedule(updatedSibling).catch(() => {});
         }
       }
 
@@ -405,6 +441,16 @@ export default function ScheduleFormScreen() {
         >
           <Text style={scanBtnTextStyle}>📷 약봉투 스캔으로 자동 입력</Text>
         </TouchableOpacity>
+      )}
+
+      {/* ── 포 소속 안내 ── */}
+      {isEdit && packetId && (
+        <View style={packetNoticeStyle}>
+          <Text style={packetNoticeTextStyle}>
+            💊 {packetName ? `'${packetName}'` : '다른 약'}{packetMemberCount > 1 ? ` 외 ${packetMemberCount - 1}개 약과 ` : ' 약과 '}
+            같은 포로 묶여 있어요. 복용 시간·기간을 바꾸면 포 전체에 함께 적용됩니다.
+          </Text>
+        </View>
       )}
 
       {/* ── 약 이름 (자동완성) ── */}
@@ -594,6 +640,12 @@ export default function ScheduleFormScreen() {
     </SafeAreaView>
   );
 }
+
+const packetNoticeStyle = {
+  backgroundColor: '#eff6ff', borderRadius: 12, borderWidth: 1, borderColor: '#bfdbfe',
+  paddingVertical: 10, paddingHorizontal: 12, marginBottom: 16,
+};
+const packetNoticeTextStyle = { fontSize: 13, color: '#1d4ed8', lineHeight: 19 };
 
 const scanBtnStyle = {
   backgroundColor: '#eff6ff', borderRadius: 12, borderWidth: 1, borderColor: '#bfdbfe',

@@ -11,7 +11,7 @@ import type { NativeSyntheticEvent, NativeScrollEvent, LayoutChangeEvent } from 
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import type { RootStackParamList } from '../../navigation';
-import type { MedicationScanResult, MealSlot } from '../../features/medicationScan/scanUtils';
+import type { MedicationScanResult, MealSlot, MealSettings } from '../../features/medicationScan/scanUtils';
 import { DOSAGE_UNITS, suggestTimesFromMeals, addMinutes, timeForMealSlot } from '../../features/medicationScan/scanUtils';
 import { generateId, todayString } from '../../utils';
 import { upsertMedication, upsertSchedule } from '../../db';
@@ -49,6 +49,13 @@ function toHHmm(d: Date): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
+function hhmmToDate(hhmm: string): Date {
+  const [h, m] = hhmm.split(':').map(Number);
+  const d = new Date();
+  d.setHours(h ?? 0, m ?? 0, 0, 0);
+  return d;
+}
+
 function formatDisplayDate(dateStr: string): string {
   const [y, m, day] = dateStr.split('-');
   return `${y}년 ${Number(m)}월 ${Number(day)}일`;
@@ -57,6 +64,41 @@ function formatDisplayDate(dateStr: string): string {
 /** 복용 시간 배열을 정렬해 묶음 키로 사용 (초기 자동 포 제안에 사용) */
 function timeKeyOf(item: MedicationScanResult): string {
   return [...item.suggestedTimes].sort().join(',');
+}
+
+function toMinutes(hhmm: string): number {
+  const [h, m] = hhmm.split(':').map(Number);
+  return (h ?? 0) * 60 + (m ?? 0);
+}
+
+/** 인식 결과(시간·식전후)를 분석해 포 이름을 자동으로 제안한다 — 예: "아침약(식후)" */
+function suggestPackName(
+  times: string[],
+  memberIdxs: number[],
+  items: MedicationScanResult[],
+  mealSettings: MealSettings | null,
+): string {
+  const settings = mealSettings ?? { mealTimeBreakfast: '09:00', mealTimeLunch: '12:00', mealTimeDinner: '18:00' };
+  const near = (a: string, b: string) => Math.abs(toMinutes(a) - toMinutes(b)) <= 35;
+
+  const slotLabels = times
+    .map((t) => {
+      if (near(t, settings.mealTimeBreakfast)) return '아침';
+      if (near(t, settings.mealTimeLunch))     return '점심';
+      if (near(t, settings.mealTimeDinner))    return '저녁';
+      return null;
+    })
+    .filter((l): l is '아침' | '점심' | '저녁' => l !== null);
+  const uniqueLabels = [...new Set(slotLabels)];
+  const base = uniqueLabels.length > 0 ? `${uniqueLabels.join('')}약` : `${times[0] ?? ''} 포`;
+
+  const withFoods = new Set(
+    memberIdxs
+      .map((i) => items[i]?.withFood)
+      .filter((w): w is 'before' | 'after' => w === 'before' || w === 'after'),
+  );
+  const suffix = withFoods.size === 1 ? (withFoods.has('before') ? '(식전)' : '(식후)') : '';
+  return base + suffix;
 }
 
 /**
@@ -184,6 +226,7 @@ interface MedicationCardProps {
   onStartDateChange: (idx: number, v: string) => void;
   onEndDateChange:   (idx: number, v: string) => void;
   onToggleMealSlot:  (idx: number, slot: MealSlot) => void;
+  onRemoveMealSlot:  (idx: number, slot: MealSlot) => void;
   onSetWithFood:     (idx: number, opt: 'before' | 'after' | 'none') => void;
   onAddManualTime:   (idx: number, time: string) => void;
   onRemoveTime:      (idx: number, time: string) => void;
@@ -194,7 +237,7 @@ function MedicationCard({
   idx, item, isSkipped, isExpanded, startDate, endDate, mealSlotOptions, width,
   onUpdateField, onToggleSkip, onToggleExpanded, onDurationChange,
   onStartDateChange, onEndDateChange,
-  onToggleMealSlot, onSetWithFood, onAddManualTime, onRemoveTime, slotTimeLabel,
+  onToggleMealSlot, onRemoveMealSlot, onSetWithFood, onAddManualTime, onRemoveTime, slotTimeLabel,
 }: MedicationCardProps) {
   return (
     <View style={width ? { width } : styles.pageFallback}>
@@ -295,12 +338,24 @@ function MedicationCard({
                     style={[styles.mealBtn, selected && styles.mealBtnActive, isSkipped && { opacity: 0.4 }]}
                     onPress={() => !isSkipped && onToggleMealSlot(idx, slot)}
                   >
+                    {slot === 'bedtime' && selected && !isSkipped && (
+                      <TouchableOpacity
+                        style={styles.mealBtnRemove}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        onPress={() => onRemoveMealSlot(idx, slot)}
+                      >
+                        <Ionicons name="close-circle" size={16} color="#9ca3af" />
+                      </TouchableOpacity>
+                    )}
                     <Text style={[styles.mealTxt, selected && styles.mealTxtActive]}>
                       {MEAL_SLOT_LABELS[slot]}
                     </Text>
                     <Text style={[styles.mealTime, selected && styles.mealTimeActive]}>
                       {slot === 'bedtime' && !item.bedtimeTime ? '시간 선택' : slotTimeLabel(item, slot)}
                     </Text>
+                    {slot === 'bedtime' && selected && (
+                      <Text style={styles.mealEditHint}>탭해서 재설정</Text>
+                    )}
                   </TouchableOpacity>
                 );
               })}
@@ -406,7 +461,15 @@ export default function ScanResultScreen() {
     });
     return [...groups.entries()]
       .filter(([, idxs]) => idxs.length >= 2)
-      .map(([key, idxs]) => ({ id: generateId(), name: '', times: key.split(','), memberIdxs: idxs }));
+      .map(([key, idxs]) => {
+        const times = key.split(',');
+        return {
+          id: generateId(),
+          name: suggestPackName(times, idxs, params.results, settings),
+          times,
+          memberIdxs: idxs,
+        };
+      });
   });
   const [saving, setSaving] = useState(false);
 
@@ -541,6 +604,13 @@ export default function ScanResultScreen() {
     setPacks((prev) => prev.map((p) => (p.id === packId ? { ...p, name } : p)));
   }
 
+  /** 이름을 아직 직접 입력하지 않은 포라면, 시간·식전후를 분석해 이름을 자동으로 채워준다 */
+  function withAutoName(p: Pack): Pack {
+    if (p.name.trim()) return p;
+    if (p.times.length === 0 || p.memberIdxs.length === 0) return p;
+    return { ...p, name: suggestPackName(p.times, p.memberIdxs, items, settings) };
+  }
+
   function togglePackTime(packId: string, time: string) {
     setPacks((prev) =>
       prev.map((p) => {
@@ -548,7 +618,7 @@ export default function ScanResultScreen() {
         const times = p.times.includes(time) ? p.times.filter((t) => t !== time) : [...p.times, time].sort();
         // 시간이 바뀌면 더 이상 그 시간을 다 갖지 못하는 멤버는 자동으로 빠진다
         const memberIdxs = p.memberIdxs.filter((i) => times.every((t) => items[i].suggestedTimes.includes(t)));
-        return { ...p, times, memberIdxs };
+        return withAutoName({ ...p, times, memberIdxs });
       }),
     );
   }
@@ -562,10 +632,10 @@ export default function ScanResultScreen() {
       const alreadyIn = target.memberIdxs.includes(idx);
       return prev.map((p) => {
         if (p.id === packId) {
-          return {
+          return withAutoName({
             ...p,
             memberIdxs: alreadyIn ? p.memberIdxs.filter((i) => i !== idx) : [...p.memberIdxs, idx],
-          };
+          });
         }
         if (!alreadyIn && p.memberIdxs.includes(idx) && target.times.some((t) => p.times.includes(t))) {
           return { ...p, memberIdxs: p.memberIdxs.filter((i) => i !== idx) };
@@ -573,6 +643,26 @@ export default function ScanResultScreen() {
         return p;
       });
     });
+  }
+
+  /** 지금 후보로 뜬 약 전체를 한 번에 이 포에 담는다(다른 포에 있던 약은 자동으로 옮겨짐) */
+  function selectAllCandidates(packId: string) {
+    const pack = packs.find((p) => p.id === packId);
+    if (!pack) return;
+    const candidateSet = new Set(candidateIdxsFor(pack));
+    setPacks((prev) =>
+      prev.map((p) => {
+        if (p.id === packId) return withAutoName({ ...p, memberIdxs: [...candidateSet] });
+        if (pack.times.some((t) => p.times.includes(t))) {
+          return { ...p, memberIdxs: p.memberIdxs.filter((i) => !candidateSet.has(i)) };
+        }
+        return p;
+      }),
+    );
+  }
+
+  function deselectAllMembers(packId: string) {
+    setPacks((prev) => prev.map((p) => (p.id === packId ? { ...p, memberIdxs: [] } : p)));
   }
 
   function updateField<K extends keyof MedicationScanResult>(
@@ -614,17 +704,23 @@ export default function ScanResultScreen() {
 
   function toggleMealSlot(idx: number, slot: MealSlot) {
     const item = items[idx];
-    const has  = (item.mealSlots ?? []).includes(slot);
-    // 취침전을 처음 체크하면 시간을 직접 지정하도록 피커를 띄운다
-    if (!has && slot === 'bedtime' && !item.bedtimeTime) {
-      setBedtimeTemp(new Date());
+    // 취침전은 탭할 때마다 시간 피커를 띄운다 — 처음 선택이든, 이미 선택된 시간을 재설정하는 것이든 동일하게 처리
+    if (slot === 'bedtime') {
+      setBedtimeTemp(item.bedtimeTime ? hhmmToDate(item.bedtimeTime) : new Date());
       setBedtimeTargetIdx(idx);
       return;
     }
+    const has = (item.mealSlots ?? []).includes(slot);
     const mealSlots = has
       ? (item.mealSlots ?? []).filter((s) => s !== slot)
       : [...(item.mealSlots ?? []), slot];
     updateItemDerived(idx, { mealSlots });
+  }
+
+  /** 취침전 체크 해제 — 시간 재설정과 구분되는 별도 동작(작은 ✕로 노출) */
+  function removeMealSlot(idx: number, slot: MealSlot) {
+    const item = items[idx];
+    updateItemDerived(idx, { mealSlots: (item.mealSlots ?? []).filter((s) => s !== slot) });
   }
 
   function confirmBedtimeTime(time: string) {
@@ -863,6 +959,7 @@ export default function ScanResultScreen() {
               onStartDateChange={updateStartDate}
               onEndDateChange={updateEndDate}
               onToggleMealSlot={toggleMealSlot}
+              onRemoveMealSlot={removeMealSlot}
               onSetWithFood={setWithFood}
               onAddManualTime={addManualTime}
               onRemoveTime={removeTime}
@@ -925,6 +1022,19 @@ export default function ScanResultScreen() {
                       );
                     })}
                   </View>
+
+                  {pack.times.length > 0 && candidates.length > 0 && (
+                    <View style={styles.selectAllRow}>
+                      <TouchableOpacity onPress={() => selectAllCandidates(pack.id)}>
+                        <Text style={styles.selectAllText}>전체 선택</Text>
+                      </TouchableOpacity>
+                      {memberCount > 0 && (
+                        <TouchableOpacity onPress={() => deselectAllMembers(pack.id)}>
+                          <Text style={styles.selectAllText}>전체 해제</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  )}
 
                   {pack.times.length === 0 ? (
                     <Text style={styles.packetWarning}>시간을 먼저 선택하면 넣을 수 있는 약이 나와요</Text>
@@ -994,7 +1104,7 @@ export default function ScanResultScreen() {
         Platform.OS === 'ios' ? (
           <Modal visible transparent animationType="slide" onRequestClose={() => setBedtimeTargetIdx(null)}>
             <View style={dpStyles.overlay}>
-              <View style={dpStyles.sheet}>
+              <View style={[dpStyles.sheet, { paddingBottom: 36 + insets.bottom }]}>
                 <View style={dpStyles.toolbar}>
                   <TouchableOpacity onPress={() => setBedtimeTargetIdx(null)}>
                     <Text style={dpStyles.cancelTxt}>취소</Text>
@@ -1099,12 +1209,14 @@ const styles = StyleSheet.create({
 
   // 식사 시간 단축 버튼 (일정추가 화면과 동일)
   mealRow:       { flexDirection: 'row', gap: 8, marginBottom: 10, marginTop: 4 },
-  mealBtn:       { flex: 1, paddingVertical: 10, borderWidth: 1, borderColor: '#d1d5db', borderRadius: 10, alignItems: 'center', gap: 2 },
+  mealBtn:       { flex: 1, paddingVertical: 10, borderWidth: 1, borderColor: '#d1d5db', borderRadius: 10, alignItems: 'center', gap: 2, position: 'relative' },
   mealBtnActive: { backgroundColor: '#eff6ff', borderColor: '#3b82f6' },
+  mealBtnRemove: { position: 'absolute', top: -6, right: -6, backgroundColor: '#fff', borderRadius: 8 },
   mealTxt:       { fontSize: 13, fontWeight: '600', color: '#374151' },
   mealTxtActive: { fontSize: 13, fontWeight: '600', color: '#3b82f6' },
   mealTime:      { fontSize: 11, color: '#9ca3af' },
   mealTimeActive:{ fontSize: 11, color: '#3b82f6' },
+  mealEditHint:  { fontSize: 9, color: '#93c5fd' },
 
   segBtn:           { flex: 1, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingVertical: 10, alignItems: 'center', marginRight: 6, backgroundColor: '#f9fafb' },
   segBtnActive:     { backgroundColor: '#3b82f6', borderColor: '#3b82f6' },
@@ -1150,6 +1262,8 @@ const styles = StyleSheet.create({
 
   packTimeLabel: { fontSize: 12, fontWeight: '600', color: '#6b7280', marginBottom: 6 },
   packTimeRow:   { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
+  selectAllRow:  { flexDirection: 'row', justifyContent: 'flex-end', gap: 14, marginTop: 6 },
+  selectAllText: { fontSize: 12, fontWeight: '700', color: '#3b82f6' },
   timeChip: {
     paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20,
     borderWidth: 1, borderColor: '#d1d5db', backgroundColor: '#f9fafb',

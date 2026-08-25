@@ -2,6 +2,16 @@ import * as Notifications from 'expo-notifications';
 import { Alert, Linking, Platform } from 'react-native';
 import { useAuthStore } from '../store/authStore';
 
+if (Platform.OS === 'android') {
+  // 기본 채널에 브랜드 색상·진동 패턴을 지정 — 지정하지 않으면 무채색 기본 스타일로 표시된다
+  Notifications.setNotificationChannelAsync('default', {
+    name: '복용 알림',
+    importance: Notifications.AndroidImportance.HIGH,
+    lightColor: '#3b82f6',
+    vibrationPattern: [0, 250, 250, 250],
+  }).catch(() => {});
+}
+
 if (Platform.OS !== 'web') {
   Notifications.setNotificationHandler({
     handleNotification: async (notification) => {
