@@ -74,7 +74,7 @@ function DatePickerField({
     <DateTimePicker
       value={tempDate}
       mode="date"
-      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+      display={Platform.OS === 'ios' ? 'inline' : 'default'}
       locale="ko-KR"
       minimumDate={minimumDate}
       onChange={(_, selected) => {
@@ -275,7 +275,7 @@ export default function PacketEditScreen() {
           maxLength={20}
         />
 
-        <View style={[styles.sectionHeaderRow, { marginTop: 16 }]}>
+        <View style={[styles.sectionHeaderRow, { marginTop: 24 }]}>
           <Text style={styles.label}>복용 시간<Text style={styles.required}> *</Text></Text>
           <Text style={styles.sectionHint}>모든 약에 공통 적용</Text>
         </View>
@@ -285,7 +285,7 @@ export default function PacketEditScreen() {
           onRemove={(t) => setTimes((prev) => prev.filter((x) => x !== t))}
         />
 
-        <View style={{ flexDirection: 'row', gap: 12 }}>
+        <View style={{ flexDirection: 'row', gap: 12, marginTop: 24 }}>
           <View style={{ flex: 1 }}>
             <Text style={styles.label}>시작일<Text style={styles.required}> *</Text></Text>
             <DatePickerField
@@ -310,7 +310,7 @@ export default function PacketEditScreen() {
 
         {!!errorMsg && <Text style={styles.errorText}>{errorMsg}</Text>}
 
-        <Text style={[styles.label, { marginTop: 20 }]}>포함된 약 ({members.length}개)</Text>
+        <Text style={[styles.label, { marginTop: 24 }]}>포함된 약 ({members.length}개)</Text>
         {members.map((m) => (
           <View key={m.schedule.id} style={styles.memberRow}>
             <View style={[styles.colorDot, { backgroundColor: m.medication.color ?? '#d1d5db' }]} />

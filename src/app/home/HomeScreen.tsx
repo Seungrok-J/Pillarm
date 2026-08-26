@@ -226,8 +226,11 @@ export default function HomeScreen() {
     weekday: 'short',
   });
 
-  const pendingCount = todayEvents.filter(
-    (e) => e.status === 'scheduled' || e.status === 'late',
+  // 포는 안에 약이 몇 개든 1건으로 센다 — 멤버 중 하나라도 아직 처리 전이면 포 전체를 미완료로 취급
+  const pendingCount = listItems.filter((item) =>
+    item.kind === 'packet'
+      ? item.events.some((e) => e.status === 'scheduled' || e.status === 'late')
+      : item.event.status === 'scheduled' || item.event.status === 'late',
   ).length;
 
   // ── 렌더 ───────────────────────────────────────────────────────────────

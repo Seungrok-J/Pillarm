@@ -80,7 +80,7 @@ function DatePickerField({ testID, value, onChange, placeholder, minimumDate }: 
     <DateTimePicker
       value={tempDate}
       mode="date"
-      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+      display={Platform.OS === 'ios' ? 'inline' : 'default'}
       locale="ko-KR"
       minimumDate={minimumDate}
       onChange={(_, selected) => {
@@ -475,8 +475,8 @@ export default function ScheduleFormScreen() {
       )}
 
       {/* ── 용량 ── */}
-      <Text style={[styles.label, { marginTop: 16 }]}>용량</Text>
-      <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+      <Text style={[styles.label, { marginTop: 24 }]}>용량</Text>
+      <View style={{ flexDirection: 'row', gap: 8 }}>
         <TextInput
           testID="input-dosage-value"
           style={[styles.input, { flex: 1, marginBottom: 0 }]}
@@ -500,7 +500,7 @@ export default function ScheduleFormScreen() {
       </View>
 
       {/* ── 색상 ── */}
-      <Text style={styles.label}>색상</Text>
+      <Text style={[styles.label, { marginTop: 24 }]}>색상</Text>
       <ColorPalette selected={color} onSelect={setColor} />
 
       {presetPacket ? (
@@ -512,7 +512,7 @@ export default function ScheduleFormScreen() {
               복용 시간·기간은 포와 동일하게 고정됩니다.
             </Text>
           </View>
-          <Text style={[styles.label, { marginTop: 16 }]}>복용 시간</Text>
+          <Text style={[styles.label, { marginTop: 24 }]}>복용 시간</Text>
           <View style={styles.mealRow}>
             {presetPacket.times.map((t) => (
               <View key={t} style={[styles.mealBtn, styles.mealBtnActive]}>
@@ -520,7 +520,7 @@ export default function ScheduleFormScreen() {
               </View>
             ))}
           </View>
-          <Text style={[styles.label, { marginTop: 16 }]}>복용 기간</Text>
+          <Text style={[styles.label, { marginTop: 24 }]}>복용 기간</Text>
           <Text style={presetPeriodTextStyle}>
             {formatDisplayDate(presetPacket.startDate)} ~ {presetPacket.endDate ? formatDisplayDate(presetPacket.endDate) : '상시'}
           </Text>
@@ -528,7 +528,7 @@ export default function ScheduleFormScreen() {
       ) : (
         <>
           {/* ── 복용 시간 ── */}
-          <Text style={[styles.label, { marginTop: 16 }]}>복용 시간<Text style={styles.required}> *</Text></Text>
+          <Text style={[styles.label, { marginTop: 24 }]}>복용 시간<Text style={styles.required}> *</Text></Text>
 
           {/* 식사 시간 단축 선택 */}
           <View style={styles.mealRow}>
@@ -574,8 +574,8 @@ export default function ScheduleFormScreen() {
           )}
 
           {/* ── 반복 ── */}
-          <Text style={[styles.label, { marginTop: 16 }]}>반복</Text>
-          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+          <Text style={[styles.label, { marginTop: 24 }]}>반복</Text>
+          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 24 }}>
             {(['daily', 'weekly'] as const).map((type) => (
               <TouchableOpacity
                 key={type}
@@ -592,7 +592,7 @@ export default function ScheduleFormScreen() {
 
           {/* ── 요일 선택 ── */}
           {repeatType === 'weekly' && (
-            <View style={{ flexDirection: 'row', gap: 4, marginBottom: 12 }}>
+            <View style={{ flexDirection: 'row', gap: 4, marginBottom: 24 }}>
               {DAYS_LABEL.map((label, idx) => (
                 <TouchableOpacity
                   key={idx}
@@ -640,8 +640,8 @@ export default function ScheduleFormScreen() {
       )}
 
       {/* ── 식전/식후 ── */}
-      <Text style={[styles.label, { marginTop: 16 }]}>식사 관계</Text>
-      <View style={{ flexDirection: 'row', gap: 8, marginBottom: 20 }}>
+      <Text style={[styles.label, { marginTop: 24 }]}>식사 관계</Text>
+      <View style={{ flexDirection: 'row', gap: 8, marginBottom: 26 }}>
         {(['none', 'before', 'after'] as const).map((type) => (
           <TouchableOpacity
             key={type}

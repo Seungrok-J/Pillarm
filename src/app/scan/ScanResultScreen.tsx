@@ -138,7 +138,7 @@ function DatePickerField({ value, onChange, placeholder, minimumDate, disabled }
     <DateTimePicker
       value={tempDate}
       mode="date"
-      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+      display={Platform.OS === 'ios' ? 'inline' : 'default'}
       locale="ko-KR"
       minimumDate={minimumDate}
       onChange={(_, selected) => {

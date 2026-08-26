@@ -163,7 +163,7 @@ export default function PacketCard({
                 style={[styles.takeBtn, { backgroundColor: theme.primary }]}
                 onPress={() => onTakePacket(pendingIds)}
               >
-                <Text style={styles.takeTxt}>💊 복용</Text>
+                <Text style={styles.takeTxt}>복용</Text>
               </TouchableOpacity>
             </>
           ) : displayState === 'missed' ? (

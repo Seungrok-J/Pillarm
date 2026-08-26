@@ -453,7 +453,6 @@ const styles = StyleSheet.create({
   name:    { fontSize: 16, color: '#111827' },
   hintGray: { fontSize: 11, color: '#9ca3af', marginTop: 2 },
   skipActionBtn: {
-    marginRight: 8,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 8,
@@ -464,7 +463,6 @@ const styles = StyleSheet.create({
   },
   skipActionTxt: { fontSize: 14, color: '#9ca3af' },
   snoozeBtn: {
-    marginRight: 8,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 8,
