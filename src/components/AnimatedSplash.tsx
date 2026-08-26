@@ -99,7 +99,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 999,
   },
-  // 네이티브 스플래시(app.json splash.image)가 렌더링하는 크기와 맞춘 값 — 실기기 캡처로 추정
-  icon:  { width: 96, height: 96 },
+  // app.json의 expo-splash-screen 플러그인 imageWidth(200)와 동일한 값 — 두 플랫폼 모두 이 크기로
+  // 고정 렌더링되므로(추정이 아니라 명시값) 네이티브→JS 전환 시 크기 점프가 생기지 않는다.
+  icon:  { width: 200, height: 200 },
   title: { marginTop: 18, fontSize: 22, fontWeight: '800', color: '#111827', textAlign: 'center' },
 });
