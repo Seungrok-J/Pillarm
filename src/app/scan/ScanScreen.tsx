@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  ActivityIndicator,
+  ActivityIndicator, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -73,7 +73,7 @@ export default function ScanScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer} edges={['bottom']}>
-        <Text style={styles.loadingEmoji}>💊</Text>
+        <Image source={require('../../../assets/splash-icon.png')} style={styles.loadingEmoji} resizeMode="contain" />
         <Text style={styles.loadingTitle}>분석 중...</Text>
         <Text style={styles.loadingSubtitle}>약봉투 정보를 읽고 있어요</Text>
         <ActivityIndicator size="large" color="#3b82f6" style={{ marginTop: 20 }} />
@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
     flex: 1, backgroundColor: '#fff',
     alignItems: 'center', justifyContent: 'center',
   },
-  loadingEmoji:    { fontSize: 56, marginBottom: 16 },
+  loadingEmoji:    { width: 84, height: 84, marginBottom: 16 },
   loadingTitle:    { fontSize: 22, fontWeight: '800', color: '#111827' },
   loadingSubtitle: { fontSize: 14, color: '#6b7280', marginTop: 6 },
 });
