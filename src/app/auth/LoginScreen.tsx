@@ -29,6 +29,7 @@ import {
   type DeviceConflict,
 } from '../../features/socialAuth/socialAuthApi';
 import AlertModal, { type AlertModalTone } from '../../components/AlertModal';
+import GoogleLogo from '../../components/GoogleLogo';
 
 type Nav = StackNavigationProp<RootStackParamList>;
 
@@ -172,11 +173,8 @@ export default function LoginScreen() {
               ? <ActivityIndicator color="#111827" />
               : (
                 <View style={styles.socialBtnRow}>
-                  <View style={styles.socialIconSlot}>
-                    <Ionicons name="logo-apple" size={20} color="#000" />
-                  </View>
+                  <Ionicons name="logo-apple" size={20} color="#000" style={styles.socialIcon} />
                   <Text style={styles.appleBtnText}>Apple로 계속하기</Text>
-                  <View style={styles.socialIconSlot} />
                 </View>
               )
             }
@@ -195,11 +193,10 @@ export default function LoginScreen() {
             ? <ActivityIndicator color="#374151" />
             : (
               <View style={styles.socialBtnRow}>
-                <View style={styles.socialIconSlot}>
-                  <Ionicons name="logo-google" size={19} color="#4285F4" />
+                <View style={styles.socialIcon}>
+                  <GoogleLogo size={19} />
                 </View>
                 <Text style={styles.googleBtnText}>Google로 계속하기</Text>
-                <View style={styles.socialIconSlot} />
               </View>
             )
           }
@@ -217,11 +214,8 @@ export default function LoginScreen() {
             ? <ActivityIndicator color="#191919" />
             : (
               <View style={styles.socialBtnRow}>
-                <View style={styles.socialIconSlot}>
-                  <Ionicons name="chatbubble" size={18} color="#191919" />
-                </View>
+                <Ionicons name="chatbubble" size={18} color="#191919" style={styles.socialIcon} />
                 <Text style={styles.kakaoBtnText}>카카오로 계속하기</Text>
-                <View style={styles.socialIconSlot} />
               </View>
             )
           }
@@ -308,22 +302,20 @@ const styles = StyleSheet.create({
     borderRadius: 14, paddingVertical: 16, paddingHorizontal: 16,
     alignItems: 'center', borderWidth: 1,
   },
-  // 아이콘은 왼쪽에 고정, 텍스트는 남는 공간에서 가운데 정렬(오른쪽에 아이콘 폭만큼 빈 슬롯을 둬서 대칭 유지)
+  // 아이콘 + 텍스트를 한 덩어리로 붙여서 버튼 안에서 가운데 정렬
   socialBtnRow: {
-    flexDirection: 'row', alignItems: 'center', width: '100%',
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', width: '100%',
   },
-  socialIconSlot: {
-    width: 28, alignItems: 'flex-start', justifyContent: 'center',
-  },
+  socialIcon: { marginRight: 10 },
 
   appleBtn:     { backgroundColor: '#fff', borderColor: '#d1d5db' },
-  appleBtnText: { flex: 1, textAlign: 'center', color: '#111827', fontSize: 16, fontWeight: '600' },
+  appleBtnText: { color: '#111827', fontSize: 16, fontWeight: '600' },
 
   googleBtn:     { backgroundColor: '#fff', borderColor: '#d1d5db' },
-  googleBtnText: { flex: 1, textAlign: 'center', color: '#111827', fontSize: 16, fontWeight: '600' },
+  googleBtnText: { color: '#111827', fontSize: 16, fontWeight: '600' },
 
   kakaoBtn:     { backgroundColor: '#FEE500', borderColor: '#FEE500' },
-  kakaoBtnText: { flex: 1, textAlign: 'center', color: '#191919', fontSize: 16, fontWeight: '600' },
+  kakaoBtnText: { color: '#191919', fontSize: 16, fontWeight: '600' },
 
   loadingOverlay: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,

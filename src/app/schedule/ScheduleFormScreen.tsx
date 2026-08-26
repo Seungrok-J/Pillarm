@@ -107,7 +107,10 @@ function DatePickerField({ testID, value, onChange, placeholder, minimumDate }: 
         onPress={openPicker}
         accessibilityRole="button"
       >
-        <Text style={value ? dateStyles.valueTxt : dateStyles.placeholderTxt}>
+        <Text
+          style={value ? dateStyles.valueTxt : dateStyles.placeholderTxt}
+          numberOfLines={1}
+        >
           {value ? formatDisplayDate(value) : placeholder}
         </Text>
         <Text style={dateStyles.icon}>📅</Text>
@@ -144,13 +147,15 @@ const dateStyles = {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     justifyContent: 'space-between' as const,
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
     backgroundColor: '#fff',
     marginBottom: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 1,
   },
   valueTxt:       { fontSize: 16, color: '#111827' },
   placeholderTxt: { fontSize: 16, color: '#9ca3af' },
@@ -431,8 +436,8 @@ export default function ScheduleFormScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }} edges={['bottom']}>
-    <ScrollView style={{ flex: 1, backgroundColor: '#fff' }} contentContainerStyle={{ padding: 20 }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#f9fafb' }} edges={['bottom']}>
+    <ScrollView style={{ flex: 1, backgroundColor: '#f9fafb' }} contentContainerStyle={{ padding: 20 }}>
       {/* ── 약봉투 스캔 바로가기 ── */}
       {!isEdit && (
         <TouchableOpacity
@@ -455,7 +460,7 @@ export default function ScheduleFormScreen() {
       )}
 
       {/* ── 약 이름 (자동완성) ── */}
-      <Text style={styles.label}>약 이름 *</Text>
+      <Text style={styles.label}>약 이름<Text style={styles.required}> *</Text></Text>
       <MedicationSearchInput
         testID="input-name"
         value={name}
@@ -510,8 +515,8 @@ export default function ScheduleFormScreen() {
           <Text style={[styles.label, { marginTop: 16 }]}>복용 시간</Text>
           <View style={styles.mealRow}>
             {presetPacket.times.map((t) => (
-              <View key={t} style={[styles.segBtn, styles.segBtnActive, { flex: 0, paddingHorizontal: 16 }]}>
-                <Text style={styles.segTxtActive}>{t}</Text>
+              <View key={t} style={[styles.mealBtn, styles.mealBtnActive]}>
+                <Text style={styles.mealTxtActive}>{t}</Text>
               </View>
             ))}
           </View>
@@ -523,7 +528,7 @@ export default function ScheduleFormScreen() {
       ) : (
         <>
           {/* ── 복용 시간 ── */}
-          <Text style={[styles.label, { marginTop: 16 }]}>복용 시간 *</Text>
+          <Text style={[styles.label, { marginTop: 16 }]}>복용 시간<Text style={styles.required}> *</Text></Text>
 
           {/* 식사 시간 단축 선택 */}
           <View style={styles.mealRow}>
@@ -550,15 +555,17 @@ export default function ScheduleFormScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={`${label} ${time} ${selected ? '선택됨' : ''}`}
                 >
-                  <Text style={selected ? styles.mealTxtActive : styles.mealTxt}>{label}</Text>
-                  <Text style={selected ? styles.mealTimeActive : styles.mealTime}>{time}</Text>
+                  <Text style={selected ? styles.mealTxtActive : styles.mealTxt}>{label} {time}</Text>
                 </TouchableOpacity>
               );
             })}
           </View>
 
           <TimePickerList
-            times={times}
+            variant="pill"
+            times={times.filter(
+              (t) => t !== settings.mealTimeBreakfast && t !== settings.mealTimeLunch && t !== settings.mealTimeDinner,
+            )}
             onAdd={(t) => setTimes((prev) => [...prev, t].sort())}
             onRemove={(t) => setTimes((prev) => prev.filter((x) => x !== t))}
           />
@@ -601,27 +608,31 @@ export default function ScheduleFormScreen() {
             </View>
           )}
 
-          {/* ── 시작일 ── */}
-          <Text style={styles.label}>시작일 *</Text>
-          <DatePickerField
-            testID="input-start-date"
-            value={startDate}
-            onChange={(v) => {
-              setStartDate(v);
-              if (endDate && endDate < v) setEndDate(addDays(v, 7));
-            }}
-            placeholder="시작일 선택"
-          />
-
-          {/* ── 종료일 ── */}
-          <Text style={[styles.label, { marginTop: 8 }]}>종료일</Text>
-          <DatePickerField
-            testID="input-end-date"
-            value={endDate}
-            onChange={setEndDate}
-            placeholder="종료일 선택"
-            minimumDate={new Date(startDate + 'T00:00:00')}
-          />
+          {/* ── 시작일 / 종료일 ── */}
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.label}>시작일<Text style={styles.required}> *</Text></Text>
+              <DatePickerField
+                testID="input-start-date"
+                value={startDate}
+                onChange={(v) => {
+                  setStartDate(v);
+                  if (endDate && endDate < v) setEndDate(addDays(v, 7));
+                }}
+                placeholder="시작일 선택"
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.label}>종료일</Text>
+              <DatePickerField
+                testID="input-end-date"
+                value={endDate}
+                onChange={setEndDate}
+                placeholder="종료일 선택"
+                minimumDate={new Date(startDate + 'T00:00:00')}
+              />
+            </View>
+          </View>
           {!!errors.endDate && (
             <Text testID="error-endDate" style={styles.errorText}>{errors.endDate}</Text>
           )}
@@ -655,7 +666,7 @@ export default function ScheduleFormScreen() {
         testID="btn-save"
         onPress={handleSave}
         disabled={isSaving}
-        style={{ backgroundColor: '#3b82f6', borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginTop: 4 }}
+        style={{ backgroundColor: '#3b82f6', borderRadius: 16, paddingVertical: 16, alignItems: 'center', marginTop: 4 }}
       >
         {isSaving ? (
           <ActivityIndicator color="#fff" />
@@ -694,50 +705,57 @@ const scanBtnStyle = {
 const scanBtnTextStyle = { fontSize: 14, fontWeight: '600' as const, color: '#3b82f6' };
 
 const styles = {
-  label: { fontSize: 15, fontWeight: '500' as const, marginBottom: 6, color: '#111827' },
-  mealRow: { flexDirection: 'row' as const, gap: 8, marginBottom: 10 },
+  label: { fontSize: 15, fontWeight: '700' as const, marginBottom: 8, color: '#111827' },
+  required: { color: '#ef4444' },
+  mealRow: { flexDirection: 'row' as const, flexWrap: 'wrap' as const, gap: 8, marginBottom: 8 },
   mealBtn: {
-    flex: 1,
     paddingVertical: 10,
+    paddingHorizontal: 16,
     borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 10,
+    borderColor: '#e5e7eb',
+    borderRadius: 20,
+    backgroundColor: '#fff',
     alignItems: 'center' as const,
-    gap: 2,
   },
   mealBtnActive: { backgroundColor: '#eff6ff', borderColor: '#3b82f6' },
   mealTxt:       { fontSize: 14, fontWeight: '600' as const, color: '#374151' },
-  mealTxtActive: { fontSize: 14, fontWeight: '600' as const, color: '#3b82f6' },
-  mealTime:      { fontSize: 12, color: '#9ca3af' },
-  mealTimeActive:{ fontSize: 12, color: '#3b82f6' },
+  mealTxtActive: { fontSize: 14, fontWeight: '700' as const, color: '#1d4ed8' },
   input: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     fontSize: 16,
     marginBottom: 4,
     color: '#111827',
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 1,
   },
   errorText: { color: '#ef4444', fontSize: 12, marginBottom: 8, marginTop: 2 },
   segBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
     alignItems: 'center' as const,
+    backgroundColor: 'transparent',
   },
-  segBtnActive: { backgroundColor: '#3b82f6', borderColor: '#3b82f6' },
-  segTxt: { color: '#374151' },
-  segTxtActive: { color: '#fff' },
+  segBtnActive: {
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  segTxt: { color: '#9ca3af', fontSize: 15, fontWeight: '600' as const },
+  segTxtActive: { color: '#111827', fontSize: 15, fontWeight: '700' as const },
   dayBtn: {
     flex: 1,
-    paddingVertical: 6,
+    paddingVertical: 8,
     borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 6,
+    borderColor: '#e5e7eb',
+    borderRadius: 10,
     alignItems: 'center' as const,
   },
 };

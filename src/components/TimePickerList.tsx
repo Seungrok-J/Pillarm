@@ -96,9 +96,11 @@ interface Props {
   times: string[];
   onAdd: (time: string) => void;
   onRemove: (time: string) => void;
+  /** 'card'(기본) — 화면 너비 카드 목록(포 수정 등). 'pill' — 인라인 태그 형태(일정 등록의 복용 시간 섹션 등) */
+  variant?: 'card' | 'pill';
 }
 
-export default function TimePickerList({ times, onAdd, onRemove }: Props) {
+export default function TimePickerList({ times, onAdd, onRemove, variant = 'card' }: Props) {
   const insets = useSafeAreaInsets();
   const [open,      setOpen]      = useState(false);
   const [modalKey,  setModalKey]  = useState(0);
@@ -120,26 +122,50 @@ export default function TimePickerList({ times, onAdd, onRemove }: Props) {
     setOpen(false);
   }
 
+  const isPill = variant === 'pill';
+
   return (
     <View>
-      {/* 추가된 시간 칩 */}
-      {times.map((time) => (
-        <View key={time} style={styles.chip}>
-          <Text testID={`time-chip-${time}`} style={styles.chipTime}>{time}</Text>
-          <TouchableOpacity
-            testID={`btn-remove-time-${time}`}
-            onPress={() => onRemove(time)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Text style={styles.chipDel}>✕</Text>
+      {isPill ? (
+        // 인라인 태그 형태 — 추가된 시간과 "+ 시간 추가"가 한 줄로 함께 흐른다
+        <View style={styles.pillWrap}>
+          {times.map((time) => (
+            <View key={time} style={styles.pill}>
+              <Text testID={`time-chip-${time}`} style={styles.pillTime}>{time}</Text>
+              <TouchableOpacity
+                testID={`btn-remove-time-${time}`}
+                onPress={() => onRemove(time)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={styles.pillDel}>✕</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+          <TouchableOpacity testID="btn-add-time" onPress={openPicker} style={styles.addPill}>
+            <Text style={styles.addPillTxt}>+ 시간 추가</Text>
           </TouchableOpacity>
         </View>
-      ))}
+      ) : (
+        <>
+          {/* 화면 너비 카드 목록 */}
+          {times.map((time) => (
+            <View key={time} style={styles.cardRow}>
+              <Text testID={`time-chip-${time}`} style={styles.cardRowTime}>{time}</Text>
+              <TouchableOpacity
+                testID={`btn-remove-time-${time}`}
+                onPress={() => onRemove(time)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={styles.cardRowDel}>✕</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
 
-      {/* 추가 버튼 */}
-      <TouchableOpacity testID="btn-add-time" onPress={openPicker} style={styles.addBtn}>
-        <Text style={styles.addBtnTxt}>+ 시간 추가</Text>
-      </TouchableOpacity>
+          <TouchableOpacity testID="btn-add-time" onPress={openPicker} style={styles.addBtn}>
+            <Text style={styles.addBtnTxt}>+ 시간 추가</Text>
+          </TouchableOpacity>
+        </>
+      )}
 
       {/* 드럼롤 모달 */}
       <Modal
@@ -231,16 +257,36 @@ export default function TimePickerList({ times, onAdd, onRemove }: Props) {
 const COL_W = { period: 90, hour: 72, min: 72 };
 
 const styles = StyleSheet.create({
-  chip: {
+  // 카드 목록(기본)
+  cardRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingVertical: 10,
-    borderBottomWidth: 1, borderBottomColor: '#f3f4f6',
+    backgroundColor: '#fff', borderRadius: 14,
+    paddingVertical: 14, paddingHorizontal: 16, marginBottom: 8,
+    shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 6, elevation: 1,
   },
-  chipTime: { fontSize: 17, color: '#111827', fontWeight: '500' },
-  chipDel:  { color: '#f87171', fontSize: 18 },
+  cardRowTime: { fontSize: 17, color: '#111827', fontWeight: '600' },
+  cardRowDel:  { color: '#ef4444', fontSize: 16, fontWeight: '700' },
 
-  addBtn:    { paddingVertical: 10, marginTop: 4 },
-  addBtnTxt: { color: '#3b82f6', fontSize: 16 },
+  addBtn: {
+    paddingVertical: 14, marginTop: 2, borderRadius: 14,
+    borderWidth: 1, borderColor: '#d1d5db', borderStyle: 'dashed', alignItems: 'center',
+  },
+  addBtnTxt: { color: '#3b82f6', fontSize: 15, fontWeight: '600' },
+
+  // 인라인 태그(pill) 목록
+  pillWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
+  pill: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: '#eff6ff', borderWidth: 1, borderColor: '#3b82f6',
+    borderRadius: 20, paddingVertical: 10, paddingHorizontal: 14,
+  },
+  pillTime: { fontSize: 15, fontWeight: '700', color: '#1d4ed8' },
+  pillDel:  { fontSize: 13, color: '#93c5fd', fontWeight: '700' },
+  addPill: {
+    borderRadius: 20, borderWidth: 1, borderColor: '#d1d5db', borderStyle: 'dashed',
+    paddingVertical: 10, paddingHorizontal: 14, justifyContent: 'center',
+  },
+  addPillTxt: { fontSize: 14, fontWeight: '600', color: '#3b82f6' },
 
   // 모달
   overlay: {

@@ -91,7 +91,10 @@ function DatePickerField({
   return (
     <>
       <TouchableOpacity style={dateStyles.btn} onPress={openPicker} accessibilityRole="button">
-        <Text style={value ? dateStyles.valueTxt : dateStyles.placeholderTxt}>
+        <Text
+          style={value ? dateStyles.valueTxt : dateStyles.placeholderTxt}
+          numberOfLines={1}
+        >
           {value ? formatDisplayDate(value) : placeholder}
         </Text>
         <Text style={dateStyles.icon}>📅</Text>
@@ -261,9 +264,9 @@ export default function PacketEditScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }} edges={['bottom']}>
-      <ScrollView style={{ flex: 1, backgroundColor: '#fff' }} contentContainerStyle={{ padding: 20 }}>
-        <Text style={styles.label}>포 이름</Text>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#f9fafb' }} edges={['bottom']}>
+      <ScrollView style={{ flex: 1, backgroundColor: '#f9fafb' }} contentContainerStyle={{ padding: 20 }}>
+        <Text style={styles.label}>포 이름<Text style={styles.required}> *</Text></Text>
         <TextInput
           style={styles.input}
           value={packetName}
@@ -272,30 +275,38 @@ export default function PacketEditScreen() {
           maxLength={20}
         />
 
-        <Text style={[styles.label, { marginTop: 16 }]}>복용 시간 * (모든 약에 공통 적용)</Text>
+        <View style={[styles.sectionHeaderRow, { marginTop: 16 }]}>
+          <Text style={styles.label}>복용 시간<Text style={styles.required}> *</Text></Text>
+          <Text style={styles.sectionHint}>모든 약에 공통 적용</Text>
+        </View>
         <TimePickerList
           times={times}
           onAdd={(t) => setTimes((prev) => [...prev, t].sort())}
           onRemove={(t) => setTimes((prev) => prev.filter((x) => x !== t))}
         />
 
-        <Text style={styles.label}>시작일 *</Text>
-        <DatePickerField
-          value={startDate}
-          onChange={(v) => {
-            setStartDate(v);
-            if (endDate && endDate < v) setEndDate(addDays(v, 7));
-          }}
-          placeholder="시작일 선택"
-        />
-
-        <Text style={[styles.label, { marginTop: 8 }]}>종료일</Text>
-        <DatePickerField
-          value={endDate}
-          onChange={setEndDate}
-          placeholder="종료일 선택 (비워두면 상시)"
-          minimumDate={new Date(startDate + 'T00:00:00')}
-        />
+        <View style={{ flexDirection: 'row', gap: 12 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.label}>시작일<Text style={styles.required}> *</Text></Text>
+            <DatePickerField
+              value={startDate}
+              onChange={(v) => {
+                setStartDate(v);
+                if (endDate && endDate < v) setEndDate(addDays(v, 7));
+              }}
+              placeholder="시작일 선택"
+            />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.label}>종료일</Text>
+            <DatePickerField
+              value={endDate}
+              onChange={setEndDate}
+              placeholder="상시"
+              minimumDate={new Date(startDate + 'T00:00:00')}
+            />
+          </View>
+        </View>
 
         {!!errorMsg && <Text style={styles.errorText}>{errorMsg}</Text>}
 
@@ -383,8 +394,9 @@ export default function PacketEditScreen() {
 const dateStyles = {
   btn: {
     flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'space-between' as const,
-    borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8,
-    paddingHorizontal: 12, paddingVertical: 12, backgroundColor: '#fff', marginBottom: 4,
+    borderRadius: 14,
+    paddingHorizontal: 14, paddingVertical: 14, backgroundColor: '#fff', marginBottom: 4,
+    shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 6, elevation: 1,
   },
   valueTxt:       { fontSize: 16, color: '#111827' },
   placeholderTxt: { fontSize: 16, color: '#9ca3af' },
@@ -400,39 +412,46 @@ const dateStyles = {
 };
 
 const styles = StyleSheet.create({
-  label: { fontSize: 15, fontWeight: '500', marginBottom: 6, color: '#111827' },
+  label: { fontSize: 15, fontWeight: '700', marginBottom: 8, color: '#111827' },
+  required: { color: '#ef4444' },
+  sectionHeaderRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8,
+  },
+  sectionHint: { fontSize: 12, color: '#9ca3af' },
   input: {
-    borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8,
-    paddingHorizontal: 12, paddingVertical: 10, fontSize: 16, marginBottom: 4, color: '#111827',
+    backgroundColor: '#fff', borderRadius: 14,
+    paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, marginBottom: 4, color: '#111827',
+    shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 6, elevation: 1,
   },
   errorText: { color: '#ef4444', fontSize: 12, marginBottom: 8, marginTop: 2 },
 
   memberRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f3f4f6',
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: '#fff', borderRadius: 14, padding: 14, marginBottom: 10,
+    shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 6, elevation: 1,
   },
   colorDot: { width: 10, height: 10, borderRadius: 5 },
-  memberName: { fontSize: 15, fontWeight: '600', color: '#111827' },
+  memberName: { fontSize: 15, fontWeight: '700', color: '#111827' },
   memberDosage: { fontSize: 12, color: '#6b7280', marginTop: 1 },
   memberEditBtn: {
-    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8,
-    borderWidth: 1, borderColor: '#3b82f6', minHeight: 44, justifyContent: 'center',
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10,
+    borderWidth: 1, borderColor: '#3b82f6', minHeight: 44, justifyContent: 'center', alignItems: 'center',
   },
-  memberEditTxt: { fontSize: 13, color: '#3b82f6', fontWeight: '600' },
+  memberEditTxt: { fontSize: 13, color: '#3b82f6', fontWeight: '700' },
   memberRemoveBtn: {
-    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8,
-    borderWidth: 1, borderColor: '#ef4444', minHeight: 44, justifyContent: 'center',
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10,
+    backgroundColor: '#fef2f2', minHeight: 44, justifyContent: 'center', alignItems: 'center',
   },
-  memberRemoveTxt: { fontSize: 13, color: '#ef4444', fontWeight: '600' },
+  memberRemoveTxt: { fontSize: 13, color: '#ef4444', fontWeight: '700' },
 
   addBtn: {
-    marginTop: 14, paddingVertical: 12, borderRadius: 10,
+    marginTop: 4, paddingVertical: 14, borderRadius: 14,
     borderWidth: 1, borderColor: '#3b82f6', borderStyle: 'dashed', alignItems: 'center',
   },
   addBtnTxt: { fontSize: 14, fontWeight: '700', color: '#3b82f6' },
 
   saveBtn: {
-    marginTop: 24, backgroundColor: '#3b82f6', borderRadius: 12,
+    marginTop: 24, backgroundColor: '#3b82f6', borderRadius: 16,
     paddingVertical: 16, alignItems: 'center',
   },
   saveTxt: { color: '#fff', fontSize: 16, fontWeight: '600' },

@@ -25,7 +25,7 @@
 | 용도 | 색상 | 비고 |
 |---|---|---|
 | 위험/삭제 | `#ef4444` | 삭제 버튼, destructive 액션 |
-| 성공/유효 | `#22c55e` | 드래그 중 합칠 수 있는 대상 강조(2026-08-26 추가) |
+| 성공/유효 | `#22c55e` | 통계 화면 등에서 성공/완료 상태 강조 |
 | 경고 | `#f59e0b` | 포 만들기 경고 문구 등 |
 | 카카오 브랜드 | `#FEE500` 배경 + `#191919` 텍스트 | 카카오 로그인 버튼 전용, 브랜드 고정색이라 테마와 무관 |
 
@@ -77,15 +77,12 @@
 - **칩(chip)**: 완전 둥근 radius 20, 선택 시 `primaryLight` 배경 + `primary` 텍스트/보더.
 - **체크박스형 항목**: 22×22 둥근 사각형(radius 6), 선택 시 `primary` 배경 + 흰 체크마크.
 - **커스텀 확인창(`AlertModal`, 2026-08-26 추가·같은 날 아이콘 뱃지로 개편)**: 시스템 `Alert.alert` 대신 사용. 중앙 정렬 카드(radius 28) + 원형 아이콘 뱃지(72px, 연한 톤 배경 + Ionicons 아이콘 — 이모지 아님) + 제목 + 설명 + 버튼(기본은 `tone` 색상 배경, 취소는 연회색, destructive는 연빨강 배경+빨강 텍스트). `tone`(`primary`/`success`/`danger`/`warning`)이 아이콘 뱃지 색과 기본 버튼 색을 함께 결정 — 앱 전체에서 쓰는 시맨틱 컬러(1.2절)와 동일한 값. `src/components/AlertModal.tsx`. "로그인이 필요합니다" 류의 프롬프트를 포함해 여러 화면(MainTabNavigator, ScanScreen, ScheduleFormScreen, SettingsScreen 등)에 적용돼 있음 — 새 확인창을 만들 때 이모지 대신 이 컴포넌트 + Ionicons 아이콘 이름을 쓸 것.
-- **드래그 병합 애니메이션(`MergeAnimation`, 2026-08-26 추가)**: 포로 합칠 때 두 칩이 중앙으로 모이며 박스 테두리가 스프링 바운스로 나타나는 연출. `src/components/MergeAnimation.tsx`, `react-native-reanimated` 기반.
-- **포(packet)는 하나의 단위로 다룬다(2026-08-26)**: DB상으로는 여전히 약마다 별도 Schedule row(같은 packetId로 묶임)지만, UI에서는 포를 일반 일정처럼 "수정"/"삭제" 두 버튼만 있는 카드로 보여준다. "수정"은 `PacketEditScreen`(`src/app/schedule/PacketEditScreen.tsx`)으로 이동해 포 이름·시간·기간을 한 번에(모든 멤버에 동기화) 바꾸고, 멤버 약을 추가("+ 이 포에 약 추가" → `ScheduleNew`에 `presetPacket` 프리셋 전달, 시간·기간 고정)/제거("빼기" → 포에서 분리해 개별 일정으로 전환, 멤버가 1개 이하로 줄면 포 자동 해제)할 수 있다. 새로 포 관련 화면을 만들 때 이 패턴(포 = 한 화면에서 다루는 단위)을 따를 것.
-- **드래그 가능 카드**: 길게 눌러 드래그(`delayLongPress: 200`), 드래그 중인 카드는 확대(scale 1.04, spring) + 파란 보더, 합칠 수 있는 대상은 초록 보더+연초록 배경으로 강조.
-- **터치 피드백**: 주요 액션(드래그 시작/성공/실패)에 `expo-haptics` 병행 — 시작 Medium, 성공 Success, 거부 Warning.
+- **포(packet)는 하나의 단위로 다룬다(2026-08-26)**: DB상으로는 여전히 약마다 별도 Schedule row(같은 packetId로 묶임)지만, UI에서는 포를 일반 일정처럼 "수정"/"삭제" 두 버튼만 있는 카드로 보여준다. 카드에는 약 종류 목록을 노출하지 않고 일반 일정 카드와 동일하게 시간·기간만 보여준다(2026-08-26). "수정"은 `PacketEditScreen`(`src/app/schedule/PacketEditScreen.tsx`)으로 이동해 포 이름·시간·기간을 한 번에(모든 멤버에 동기화) 바꾸고, 멤버 약을 추가("+ 이 포에 약 추가" → `ScheduleNew`에 `presetPacket` 프리셋 전달, 시간·기간 고정)/제거("빼기" → 포에서 분리해 개별 일정으로 전환, 멤버가 1개 이하로 줄면 포 자동 해제)할 수 있다. 새로 포 관련 화면을 만들 때 이 패턴(포 = 한 화면에서 다루는 단위)을 따를 것.
+- **포 만들기는 드래그가 아니라 선택 방식(2026-08-26)**: `ScheduleManageScreen`에 있던 "일정을 길게 눌러 다른 일정 위로 끌면 포로 합칠 수 있다"는 드래그 병합 기능(및 `MergeAnimation` 컴포넌트, `react-native-draggable-flatlist`)은 제거됐다 — 포는 스캔 결과 화면(`ScanResultScreen`)에서만 만들 수 있다. 사용자가 추후 "여러 일정을 선택해서 포로 묶는" 형태를 원한다고 밝혔으니, 관리 화면에 포 생성 기능을 다시 넣게 되면 드래그가 아니라 체크박스 선택 방식으로 만들 것.
 
 ## 5. 접근성 (CLAUDE.md 핵심 원칙과 연결)
 
 - 글씨 크기 최소 16sp, 터치 영역 최소 44×44pt — 2026-08-26에 스캔 화면 "전체 선택/전체 해제" 버튼이 이 기준 미달이라 지적받아 44pt 이상으로 수정한 사례 있음(`docs/scan-pack-ux-requirements.md` 참고). 새 터치 요소를 만들 때 처음부터 이 기준으로 만들 것.
-- 색상만으로 상태를 구분하지 않기 — 드래그 유효 대상 강조도 색(초록 보더)만이 아니라 원래도 드래그 중 확대·바운스 등 형태 변화가 같이 일어나 색맹 사용자도 구분 가능.
 - `App.tsx`가 전역으로 `allowFontScaling = false`를 강제하고 있음 — OS 글씨 크기 설정을 무시한다는 뜻이라, 접근성 원칙(최소 16sp)과는 별도로 사용자의 시스템 폰트 확대 설정을 못 따라간다는 트레이드오프가 있다는 걸 인지하고 있을 것. (의도적 선택으로 보이며 여기서 바꾸라는 얘기는 아님 — 그냥 알아둘 것.)
 
 ## 6. 아이콘 — 아직 통일 안 됨 (진행 중, 2026-08-26)
@@ -110,9 +107,9 @@ taste-skill은 웹(Tailwind/React) 전용 스킬이라 그대로 설치하진 �
 - 제목/본문/라벨의 굵기·크기 위계를 뚜렷하게 — 전부 같은 굵기로 두지 말 것.
 
 **모션 (react-native-reanimated)**
-- `transform`(scale/translate)과 `opacity`만 애니메이션할 것 — 레이아웃에 영향 주는 속성(width/height/margin 등)을 애니메이션하면 성능이 떨어짐. `DragScale`·`MergeAnimation`이 이미 이 원칙을 따르고 있음.
+- `transform`(scale/translate)과 `opacity`만 애니메이션할 것 — 레이아웃에 영향 주는 속성(width/height/margin 등)을 애니메이션하면 성능이 떨어짐.
 - 애니메이션을 넣기 전에 "이게 뭘 전달하는가?"를 먼저 물을 것 — 위계, 상태 변화, 피드백 전달이 아니라 "그냥 있으면 있어 보여서"는 넣지 않는다.
-- **미해결**: 기기 접근성 설정의 모션 축소(reduce motion)를 지금 앱이 존중하지 않음 — RN에서는 `AccessibilityInfo.isReduceMotionEnabled()` / `prefersReducedMotion` 훅으로 체크해서, 켜져 있으면 `MergeAnimation` 같은 연출을 스킵하거나 즉시 완료 처리하는 걸 고려할 것.
+- **미해결**: 기기 접근성 설정의 모션 축소(reduce motion)를 지금 앱이 존중하지 않음 — RN에서는 `AccessibilityInfo.isReduceMotionEnabled()` / `prefersReducedMotion` 훅으로 체크해서 향후 연출성 애니메이션을 넣을 때 고려할 것.
 
 **아이콘·비주얼**
 - 아이콘 팩에서 대충 고른 듯한 기본 아이콘 대신, 일관된 선/면 로직을 가진 아이콘 세트를 쓸 것 — [섹션 6](#6-아이콘--아직-통일-안-됨-진행-중-2026-08-26)의 아이콘 통일 작업과 같은 문제의식.

@@ -17,25 +17,38 @@ interface Props {
 
 export default function ColorPalette({ selected, onSelect }: Props) {
   return (
-    <View style={{ flexDirection: 'row', gap: 12 }}>
-      {PALETTE_COLORS.map((color) => (
-        <TouchableOpacity
-          key={color}
-          testID={`color-swatch-${color}`}
-          accessibilityRole="radio"
-          accessibilityLabel={`색상 ${color}`}
-          accessibilityState={{ selected: selected === color }}
-          onPress={() => onSelect(color)}
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 18,
-            backgroundColor: color,
-            borderWidth: selected === color ? 3 : 1,
-            borderColor: selected === color ? '#1A1A2E' : 'transparent',
-          }}
-        />
-      ))}
+    <View style={{ flexDirection: 'row', gap: 10 }}>
+      {PALETTE_COLORS.map((color) => {
+        const isSelected = selected === color;
+        return (
+          <TouchableOpacity
+            key={color}
+            testID={`color-swatch-${color}`}
+            accessibilityRole="radio"
+            accessibilityLabel={`색상 ${color}`}
+            accessibilityState={{ selected: isSelected }}
+            onPress={() => onSelect(color)}
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 22,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: isSelected ? 2 : 0,
+              borderColor: isSelected ? color : 'transparent',
+            }}
+          >
+            <View
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                backgroundColor: color,
+              }}
+            />
+          </TouchableOpacity>
+        );
+      })}
     </View>
   );
 }
