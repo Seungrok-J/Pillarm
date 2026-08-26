@@ -1,23 +1,25 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, Linking, Alert,
+  StyleSheet, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../../navigation';
 import { useSupplementById, timingLabel } from '../../features/supplementGuide/useSupplementGuide';
+import AlertModal from '../../components/AlertModal';
 
 type Route = RouteProp<RootStackParamList, 'GuideDetail'>;
-
-function openUrl(url: string) {
-  Linking.openURL(url).catch(() => Alert.alert('오류', '링크를 열 수 없습니다.'));
-}
 
 export default function GuideDetailScreen() {
   const { params } = useRoute<Route>();
   const item = useSupplementById(params.id);
+  const [linkError, setLinkError] = useState(false);
+
+  function openUrl(url: string) {
+    Linking.openURL(url).catch(() => setLinkError(true));
+  }
 
   if (!item) {
     return (
@@ -116,6 +118,16 @@ export default function GuideDetailScreen() {
 
         <View style={{ height: 24 }} />
       </ScrollView>
+
+      <AlertModal
+        visible={linkError}
+        icon="alert-circle"
+        tone="danger"
+        title="오류"
+        message="링크를 열 수 없습니다."
+        buttons={[{ text: '확인', onPress: () => setLinkError(false) }]}
+        onRequestClose={() => setLinkError(false)}
+      />
     </SafeAreaView>
   );
 }

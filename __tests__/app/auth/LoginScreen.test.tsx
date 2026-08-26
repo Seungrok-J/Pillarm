@@ -47,7 +47,6 @@ jest.mock('../../../src/features/socialAuth/socialAuthApi', () => ({
 }));
 
 import React from 'react';
-import { Alert } from 'react-native';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { signInWithGoogle, signInWithKakao } from '../../../src/features/socialAuth';
 import { confirmSocialLink } from '../../../src/features/socialAuth/socialAuthApi';
@@ -115,37 +114,30 @@ describe('LoginScreen', () => {
   });
 
   describe('AC4 — 로그인 취소', () => {
-    it('SIGN_IN_CANCELLED 에러 → Alert 없음', async () => {
-      const alertSpy = jest.spyOn(Alert, 'alert');
+    it('SIGN_IN_CANCELLED 에러 → 알림창 없음', async () => {
       mockGoogleLogin.mockRejectedValue(
         Object.assign(new Error('cancelled'), { code: 'SIGN_IN_CANCELLED' }),
       );
 
-      const { getByTestId } = render(<LoginScreen />);
+      const { getByTestId, queryByText } = render(<LoginScreen />);
       fireEvent.press(getByTestId('btn-google'));
 
       await waitFor(() => { expect(mockGoogleLogin).toHaveBeenCalled(); });
-      expect(alertSpy).not.toHaveBeenCalled();
+      expect(queryByText('로그인 실패')).toBeNull();
     });
   });
 
   describe('AC5 — requiresLink Alert', () => {
     it('requiresLink 응답 시 연결 Alert 가 뜬다', async () => {
-      const alertSpy = jest.spyOn(Alert, 'alert');
       mockKakaoLogin.mockResolvedValue(LINK_REQUIRED);
 
-      const { getByTestId } = render(<LoginScreen />);
+      const { getByTestId, getByText } = render(<LoginScreen />);
       fireEvent.press(getByTestId('btn-kakao'));
 
       await waitFor(() => {
-        expect(alertSpy).toHaveBeenCalledWith(
-          '이미 가입된 이메일',
-          expect.stringContaining('a@b.com'),
-          expect.arrayContaining([
-            expect.objectContaining({ text: '취소' }),
-            expect.objectContaining({ text: '연결하기' }),
-          ]),
-        );
+        expect(getByText('이미 가입된 이메일')).toBeTruthy();
+        expect(getByText(/a@b\.com/)).toBeTruthy();
+        expect(getByText('연결하기')).toBeTruthy();
       });
     });
   });
@@ -155,16 +147,11 @@ describe('LoginScreen', () => {
       mockKakaoLogin.mockResolvedValue(LINK_REQUIRED);
       mockConfirmLink.mockResolvedValue(AUTH_RESPONSE);
 
-      let confirmCb: (() => void) | undefined;
-      jest.spyOn(Alert, 'alert').mockImplementationOnce((_t, _m, buttons) => {
-        confirmCb = (buttons as any[])?.find((b: any) => b.text === '연결하기')?.onPress;
-      });
-
-      const { getByTestId } = render(<LoginScreen />);
+      const { getByTestId, getByText } = render(<LoginScreen />);
       fireEvent.press(getByTestId('btn-kakao'));
 
-      await waitFor(() => expect(Alert.alert).toHaveBeenCalled());
-      await confirmCb?.();
+      await waitFor(() => expect(getByText('연결하기')).toBeTruthy());
+      fireEvent.press(getByText('연결하기'));
 
       await waitFor(() => {
         expect(mockConfirmLink).toHaveBeenCalledWith('tok');

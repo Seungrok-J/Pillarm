@@ -4,7 +4,6 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
@@ -98,6 +97,9 @@ export default function ScheduleManageScreen() {
   const [mergeAnimNames, setMergeAnimNames] = useState<[string, string] | null>(null);
   const pendingMergeRef = useRef<{ draggedItem: ScheduleItem; target: ListEntry } | null>(null);
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ item: ScheduleItem; isPast: boolean } | null>(null);
+  const [deleteAllConfirm, setDeleteAllConfirm] = useState(false);
+  const [deletePacketConfirm, setDeletePacketConfirm] = useState<ScheduleItem[] | null>(null);
 
   const today = todayString();
 
@@ -169,51 +171,35 @@ export default function ScheduleManageScreen() {
     setRefreshing(false);
   }
 
-  async function confirmDelete(item: ScheduleItem, isPast = false) {
-    const message = isPast
-      ? `'${item.medication.name}' 종료된 일정을 삭제하시겠어요?\n복용 기록은 유지됩니다.`
-      : `'${item.medication.name}' 복용 일정을 삭제하시겠어요?\n미래 예약된 알림도 함께 취소됩니다.`;
-    Alert.alert(
-      '일정 삭제',
-      message,
-      [
-        { text: '취소', style: 'cancel' },
-        {
-          text: '삭제',
-          style: 'destructive',
-          onPress: async () => {
-            await deleteSchedule(item.schedule.id);
-            await deleteFutureDoseEvents(item.schedule.id);
-            await cancelForSchedule(item.schedule.id);
-            setItems((prev) => prev.filter((i) => i.schedule.id !== item.schedule.id));
-          },
-        },
-      ],
-    );
+  function confirmDelete(item: ScheduleItem, isPast = false) {
+    setDeleteConfirm({ item, isPast });
   }
 
-  async function handleDeleteAll() {
+  async function performDelete() {
+    if (!deleteConfirm) return;
+    const { item } = deleteConfirm;
+    await deleteSchedule(item.schedule.id);
+    await deleteFutureDoseEvents(item.schedule.id);
+    await cancelForSchedule(item.schedule.id);
+    setItems((prev) => prev.filter((i) => i.schedule.id !== item.schedule.id));
+    setDeleteConfirm(null);
+  }
+
+  function handleDeleteAll() {
     const all = [...activeItems, ...pastItems];
     if (all.length === 0) return;
-    Alert.alert(
-      '전체 삭제',
-      `등록된 복용 일정 ${all.length}건을 모두 삭제하시겠어요?\n미래 예약된 알림도 함께 취소되며, 삭제 후에는 되돌릴 수 없습니다.`,
-      [
-        { text: '취소', style: 'cancel' },
-        {
-          text: '전체 삭제',
-          style: 'destructive',
-          onPress: async () => {
-            for (const item of all) {
-              await deleteSchedule(item.schedule.id);
-              await deleteFutureDoseEvents(item.schedule.id);
-              await cancelForSchedule(item.schedule.id);
-            }
-            setItems([]);
-          },
-        },
-      ],
-    );
+    setDeleteAllConfirm(true);
+  }
+
+  async function performDeleteAll() {
+    const all = [...activeItems, ...pastItems];
+    for (const item of all) {
+      await deleteSchedule(item.schedule.id);
+      await deleteFutureDoseEvents(item.schedule.id);
+      await cancelForSchedule(item.schedule.id);
+    }
+    setItems([]);
+    setDeleteAllConfirm(false);
   }
 
   useEffect(() => {
@@ -233,28 +219,20 @@ export default function ScheduleManageScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigation, activeItems.length, pastItems.length]);
 
-  async function confirmDeletePacket(packetItems: ScheduleItem[]) {
-    const names = packetItems.map((i) => i.medication.name).join(', ');
-    Alert.alert(
-      '포 일정 전체 삭제',
-      `포로 묶인 약 일정을 모두 삭제하시겠어요?\n(${names})\n미래 알림도 함께 취소됩니다.`,
-      [
-        { text: '취소', style: 'cancel' },
-        {
-          text: '전체 삭제',
-          style: 'destructive',
-          onPress: async () => {
-            for (const item of packetItems) {
-              await deleteSchedule(item.schedule.id);
-              await deleteFutureDoseEvents(item.schedule.id);
-              await cancelForSchedule(item.schedule.id);
-            }
-            const ids = new Set(packetItems.map((i) => i.schedule.id));
-            setItems((prev) => prev.filter((i) => !ids.has(i.schedule.id)));
-          },
-        },
-      ],
-    );
+  function confirmDeletePacket(packetItems: ScheduleItem[]) {
+    setDeletePacketConfirm(packetItems);
+  }
+
+  async function performDeletePacket() {
+    if (!deletePacketConfirm) return;
+    for (const item of deletePacketConfirm) {
+      await deleteSchedule(item.schedule.id);
+      await deleteFutureDoseEvents(item.schedule.id);
+      await cancelForSchedule(item.schedule.id);
+    }
+    const ids = new Set(deletePacketConfirm.map((i) => i.schedule.id));
+    setItems((prev) => prev.filter((i) => !ids.has(i.schedule.id)));
+    setDeletePacketConfirm(null);
   }
 
   // 개별 일정을 다른 개별/포 위로 드래그해서 포로 합치기 — 시간·기간이 완전히 같을 때만 허용
@@ -506,7 +484,8 @@ export default function ScheduleManageScreen() {
 
       <AlertModal
         visible={cannotMergeVisible}
-        icon="🚫"
+        icon="close-circle"
+        tone="danger"
         title="합칠 수 없어요"
         message="복용 시간과 기간(시작일·종료일)이 같은 일정끼리만 포로 합칠 수 있어요."
         buttons={[{ text: '확인', onPress: () => setCannotMergeVisible(false) }]}
@@ -514,7 +493,7 @@ export default function ScheduleManageScreen() {
 
       <AlertModal
         visible={mergeConfirm !== null}
-        icon="💊"
+        icon="link"
         title="포로 합치기"
         message={mergeConfirm ? `'${mergeConfirm.draggedItem.medication.name}' 일정을 '${mergeConfirm.targetName}'와(과) 같은 포로 합칠까요?` : undefined}
         buttons={[
@@ -543,6 +522,55 @@ export default function ScheduleManageScreen() {
           }}
         />
       )}
+
+      <AlertModal
+        visible={deleteConfirm !== null}
+        icon="trash"
+        tone="danger"
+        title="일정 삭제"
+        message={
+          deleteConfirm
+            ? deleteConfirm.isPast
+              ? `'${deleteConfirm.item.medication.name}' 종료된 일정을 삭제하시겠어요?\n복용 기록은 유지됩니다.`
+              : `'${deleteConfirm.item.medication.name}' 복용 일정을 삭제하시겠어요?\n미래 예약된 알림도 함께 취소됩니다.`
+            : undefined
+        }
+        buttons={[
+          { text: '취소', style: 'cancel', onPress: () => setDeleteConfirm(null) },
+          { text: '삭제', style: 'destructive', onPress: performDelete },
+        ]}
+        onRequestClose={() => setDeleteConfirm(null)}
+      />
+
+      <AlertModal
+        visible={deleteAllConfirm}
+        icon="trash"
+        tone="danger"
+        title="전체 삭제"
+        message={`등록된 복용 일정 ${activeItems.length + pastItems.length}건을 모두 삭제하시겠어요?\n미래 예약된 알림도 함께 취소되며, 삭제 후에는 되돌릴 수 없습니다.`}
+        buttons={[
+          { text: '취소', style: 'cancel', onPress: () => setDeleteAllConfirm(false) },
+          { text: '전체 삭제', style: 'destructive', onPress: performDeleteAll },
+        ]}
+        onRequestClose={() => setDeleteAllConfirm(false)}
+      />
+
+      <AlertModal
+        visible={deletePacketConfirm !== null}
+        icon="trash"
+        tone="danger"
+        title="포 일정 전체 삭제"
+        message={
+          deletePacketConfirm
+            ? `포로 묶인 약 일정을 모두 삭제하시겠어요?\n(${deletePacketConfirm.map((i) => i.medication.name).join(', ')})\n미래 알림도 함께 취소됩니다.`
+            : undefined
+        }
+        buttons={[
+          { text: '취소', style: 'cancel', onPress: () => setDeletePacketConfirm(null) },
+          { text: '전체 삭제', style: 'destructive', onPress: performDeletePacket },
+        ]}
+        onRequestClose={() => setDeletePacketConfirm(null)}
+      />
     </SafeAreaView>
   );
 }

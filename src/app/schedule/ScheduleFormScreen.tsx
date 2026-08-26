@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
   Modal,
   Platform,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -32,6 +31,7 @@ import { useAuthStore } from '../../store/authStore';
 import { isSyncEnabled, pushMedication, pushSchedule, uploadTodaySnapshot } from '../../sync/syncService';
 import ColorPalette from '../../components/ColorPalette';
 import TimePickerList from '../../components/TimePickerList';
+import AlertModal from '../../components/AlertModal';
 import MedicationSearchInput from '../../features/medicationDB/MedicationSearchInput';
 import type { MedicationSearchResult } from '../../features/medicationDB/MedicationSearchInput';
 
@@ -238,6 +238,7 @@ export default function ScheduleFormScreen() {
   const [packetMemberCount, setPacketMemberCount] = useState(0);
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [loginPromptVisible, setLoginPromptVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(isEdit);
 
   const settings = useSettingsStore((s) => s.settings) ?? FALLBACK_SETTINGS;
@@ -412,14 +413,7 @@ export default function ScheduleFormScreen() {
       navigation.navigate('ScanNew');
       return;
     }
-    Alert.alert(
-      '로그인이 필요합니다',
-      '약봉투 스캔으로 자동 입력하려면 먼저 로그인해 주세요.',
-      [
-        { text: '취소', style: 'cancel' },
-        { text: '로그인하기', onPress: () => navigation.navigate('Login') },
-      ],
-    );
+    setLoginPromptVisible(true);
   }
 
   function toggleDay(day: number) {
@@ -670,6 +664,18 @@ export default function ScheduleFormScreen() {
         )}
       </TouchableOpacity>
     </ScrollView>
+
+    <AlertModal
+      visible={loginPromptVisible}
+      icon="lock-closed"
+      title="로그인이 필요합니다"
+      message="약봉투 스캔으로 자동 입력하려면 먼저 로그인해 주세요."
+      buttons={[
+        { text: '취소', style: 'cancel', onPress: () => setLoginPromptVisible(false) },
+        { text: '로그인하기', onPress: () => { setLoginPromptVisible(false); navigation.navigate('Login'); } },
+      ]}
+      onRequestClose={() => setLoginPromptVisible(false)}
+    />
     </SafeAreaView>
   );
 }

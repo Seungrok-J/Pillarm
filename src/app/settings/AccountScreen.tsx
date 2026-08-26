@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  ActivityIndicator, StyleSheet, Alert, ScrollView,
+  ActivityIndicator, StyleSheet, ScrollView,
   KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -10,6 +10,7 @@ import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RootStackParamList } from '../../navigation';
 import { useAuthStore } from '../../store/authStore';
 import { getMyProfile, updateMyName, deleteMyAccount, type UserProfile } from '../../features/careCircle/careCircleApi';
+import AlertModal, { type AlertModalTone } from '../../components/AlertModal';
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -26,6 +27,9 @@ export default function AccountScreen() {
   const [nameInput,       setNameInput]        = useState('');
   const [savingName,      setSavingName]       = useState(false);
   const [deletingAccount, setDeletingAccount]  = useState(false);
+  const [simpleAlert, setSimpleAlert] = useState<{ title: string; message?: string; tone?: AlertModalTone } | null>(null);
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
+  const [deleteSuccessVisible, setDeleteSuccessVisible] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -43,7 +47,7 @@ export default function AccountScreen() {
 
   async function handleSaveName() {
     const trimmed = nameInput.trim();
-    if (!trimmed) { Alert.alert('오류', '이름을 입력해주세요'); return; }
+    if (!trimmed) { setSimpleAlert({ title: '오류', message: '이름을 입력해주세요', tone: 'danger' }); return; }
     setSavingName(true);
     try {
       const updated = await updateMyName(trimmed);
@@ -56,39 +60,29 @@ export default function AccountScreen() {
         userName:     updated.name ?? trimmed,
       });
       setEditingName(false);
-      Alert.alert('완료', '이름이 변경되었습니다');
+      setSimpleAlert({ title: '완료', message: '이름이 변경되었습니다', tone: 'success' });
     } catch {
-      Alert.alert('오류', '이름 변경에 실패했습니다');
+      setSimpleAlert({ title: '오류', message: '이름 변경에 실패했습니다', tone: 'danger' });
     } finally {
       setSavingName(false);
     }
   }
 
-  async function handleDeleteAccount() {
-    Alert.alert(
-      '회원 탈퇴',
-      '탈퇴하면 모든 데이터가 영구적으로 삭제됩니다. 정말 탈퇴하시겠어요?',
-      [
-        { text: '취소', style: 'cancel' },
-        {
-          text: '탈퇴하기',
-          style: 'destructive',
-          onPress: async () => {
-            setDeletingAccount(true);
-            try {
-              await deleteMyAccount();
-              await clearSession();
-              Alert.alert('탈퇴 완료', '그동안 필람을 이용해주셔서 감사합니다.', [
-                { text: '확인', onPress: () => navigation.popToTop() },
-              ]);
-            } catch {
-              Alert.alert('오류', '탈퇴 처리 중 문제가 발생했습니다.');
-              setDeletingAccount(false);
-            }
-          },
-        },
-      ],
-    );
+  function handleDeleteAccount() {
+    setDeleteConfirmVisible(true);
+  }
+
+  async function performDeleteAccount() {
+    setDeleteConfirmVisible(false);
+    setDeletingAccount(true);
+    try {
+      await deleteMyAccount();
+      await clearSession();
+      setDeleteSuccessVisible(true);
+    } catch {
+      setSimpleAlert({ title: '오류', message: '탈퇴 처리 중 문제가 발생했습니다.', tone: 'danger' });
+      setDeletingAccount(false);
+    }
   }
 
   const displayName  = profile?.name  ?? userName ?? '';
@@ -192,6 +186,39 @@ export default function AccountScreen() {
           )}
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <AlertModal
+        visible={simpleAlert !== null}
+        icon="alert-circle"
+        tone={simpleAlert?.tone ?? 'danger'}
+        title={simpleAlert?.title ?? ''}
+        message={simpleAlert?.message}
+        buttons={[{ text: '확인', onPress: () => setSimpleAlert(null) }]}
+        onRequestClose={() => setSimpleAlert(null)}
+      />
+
+      <AlertModal
+        visible={deleteConfirmVisible}
+        icon="warning"
+        tone="danger"
+        title="회원 탈퇴"
+        message="탈퇴하면 모든 데이터가 영구적으로 삭제됩니다. 정말 탈퇴하시겠어요?"
+        buttons={[
+          { text: '취소', style: 'cancel', onPress: () => setDeleteConfirmVisible(false) },
+          { text: '탈퇴하기', style: 'destructive', onPress: performDeleteAccount },
+        ]}
+        onRequestClose={() => setDeleteConfirmVisible(false)}
+      />
+
+      <AlertModal
+        visible={deleteSuccessVisible}
+        icon="checkmark-circle"
+        tone="success"
+        title="탈퇴 완료"
+        message="그동안 필람을 이용해주셔서 감사합니다."
+        buttons={[{ text: '확인', onPress: () => { setDeleteSuccessVisible(false); navigation.popToTop(); } }]}
+        onRequestClose={() => { setDeleteSuccessVisible(false); navigation.popToTop(); }}
+      />
     </SafeAreaView>
   );
 }

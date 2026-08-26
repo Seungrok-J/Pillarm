@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  ScrollView, StyleSheet, Alert, ActivityIndicator, Switch,
+  ScrollView, StyleSheet, ActivityIndicator, Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/authStore';
@@ -9,6 +9,7 @@ import {
   getAdminStats, broadcastPush, getFeatureFlags, setFeatureFlag,
   type AdminStats, type FeatureFlag,
 } from './adminApi';
+import AlertModal, { type AlertModalTone } from '../../components/AlertModal';
 
 export default function AdminScreen() {
   const { userName, userEmail } = useAuthStore();
@@ -21,6 +22,8 @@ export default function AdminScreen() {
   const [pushBody,      setPushBody]      = useState('');
   const [sendingPush,   setSendingPush]   = useState(false);
   const [togglingFlag,  setTogglingFlag]  = useState<string | null>(null);
+  const [broadcastConfirm, setBroadcastConfirm] = useState(false);
+  const [simpleAlert, setSimpleAlert] = useState<{ title: string; message?: string; tone?: AlertModalTone } | null>(null);
 
   useEffect(() => {
     loadStats();
@@ -32,7 +35,7 @@ export default function AdminScreen() {
     try {
       setStats(await getAdminStats());
     } catch {
-      Alert.alert('오류', '통계를 불러오지 못했습니다.');
+      setSimpleAlert({ title: '오류', message: '통계를 불러오지 못했습니다.', tone: 'danger' });
     } finally {
       setLoadingStats(false);
     }
@@ -49,35 +52,27 @@ export default function AdminScreen() {
     }
   }
 
-  async function handleBroadcast() {
+  function handleBroadcast() {
     if (!pushTitle.trim() || !pushBody.trim()) {
-      Alert.alert('알림', '제목과 내용을 모두 입력해주세요.');
+      setSimpleAlert({ title: '알림', message: '제목과 내용을 모두 입력해주세요.' });
       return;
     }
-    Alert.alert(
-      '전체 푸시 발송',
-      `제목: ${pushTitle}\n내용: ${pushBody}\n\n모든 사용자에게 발송됩니다. 계속하시겠어요?`,
-      [
-        { text: '취소', style: 'cancel' },
-        {
-          text: '발송',
-          style: 'destructive',
-          onPress: async () => {
-            setSendingPush(true);
-            try {
-              await broadcastPush(pushTitle.trim(), pushBody.trim());
-              Alert.alert('완료', '푸시 알림이 발송되었습니다.');
-              setPushTitle('');
-              setPushBody('');
-            } catch {
-              Alert.alert('오류', '발송에 실패했습니다. 다시 시도해주세요.');
-            } finally {
-              setSendingPush(false);
-            }
-          },
-        },
-      ],
-    );
+    setBroadcastConfirm(true);
+  }
+
+  async function performBroadcast() {
+    setBroadcastConfirm(false);
+    setSendingPush(true);
+    try {
+      await broadcastPush(pushTitle.trim(), pushBody.trim());
+      setSimpleAlert({ title: '완료', message: '푸시 알림이 발송되었습니다.', tone: 'success' });
+      setPushTitle('');
+      setPushBody('');
+    } catch {
+      setSimpleAlert({ title: '오류', message: '발송에 실패했습니다. 다시 시도해주세요.', tone: 'danger' });
+    } finally {
+      setSendingPush(false);
+    }
   }
 
   async function handleToggleFlag(flag: FeatureFlag) {
@@ -88,7 +83,7 @@ export default function AdminScreen() {
         prev.map((f) => (f.key === flag.key ? { ...f, enabled: !f.enabled } : f)),
       );
     } catch {
-      Alert.alert('오류', '설정 변경에 실패했습니다.');
+      setSimpleAlert({ title: '오류', message: '설정 변경에 실패했습니다.', tone: 'danger' });
     } finally {
       setTogglingFlag(null);
     }
@@ -194,6 +189,29 @@ export default function AdminScreen() {
 
         <View style={{ height: 32 }} />
       </ScrollView>
+
+      <AlertModal
+        visible={broadcastConfirm}
+        icon="megaphone"
+        tone="danger"
+        title="전체 푸시 발송"
+        message={`제목: ${pushTitle}\n내용: ${pushBody}\n\n모든 사용자에게 발송됩니다. 계속하시겠어요?`}
+        buttons={[
+          { text: '취소', style: 'cancel', onPress: () => setBroadcastConfirm(false) },
+          { text: '발송', style: 'destructive', onPress: performBroadcast },
+        ]}
+        onRequestClose={() => setBroadcastConfirm(false)}
+      />
+
+      <AlertModal
+        visible={simpleAlert !== null}
+        icon="alert-circle"
+        tone={simpleAlert?.tone ?? 'danger'}
+        title={simpleAlert?.title ?? ''}
+        message={simpleAlert?.message}
+        buttons={[{ text: '확인', onPress: () => setSimpleAlert(null) }]}
+        onRequestClose={() => setSimpleAlert(null)}
+      />
     </SafeAreaView>
   );
 }

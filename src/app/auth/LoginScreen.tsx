@@ -5,7 +5,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, TouchableOpacity,
-  ActivityIndicator, StyleSheet, Alert,
+  ActivityIndicator, StyleSheet,
   ScrollView,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -28,6 +28,7 @@ import {
   type SocialLinkRequired,
   type DeviceConflict,
 } from '../../features/socialAuth/socialAuthApi';
+import AlertModal, { type AlertModalTone } from '../../components/AlertModal';
 
 type Nav = StackNavigationProp<RootStackParamList>;
 
@@ -37,6 +38,13 @@ export default function LoginScreen() {
 
   const [loading,         setLoading]         = useState(false);
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
+  const [linkPrompt, setLinkPrompt] = useState<{ link: SocialLinkRequired; providerName: string } | null>(null);
+  const [deviceConflictPrompt, setDeviceConflictPrompt] = useState<{
+    conflict: DeviceConflict;
+    providerName: string;
+    loginFn: () => Promise<SocialAuthResponse | SocialLinkRequired | DeviceConflict>;
+  } | null>(null);
+  const [simpleAlert, setSimpleAlert] = useState<{ title: string; message?: string; tone?: AlertModalTone } | null>(null);
 
   // ── 소셜 로그인 공통 처리 ──────────────────────────────────────────────────
 
@@ -53,29 +61,7 @@ export default function LoginScreen() {
         const link = result as unknown as SocialLinkRequired;
         setLoading(false);
         setLoadingProvider(null);
-        Alert.alert(
-          '이미 가입된 이메일',
-          `${link.email}\n\n이 이메일은 이미 ${link.existingProvider} 계정으로 가입되어 있어요.\n${link.newProvider} 계정을 기존 계정에 연결할까요?\n\n연결하면 두 방법 모두로 로그인할 수 있습니다.`,
-          [
-            { text: '취소', style: 'cancel' },
-            {
-              text: '연결하기',
-              onPress: async () => {
-                setLoading(true);
-                setLoadingProvider(providerName);
-                try {
-                  const data = await confirmSocialLink(link.linkToken);
-                  await afterLogin(data);
-                } catch {
-                  Alert.alert('오류', '계정 연결에 실패했습니다. 다시 시도해주세요.');
-                } finally {
-                  setLoading(false);
-                  setLoadingProvider(null);
-                }
-              },
-            },
-          ],
-        );
+        setLinkPrompt({ link, providerName });
         return;
       }
 
@@ -84,32 +70,7 @@ export default function LoginScreen() {
         const conflict = result as unknown as DeviceConflict;
         setLoading(false);
         setLoadingProvider(null);
-        Alert.alert(
-          '다른 기기에서 로그인 중',
-          conflict.message || '이 계정은 다른 기기에서 이미 로그인되어 있습니다.\n이 기기로 로그인하면 다른 기기는 자동으로 로그아웃됩니다.',
-          [
-            { text: '취소', style: 'cancel' },
-            {
-              text: '이 기기로 로그인',
-              style: 'destructive',
-              onPress: async () => {
-                setLoading(true);
-                setLoadingProvider(providerName);
-                try {
-                  const forceResult = await loginFn();
-                  if ('accessToken' in forceResult) {
-                    await afterLogin(forceResult as SocialAuthResponse);
-                  }
-                } catch {
-                  Alert.alert('오류', '로그인에 실패했습니다. 다시 시도해주세요.');
-                } finally {
-                  setLoading(false);
-                  setLoadingProvider(null);
-                }
-              },
-            },
-          ],
-        );
+        setDeviceConflictPrompt({ conflict, providerName, loginFn });
         return;
       }
 
@@ -120,7 +81,43 @@ export default function LoginScreen() {
 
       const msg = (err as { response?: { data?: { error?: string } }; message?: string })
         ?.response?.data?.error ?? (err as Error)?.message ?? `${providerName} 로그인에 실패했습니다`;
-      Alert.alert('로그인 실패', msg);
+      setSimpleAlert({ title: '로그인 실패', message: msg, tone: 'danger' });
+    } finally {
+      setLoading(false);
+      setLoadingProvider(null);
+    }
+  }
+
+  async function confirmLink() {
+    if (!linkPrompt) return;
+    const { link, providerName } = linkPrompt;
+    setLinkPrompt(null);
+    setLoading(true);
+    setLoadingProvider(providerName);
+    try {
+      const data = await confirmSocialLink(link.linkToken);
+      await afterLogin(data);
+    } catch {
+      setSimpleAlert({ title: '오류', message: '계정 연결에 실패했습니다. 다시 시도해주세요.', tone: 'danger' });
+    } finally {
+      setLoading(false);
+      setLoadingProvider(null);
+    }
+  }
+
+  async function confirmDeviceConflict() {
+    if (!deviceConflictPrompt) return;
+    const { providerName, loginFn } = deviceConflictPrompt;
+    setDeviceConflictPrompt(null);
+    setLoading(true);
+    setLoadingProvider(providerName);
+    try {
+      const forceResult = await loginFn();
+      if ('accessToken' in forceResult) {
+        await afterLogin(forceResult as SocialAuthResponse);
+      }
+    } catch {
+      setSimpleAlert({ title: '오류', message: '로그인에 실패했습니다. 다시 시도해주세요.', tone: 'danger' });
     } finally {
       setLoading(false);
       setLoadingProvider(null);
@@ -152,6 +149,7 @@ export default function LoginScreen() {
   // ── 렌더 ────────────────────────────────────────────────────────────────────
 
   return (
+    <>
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
       <View style={styles.header}>
         <Text style={styles.logo}>💊</Text>
@@ -248,6 +246,49 @@ export default function LoginScreen() {
         에 동의하는 것으로 간주합니다.
       </Text>
     </ScrollView>
+
+    <AlertModal
+      visible={linkPrompt !== null}
+      icon="link"
+      title="이미 가입된 이메일"
+      message={
+        linkPrompt
+          ? `${linkPrompt.link.email}\n\n이 이메일은 이미 ${linkPrompt.link.existingProvider} 계정으로 가입되어 있어요.\n${linkPrompt.link.newProvider} 계정을 기존 계정에 연결할까요?\n\n연결하면 두 방법 모두로 로그인할 수 있습니다.`
+          : undefined
+      }
+      buttons={[
+        { text: '취소', style: 'cancel', onPress: () => setLinkPrompt(null) },
+        { text: '연결하기', onPress: confirmLink },
+      ]}
+      onRequestClose={() => setLinkPrompt(null)}
+    />
+
+    <AlertModal
+      visible={deviceConflictPrompt !== null}
+      icon="phone-portrait-outline"
+      tone="warning"
+      title="다른 기기에서 로그인 중"
+      message={
+        deviceConflictPrompt?.conflict.message ||
+        '이 계정은 다른 기기에서 이미 로그인되어 있습니다.\n이 기기로 로그인하면 다른 기기는 자동으로 로그아웃됩니다.'
+      }
+      buttons={[
+        { text: '취소', style: 'cancel', onPress: () => setDeviceConflictPrompt(null) },
+        { text: '이 기기로 로그인', style: 'destructive', onPress: confirmDeviceConflict },
+      ]}
+      onRequestClose={() => setDeviceConflictPrompt(null)}
+    />
+
+    <AlertModal
+      visible={simpleAlert !== null}
+      icon="alert-circle"
+      tone={simpleAlert?.tone ?? 'danger'}
+      title={simpleAlert?.title ?? ''}
+      message={simpleAlert?.message}
+      buttons={[{ text: '확인', onPress: () => setSimpleAlert(null) }]}
+      onRequestClose={() => setSimpleAlert(null)}
+    />
+    </>
   );
 }
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
-  StyleSheet, Alert, Modal, Platform,
+  StyleSheet, Modal, Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -19,7 +19,7 @@ import { scheduleForSchedule } from '../../notifications';
 import { useAuthStore } from '../../store/authStore';
 import { useSettingsStore } from '../../store';
 import TimePickerList from '../../components/TimePickerList';
-import AlertModal from '../../components/AlertModal';
+import AlertModal, { type AlertModalTone } from '../../components/AlertModal';
 
 type Nav   = StackNavigationProp<RootStackParamList>;
 type Route = RouteProp<RootStackParamList, 'ScanResult'>;
@@ -477,6 +477,9 @@ export default function ScanResultScreen() {
   const [moveConfirm, setMoveConfirm] = useState<
     { packId: string; idx: number; fromName: string; toName: string; medName: string } | null
   >(null);
+  const [simpleAlert, setSimpleAlert] = useState<
+    { title: string; message?: string; tone?: AlertModalTone } | null
+  >(null);
 
   // 요약 카드(원터치 확인) ↔ 상세 편집 폼 토글. 약 이름이 비어 있으면
   // 바로 고쳐야 하니 처음부터 펼쳐서 보여준다.
@@ -547,22 +550,12 @@ export default function ScanResultScreen() {
 
   // 저장 완료 전 뒤로가기 방지
   const savedRef = useRef(false);
+  const [leaveAction, setLeaveAction] = useState<Parameters<typeof navigation.dispatch>[0] | null>(null);
   useEffect(() => {
     return navigation.addListener('beforeRemove', (e) => {
       if (savedRef.current) return;
       e.preventDefault();
-      Alert.alert(
-        '스캔 결과가 사라집니다',
-        '지금 나가면 인식된 약 정보가 모두 사라집니다.\n정말 나가시겠어요?',
-        [
-          { text: '계속 등록', style: 'cancel' },
-          {
-            text: '나가기',
-            style: 'destructive',
-            onPress: () => navigation.dispatch(e.data.action),
-          },
-        ],
-      );
+      setLeaveAction(e.data.action);
     });
   }, [navigation]);
 
@@ -783,7 +776,7 @@ export default function ScanResultScreen() {
 
     const toCreate = items.filter((_, i) => !skipped.has(i));
     if (toCreate.length === 0) {
-      Alert.alert('알림', '건너뛰지 않은 약이 없습니다.');
+      setSimpleAlert({ title: '알림', message: '건너뛰지 않은 약이 없습니다.' });
       return;
     }
 
@@ -859,7 +852,7 @@ export default function ScanResultScreen() {
       savedRef.current = true;
       setCreatedCount(toCreate.length);
     } catch {
-      Alert.alert('오류', '일정 등록 중 문제가 발생했습니다. 다시 시도해주세요.');
+      setSimpleAlert({ title: '오류', message: '일정 등록 중 문제가 발생했습니다. 다시 시도해주세요.', tone: 'danger' });
     } finally {
       setSaving(false);
     }
@@ -1125,7 +1118,8 @@ export default function ScanResultScreen() {
 
       <AlertModal
         visible={createdCount !== null}
-        icon="🎉"
+        icon="checkmark-circle"
+        tone="success"
         title="일정 등록 완료"
         message={`${createdCount ?? 0}개 약 일정이 등록되었습니다.`}
         buttons={[{ text: '확인', onPress: () => { setCreatedCount(null); navigation.popToTop(); } }]}
@@ -1133,7 +1127,7 @@ export default function ScanResultScreen() {
 
       <AlertModal
         visible={moveConfirm !== null}
-        icon="🔀"
+        icon="swap-horizontal"
         title="포 옮기기"
         message={moveConfirm ? `'${moveConfirm.medName}'을(를) '${moveConfirm.fromName}'에서 '${moveConfirm.toName}'(으)로 옮길까요?` : undefined}
         buttons={[
@@ -1146,6 +1140,37 @@ export default function ScanResultScreen() {
             },
           },
         ]}
+      />
+
+      <AlertModal
+        visible={simpleAlert !== null}
+        icon={simpleAlert?.tone === 'danger' ? 'alert-circle' : 'information-circle'}
+        tone={simpleAlert?.tone ?? 'primary'}
+        title={simpleAlert?.title ?? ''}
+        message={simpleAlert?.message}
+        buttons={[{ text: '확인', onPress: () => setSimpleAlert(null) }]}
+        onRequestClose={() => setSimpleAlert(null)}
+      />
+
+      <AlertModal
+        visible={leaveAction !== null}
+        icon="alert-circle"
+        tone="warning"
+        title="스캔 결과가 사라집니다"
+        message={'지금 나가면 인식된 약 정보가 모두 사라집니다.\n정말 나가시겠어요?'}
+        buttons={[
+          { text: '계속 등록', style: 'cancel', onPress: () => setLeaveAction(null) },
+          {
+            text: '나가기',
+            style: 'destructive',
+            onPress: () => {
+              const action = leaveAction;
+              setLeaveAction(null);
+              if (action) navigation.dispatch(action);
+            },
+          },
+        ]}
+        onRequestClose={() => setLeaveAction(null)}
       />
 
       {/* 취침전 시간 지정 피커 */}

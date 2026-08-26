@@ -11,7 +11,6 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   Linking,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -23,6 +22,7 @@ import {
   DoseDisplayState,
   computeDisplayState,
 } from '../utils/doseDisplay';
+import AlertModal from './AlertModal';
 
 // ── 상수 & 헬퍼 ──────────────────────────────────────────────────────────────
 
@@ -102,6 +102,8 @@ export default function DoseCard({
   const [showMemoSheet, setShowMemoSheet] = useState(false);
   const [memo, setMemo] = useState('');
   const [localPhoto, setLocalPhoto] = useState<string | null>(null);
+  const [cameraPermAlert, setCameraPermAlert] = useState(false);
+  const [photoErrorMsg, setPhotoErrorMsg] = useState<string | null>(null);
 
   // ── 스와이프 ─────────────────────────────────────────────────────────────
   const translateX = useRef(new Animated.Value(0)).current;
@@ -148,14 +150,7 @@ export default function DoseCard({
       if (source === 'camera') {
         const { status } = await ImagePicker.requestCameraPermissionsAsync();
         if (status !== 'granted') {
-          Alert.alert(
-            '카메라 권한이 필요합니다',
-            '사진을 찍으려면 설정에서 카메라 접근을 허용해 주세요.',
-            [
-              { text: '취소', style: 'cancel' },
-              { text: '설정 열기', onPress: () => void Linking.openSettings() },
-            ],
-          );
+          setCameraPermAlert(true);
           return;
         }
       }
@@ -189,7 +184,7 @@ export default function DoseCard({
     } catch (err) {
       const msg = (err as { message?: string })?.message;
       if (msg && !msg.includes('cancel') && !msg.includes('Cancel')) {
-        Alert.alert('사진 오류', `사진을 불러오지 못했습니다.\n(${msg})`);
+        setPhotoErrorMsg(`사진을 불러오지 못했습니다.\n(${msg})`);
       }
     }
   }
@@ -383,6 +378,29 @@ export default function DoseCard({
           </View>
         </Modal>
       )}
+
+      <AlertModal
+        visible={cameraPermAlert}
+        icon="camera"
+        tone="warning"
+        title="카메라 권한이 필요합니다"
+        message="사진을 찍으려면 설정에서 카메라 접근을 허용해 주세요."
+        buttons={[
+          { text: '취소', style: 'cancel', onPress: () => setCameraPermAlert(false) },
+          { text: '설정 열기', onPress: () => { setCameraPermAlert(false); void Linking.openSettings(); } },
+        ]}
+        onRequestClose={() => setCameraPermAlert(false)}
+      />
+
+      <AlertModal
+        visible={photoErrorMsg !== null}
+        icon="alert-circle"
+        tone="danger"
+        title="사진 오류"
+        message={photoErrorMsg ?? undefined}
+        buttons={[{ text: '확인', onPress: () => setPhotoErrorMsg(null) }]}
+        onRequestClose={() => setPhotoErrorMsg(null)}
+      />
     </View>
   );
 }

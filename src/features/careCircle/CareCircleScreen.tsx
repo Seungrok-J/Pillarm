@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import {
   View, Text, TouchableOpacity, Modal,
-  ActivityIndicator, Alert, StyleSheet,
+  ActivityIndicator, StyleSheet,
   ScrollView, TextInput, Share, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,6 +16,7 @@ import {
   deleteMember, updateMemberNickname, leaveCircle,
   type ApiCareCircle, type ApiCareMember,
 } from './careCircleApi';
+import AlertModal, { type AlertModalTone } from '../../components/AlertModal';
 
 const JOIN_WEB_URL = 'https://pillarm.app/join';
 
@@ -111,13 +112,18 @@ export default function CareCircleScreen() {
   // 인라인 별칭 편집
   const [editingNickname, setEditingNickname] = useState<{ circleId: string; memberId: string; value: string } | null>(null);
 
+  const [simpleAlert, setSimpleAlert] = useState<{ title: string; message?: string; tone?: AlertModalTone } | null>(null);
+  const [deleteMemberConfirm, setDeleteMemberConfirm] = useState<{ circleId: string; member: ApiCareMember } | null>(null);
+  const [deleteCircleConfirm, setDeleteCircleConfirm] = useState<ApiCareCircle | null>(null);
+  const [leaveCircleConfirm, setLeaveCircleConfirm] = useState<ApiCareCircle | null>(null);
+
   const loadCircles = useCallback(async () => {
     try {
       setLoading(true);
       const data = await listCircles();
       setCircles(data);
     } catch {
-      Alert.alert('오류', '보호 그룹 목록을 불러오지 못했습니다');
+      setSimpleAlert({ title: '오류', message: '보호 그룹 목록을 불러오지 못했습니다', tone: 'danger' });
     } finally {
       setLoading(false);
     }
@@ -129,7 +135,7 @@ export default function CareCircleScreen() {
       const data = await listCircles();
       setCircles(data);
     } catch {
-      Alert.alert('오류', '보호 그룹 목록을 불러오지 못했습니다');
+      setSimpleAlert({ title: '오류', message: '보호 그룹 목록을 불러오지 못했습니다', tone: 'danger' });
     } finally {
       setRefreshing(false);
     }
@@ -149,7 +155,7 @@ export default function CareCircleScreen() {
   async function handleCreate() {
     const name = newName.trim();
     if (!name) {
-      Alert.alert('그룹 이름 필요', '그룹 이름을 입력해주세요');
+      setSimpleAlert({ title: '그룹 이름 필요', message: '그룹 이름을 입력해주세요', tone: 'warning' });
       return;
     }
     setCreating(true);
@@ -159,7 +165,7 @@ export default function CareCircleScreen() {
       setShowCreateForm(false);
       await loadCircles();
     } catch {
-      Alert.alert('오류', '보호 그룹 생성에 실패했습니다');
+      setSimpleAlert({ title: '오류', message: '보호 그룹 생성에 실패했습니다', tone: 'danger' });
     } finally {
       setCreating(false);
     }
@@ -174,7 +180,7 @@ export default function CareCircleScreen() {
       setInviteCode(code);
       setInviteVisible(true);
     } catch {
-      Alert.alert('오류', '초대 코드 생성에 실패했습니다');
+      setSimpleAlert({ title: '오류', message: '초대 코드 생성에 실패했습니다', tone: 'danger' });
     } finally {
       setInviteLoading(false);
     }
@@ -183,25 +189,19 @@ export default function CareCircleScreen() {
   // ── 멤버 삭제 ──────────────────────────────────────────────────────────────
 
   function handleDeleteMember(circleId: string, member: ApiCareMember) {
-    const label = memberDisplayName(member);
-    Alert.alert(
-      '피보호자 삭제',
-      `"${label}"을(를) 보호 그룹에서 삭제하시겠어요?`,
-      [
-        { text: '취소', style: 'cancel' },
-        {
-          text: '삭제', style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteMember(circleId, member.id);
-              await loadCircles();
-            } catch {
-              Alert.alert('오류', '피보호자 삭제에 실패했습니다');
-            }
-          },
-        },
-      ],
-    );
+    setDeleteMemberConfirm({ circleId, member });
+  }
+
+  async function performDeleteMember() {
+    if (!deleteMemberConfirm) return;
+    const { circleId, member } = deleteMemberConfirm;
+    setDeleteMemberConfirm(null);
+    try {
+      await deleteMember(circleId, member.id);
+      await loadCircles();
+    } catch {
+      setSimpleAlert({ title: '오류', message: '피보호자 삭제에 실패했습니다', tone: 'danger' });
+    }
   }
 
   // ── 별칭 저장 ──────────────────────────────────────────────────────────────
@@ -212,7 +212,7 @@ export default function CareCircleScreen() {
       await updateMemberNickname(editingNickname.circleId, editingNickname.memberId, editingNickname.value);
       await loadCircles();
     } catch {
-      Alert.alert('오류', '별칭 저장에 실패했습니다');
+      setSimpleAlert({ title: '오류', message: '별칭 저장에 실패했습니다', tone: 'danger' });
     } finally {
       setEditingNickname(null);
     }
@@ -221,24 +221,19 @@ export default function CareCircleScreen() {
   // ── 그룹 삭제 (AC3: 공유 즉시 해제) ───────────────────────────────────────
 
   function handleDelete(circle: ApiCareCircle) {
-    Alert.alert(
-      '보호 그룹 해제',
-      `"${circle.name}"을 삭제하면 보호자의 접근이 즉시 차단됩니다. 계속하시겠어요?`,
-      [
-        { text: '취소', style: 'cancel' },
-        {
-          text: '해제', style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteCircle(circle.id);
-              await loadCircles();
-            } catch {
-              Alert.alert('오류', '보호 그룹 삭제에 실패했습니다');
-            }
-          },
-        },
-      ],
-    );
+    setDeleteCircleConfirm(circle);
+  }
+
+  async function performDeleteCircle() {
+    if (!deleteCircleConfirm) return;
+    const circle = deleteCircleConfirm;
+    setDeleteCircleConfirm(null);
+    try {
+      await deleteCircle(circle.id);
+      await loadCircles();
+    } catch {
+      setSimpleAlert({ title: '오류', message: '보호 그룹 삭제에 실패했습니다', tone: 'danger' });
+    }
   }
 
   // ── 렌더: 소유 그룹 카드 ──────────────────────────────────────────────────
@@ -387,32 +382,27 @@ export default function CareCircleScreen() {
   // ── 렌더: 참여 그룹 카드 (보호자 뷰) ─────────────────────────────────────
 
   function handleLeaveCircle(circle: ApiCareCircle) {
-    Alert.alert(
-      '그룹 나가기',
-      `"${circle.name}"에서 나가시겠어요? 이후 복용 현황을 볼 수 없게 됩니다.`,
-      [
-        { text: '취소', style: 'cancel' },
-        {
-          text: '나가기', style: 'destructive',
-          onPress: async () => {
-            try {
-              await leaveCircle(circle.id);
-              await loadCircles();
-            } catch (err: unknown) {
-              console.error('[CareCircle] 그룹 나가기 실패:', err);
-              const status = (err as { response?: { status?: number } })?.response?.status;
-              if (status === 404) {
-                // 이미 그룹에서 제거된 상태 — 목록만 갱신
-                await loadCircles();
-              } else {
-                const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
-                Alert.alert('오류', msg ?? '그룹 나가기에 실패했습니다');
-              }
-            }
-          },
-        },
-      ],
-    );
+    setLeaveCircleConfirm(circle);
+  }
+
+  async function performLeaveCircle() {
+    if (!leaveCircleConfirm) return;
+    const circle = leaveCircleConfirm;
+    setLeaveCircleConfirm(null);
+    try {
+      await leaveCircle(circle.id);
+      await loadCircles();
+    } catch (err: unknown) {
+      console.error('[CareCircle] 그룹 나가기 실패:', err);
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 404) {
+        // 이미 그룹에서 제거된 상태 — 목록만 갱신
+        await loadCircles();
+      } else {
+        const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+        setSimpleAlert({ title: '오류', message: msg ?? '그룹 나가기에 실패했습니다', tone: 'danger' });
+      }
+    }
   }
 
   function renderMemberCircle(circle: ApiCareCircle) {
@@ -555,6 +545,55 @@ export default function CareCircleScreen() {
         visible={inviteVisible}
         code={inviteCode}
         onClose={() => { setInviteVisible(false); setInviteCode(null); }}
+      />
+
+      <AlertModal
+        visible={simpleAlert !== null}
+        icon="alert-circle"
+        tone={simpleAlert?.tone ?? 'danger'}
+        title={simpleAlert?.title ?? ''}
+        message={simpleAlert?.message}
+        buttons={[{ text: '확인', onPress: () => setSimpleAlert(null) }]}
+        onRequestClose={() => setSimpleAlert(null)}
+      />
+
+      <AlertModal
+        visible={deleteMemberConfirm !== null}
+        icon="person-remove"
+        tone="danger"
+        title="피보호자 삭제"
+        message={deleteMemberConfirm ? `"${memberDisplayName(deleteMemberConfirm.member)}"을(를) 보호 그룹에서 삭제하시겠어요?` : undefined}
+        buttons={[
+          { text: '취소', style: 'cancel', onPress: () => setDeleteMemberConfirm(null) },
+          { text: '삭제', style: 'destructive', onPress: performDeleteMember },
+        ]}
+        onRequestClose={() => setDeleteMemberConfirm(null)}
+      />
+
+      <AlertModal
+        visible={deleteCircleConfirm !== null}
+        icon="trash"
+        tone="danger"
+        title="보호 그룹 해제"
+        message={deleteCircleConfirm ? `"${deleteCircleConfirm.name}"을 삭제하면 보호자의 접근이 즉시 차단됩니다. 계속하시겠어요?` : undefined}
+        buttons={[
+          { text: '취소', style: 'cancel', onPress: () => setDeleteCircleConfirm(null) },
+          { text: '해제', style: 'destructive', onPress: performDeleteCircle },
+        ]}
+        onRequestClose={() => setDeleteCircleConfirm(null)}
+      />
+
+      <AlertModal
+        visible={leaveCircleConfirm !== null}
+        icon="exit"
+        tone="warning"
+        title="그룹 나가기"
+        message={leaveCircleConfirm ? `"${leaveCircleConfirm.name}"에서 나가시겠어요? 이후 복용 현황을 볼 수 없게 됩니다.` : undefined}
+        buttons={[
+          { text: '취소', style: 'cancel', onPress: () => setLeaveCircleConfirm(null) },
+          { text: '나가기', style: 'destructive', onPress: performLeaveCircle },
+        ]}
+        onRequestClose={() => setLeaveCircleConfirm(null)}
       />
     </ScrollView>
     </SafeAreaView>

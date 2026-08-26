@@ -350,7 +350,8 @@ export default function PacketEditScreen() {
 
       <AlertModal
         visible={removeConfirm !== null}
-        icon="➖"
+        icon="remove-circle-outline"
+        tone="warning"
         title="포에서 빼기"
         message={
           removeConfirm
@@ -366,7 +367,8 @@ export default function PacketEditScreen() {
 
       <AlertModal
         visible={deleteAllConfirm}
-        icon="🗑️"
+        icon="trash"
+        tone="danger"
         title="포 전체 삭제"
         message={`포함된 약 ${members.length}개 일정을 모두 삭제하시겠어요?\n미래 알림도 함께 취소되며, 삭제 후에는 되돌릴 수 없습니다.`}
         buttons={[

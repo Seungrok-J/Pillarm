@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -11,12 +11,16 @@ import type { RootStackParamList } from '../../navigation';
 import { prepareImageBase64 } from '../../features/medicationScan/scanUtils';
 import { scanMedicationImage } from '../../features/medicationScan/scanApi';
 import { useSettingsStore } from '../../store';
+import AlertModal from '../../components/AlertModal';
 
 type Nav = StackNavigationProp<RootStackParamList>;
 
 export default function ScanScreen() {
   const navigation = useNavigation<Nav>();
   const [loading, setLoading] = useState(false);
+  const [sessionExpired, setSessionExpired] = useState(false);
+  const [permAlert, setPermAlert] = useState<'camera' | 'gallery' | null>(null);
+  const [recognitionFailedMsg, setRecognitionFailedMsg] = useState<string | null>(null);
 
   async function pickAndScan(useCamera: boolean) {
     try {
@@ -24,7 +28,7 @@ export default function ScanScreen() {
       if (useCamera) {
         const permission = await ImagePicker.requestCameraPermissionsAsync();
         if (!permission.granted) {
-          Alert.alert('권한 필요', '카메라 접근 권한이 필요합니다. 설정에서 허용해주세요.');
+          setPermAlert('camera');
           return;
         }
         result = await ImagePicker.launchCameraAsync({
@@ -35,7 +39,7 @@ export default function ScanScreen() {
       } else {
         const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!permission.granted) {
-          Alert.alert('권한 필요', '사진 접근 권한이 필요합니다. 설정에서 허용해주세요.');
+          setPermAlert('gallery');
           return;
         }
         result = await ImagePicker.launchImageLibraryAsync({
@@ -56,24 +60,11 @@ export default function ScanScreen() {
       const msg = err instanceof Error ? err.message : '오류가 발생했습니다';
 
       if (msg === 'no_refresh' || msg.includes('no_refresh')) {
-        Alert.alert(
-          '로그인이 필요합니다',
-          '세션이 만료되었습니다.\n다시 로그인 후 스캔해주세요.',
-          [
-            { text: '취소', style: 'cancel' },
-            { text: '로그인하기', onPress: () => navigation.navigate('Login') },
-          ],
-        );
+        setSessionExpired(true);
         return;
       }
 
-      Alert.alert('인식 실패', msg, [
-        { text: '다시 시도', style: 'cancel' },
-        {
-          text: '직접 입력',
-          onPress: () => navigation.replace('ScheduleNew'),
-        },
-      ]);
+      setRecognitionFailedMsg(msg);
     } finally {
       setLoading(false);
     }
@@ -124,6 +115,48 @@ export default function ScanScreen() {
           <Text style={styles.textBtnText}>직접 입력하기</Text>
         </TouchableOpacity>
       </View>
+
+      <AlertModal
+        visible={sessionExpired}
+        icon="lock-closed"
+        title="로그인이 필요합니다"
+        message={'세션이 만료되었습니다.\n다시 로그인 후 스캔해주세요.'}
+        buttons={[
+          { text: '취소', style: 'cancel', onPress: () => setSessionExpired(false) },
+          { text: '로그인하기', onPress: () => { setSessionExpired(false); navigation.navigate('Login'); } },
+        ]}
+        onRequestClose={() => setSessionExpired(false)}
+      />
+
+      <AlertModal
+        visible={permAlert !== null}
+        icon={permAlert === 'camera' ? 'camera' : 'images'}
+        tone="warning"
+        title="권한 필요"
+        message={
+          permAlert === 'camera'
+            ? '카메라 접근 권한이 필요합니다. 설정에서 허용해주세요.'
+            : '사진 접근 권한이 필요합니다. 설정에서 허용해주세요.'
+        }
+        buttons={[{ text: '확인', onPress: () => setPermAlert(null) }]}
+        onRequestClose={() => setPermAlert(null)}
+      />
+
+      <AlertModal
+        visible={recognitionFailedMsg !== null}
+        icon="alert-circle"
+        tone="danger"
+        title="인식 실패"
+        message={recognitionFailedMsg ?? undefined}
+        buttons={[
+          { text: '다시 시도', style: 'cancel', onPress: () => setRecognitionFailedMsg(null) },
+          {
+            text: '직접 입력',
+            onPress: () => { setRecognitionFailedMsg(null); navigation.replace('ScheduleNew'); },
+          },
+        ]}
+        onRequestClose={() => setRecognitionFailedMsg(null)}
+      />
     </SafeAreaView>
   );
 }

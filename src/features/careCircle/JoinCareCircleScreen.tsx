@@ -1,13 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  ActivityIndicator, StyleSheet, Alert, Platform,
+  ActivityIndicator, StyleSheet, Platform,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RouteProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../../navigation';
 import { joinCircle } from './careCircleApi';
+import AlertModal from '../../components/AlertModal';
 
 // expo-camera 미설치 시 graceful fallback
 let CameraView: React.ComponentType<{
@@ -109,6 +110,7 @@ interface QrScanProps {
 
 function QrScanTab({ onScan }: QrScanProps) {
   const [scanned, setScanned] = useState(false);
+  const [invalidQr, setInvalidQr] = useState(false);
 
   // expo-camera 미설치 fallback
   if (!CameraView || !useCameraPermissions) {
@@ -149,9 +151,7 @@ function QrScanTab({ onScan }: QrScanProps) {
     if (/^[A-Z0-9]{6}$/.test(code)) {
       onScan(code);
     } else {
-      Alert.alert('인식 실패', '유효한 초대 QR코드가 아닙니다', [
-        { text: '다시 시도', onPress: () => setScanned(false) },
-      ]);
+      setInvalidQr(true);
     }
   }
 
@@ -172,6 +172,16 @@ function QrScanTab({ onScan }: QrScanProps) {
         <View style={styles.scanFrame} />
       </View>
       <Text style={styles.scanHint}>QR코드를 프레임 안에 맞춰주세요</Text>
+
+      <AlertModal
+        visible={invalidQr}
+        icon="alert-circle"
+        tone="danger"
+        title="인식 실패"
+        message="유효한 초대 QR코드가 아닙니다"
+        buttons={[{ text: '다시 시도', onPress: () => { setInvalidQr(false); setScanned(false); } }]}
+        onRequestClose={() => { setInvalidQr(false); setScanned(false); }}
+      />
     </View>
   );
 }
@@ -185,6 +195,8 @@ export default function JoinCareCircleScreen() {
   const route = useRoute<RouteProp<RootStackParamList, 'JoinCareCircle'>>();
   const [tab,     setTab]     = useState<Tab>('code');
   const [loading, setLoading] = useState(false);
+  const [joinSuccessVisible, setJoinSuccessVisible] = useState(false);
+  const [joinErrorMsg, setJoinErrorMsg] = useState<string | null>(null);
 
   const deepLinkCode = route.params?.code?.toUpperCase();
 
@@ -199,15 +211,11 @@ export default function JoinCareCircleScreen() {
     setLoading(true);
     try {
       await joinCircle(code);
-      Alert.alert(
-        '참여 완료! 🎉',
-        '보호 그룹에 피보호자로 참여했습니다.\n보호자가 내 복용 현황을 확인할 수 있습니다.',
-        [{ text: '확인', onPress: () => navigation.goBack() }],
-      );
+      setJoinSuccessVisible(true);
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { error?: string } } })
         ?.response?.data?.error ?? '참여에 실패했습니다';
-      Alert.alert('참여 실패', msg);
+      setJoinErrorMsg(msg);
     } finally {
       setLoading(false);
     }
@@ -245,6 +253,26 @@ export default function JoinCareCircleScreen() {
         ? <CodeInputTab onSubmit={handleJoin} loading={loading} />
         : <QrScanTab onScan={handleJoin} />
       }
+
+      <AlertModal
+        visible={joinSuccessVisible}
+        icon="checkmark-circle"
+        tone="success"
+        title="참여 완료!"
+        message={'보호 그룹에 피보호자로 참여했습니다.\n보호자가 내 복용 현황을 확인할 수 있습니다.'}
+        buttons={[{ text: '확인', onPress: () => { setJoinSuccessVisible(false); navigation.goBack(); } }]}
+        onRequestClose={() => { setJoinSuccessVisible(false); navigation.goBack(); }}
+      />
+
+      <AlertModal
+        visible={joinErrorMsg !== null}
+        icon="alert-circle"
+        tone="danger"
+        title="참여 실패"
+        message={joinErrorMsg ?? undefined}
+        buttons={[{ text: '확인', onPress: () => setJoinErrorMsg(null) }]}
+        onRequestClose={() => setJoinErrorMsg(null)}
+      />
     </View>
   );
 }

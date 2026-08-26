@@ -76,7 +76,7 @@
 - **세그먼트 버튼**(식전/식후/무관 등): 나란히 배치, 선택 시 `primary` 배경 + 흰 텍스트, 미선택 시 연한 보더 + 회색 텍스트.
 - **칩(chip)**: 완전 둥근 radius 20, 선택 시 `primaryLight` 배경 + `primary` 텍스트/보더.
 - **체크박스형 항목**: 22×22 둥근 사각형(radius 6), 선택 시 `primary` 배경 + 흰 체크마크.
-- **커스텀 확인창(`AlertModal`, 2026-08-26 추가)**: 시스템 `Alert.alert` 대신 사용. 중앙 정렬 카드(radius 20) + 이모지 아이콘 + 제목 + 설명 + 버튼(기본 `primary` 배경, 취소는 연회색, destructive는 연빨강 배경+빨강 텍스트). `src/components/AlertModal.tsx`.
+- **커스텀 확인창(`AlertModal`, 2026-08-26 추가·같은 날 아이콘 뱃지로 개편)**: 시스템 `Alert.alert` 대신 사용. 중앙 정렬 카드(radius 28) + 원형 아이콘 뱃지(72px, 연한 톤 배경 + Ionicons 아이콘 — 이모지 아님) + 제목 + 설명 + 버튼(기본은 `tone` 색상 배경, 취소는 연회색, destructive는 연빨강 배경+빨강 텍스트). `tone`(`primary`/`success`/`danger`/`warning`)이 아이콘 뱃지 색과 기본 버튼 색을 함께 결정 — 앱 전체에서 쓰는 시맨틱 컬러(1.2절)와 동일한 값. `src/components/AlertModal.tsx`. "로그인이 필요합니다" 류의 프롬프트를 포함해 여러 화면(MainTabNavigator, ScanScreen, ScheduleFormScreen, SettingsScreen 등)에 적용돼 있음 — 새 확인창을 만들 때 이모지 대신 이 컴포넌트 + Ionicons 아이콘 이름을 쓸 것.
 - **드래그 병합 애니메이션(`MergeAnimation`, 2026-08-26 추가)**: 포로 합칠 때 두 칩이 중앙으로 모이며 박스 테두리가 스프링 바운스로 나타나는 연출. `src/components/MergeAnimation.tsx`, `react-native-reanimated` 기반.
 - **포(packet)는 하나의 단위로 다룬다(2026-08-26)**: DB상으로는 여전히 약마다 별도 Schedule row(같은 packetId로 묶임)지만, UI에서는 포를 일반 일정처럼 "수정"/"삭제" 두 버튼만 있는 카드로 보여준다. "수정"은 `PacketEditScreen`(`src/app/schedule/PacketEditScreen.tsx`)으로 이동해 포 이름·시간·기간을 한 번에(모든 멤버에 동기화) 바꾸고, 멤버 약을 추가("+ 이 포에 약 추가" → `ScheduleNew`에 `presetPacket` 프리셋 전달, 시간·기간 고정)/제거("빼기" → 포에서 분리해 개별 일정으로 전환, 멤버가 1개 이하로 줄면 포 자동 해제)할 수 있다. 새로 포 관련 화면을 만들 때 이 패턴(포 = 한 화면에서 다루는 단위)을 따를 것.
 - **드래그 가능 카드**: 길게 눌러 드래그(`delayLongPress: 200`), 드래그 중인 카드는 확대(scale 1.04, spring) + 파란 보더, 합칠 수 있는 대상은 초록 보더+연초록 배경으로 강조.

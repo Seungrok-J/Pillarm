@@ -1,5 +1,4 @@
-import React from 'react';
-import { Alert } from 'react-native';
+import React, { useState } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
@@ -12,6 +11,7 @@ import SettingsScreen from '../app/settings/SettingsScreen';
 import CareCircleScreen from '../features/careCircle/CareCircleScreen';
 import { useThemeStore } from '../store/themeStore';
 import { useAuthStore } from '../store/authStore';
+import AlertModal from '../components/AlertModal';
 
 const Tab = createBottomTabNavigator<BottomTabParamList>();
 
@@ -29,8 +29,10 @@ export default function MainTabNavigator() {
   const primary = useThemeStore((s) => s.activeTheme.primary);
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+  const [loginPromptVisible, setLoginPromptVisible] = useState(false);
 
   return (
+    <>
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
@@ -54,18 +56,24 @@ export default function MainTabNavigator() {
           tabPress: (e) => {
             if (isLoggedIn) return;
             e.preventDefault();
-            Alert.alert(
-              '로그인이 필요합니다',
-              '보호자 기능을 사용하려면 먼저 로그인해 주세요.',
-              [
-                { text: '취소', style: 'cancel' },
-                { text: '로그인하기', onPress: () => navigation.navigate('Login') },
-              ],
-            );
+            setLoginPromptVisible(true);
           },
         }}
       />
       <Tab.Screen name="Settings"    component={SettingsScreen}   options={{ title: '설정' }} />
     </Tab.Navigator>
+
+    <AlertModal
+      visible={loginPromptVisible}
+      icon="lock-closed"
+      title="로그인이 필요합니다"
+      message="보호자 기능을 사용하려면 먼저 로그인해 주세요."
+      buttons={[
+        { text: '취소', style: 'cancel', onPress: () => setLoginPromptVisible(false) },
+        { text: '로그인하기', onPress: () => { setLoginPromptVisible(false); navigation.navigate('Login'); } },
+      ]}
+      onRequestClose={() => setLoginPromptVisible(false)}
+    />
+    </>
   );
 }

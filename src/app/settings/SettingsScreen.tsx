@@ -8,7 +8,6 @@ import {
   ScrollView,
   ActivityIndicator,
   StyleSheet,
-  Alert,
   RefreshControl,
   Modal,
   Linking,
@@ -23,6 +22,7 @@ import { useSettingsStore } from '../../store';
 import { useAuthStore } from '../../store/authStore';
 import { rescheduleAllSchedules } from '../../notifications';
 import { seedDemoData } from '../../utils/seedDemoData';
+import AlertModal, { type AlertModalTone } from '../../components/AlertModal';
 import type { UserSettings } from '../../domain';
 
 type Nav = StackNavigationProp<RootStackParamList>;
@@ -170,6 +170,11 @@ export default function SettingsScreen() {
   const [showQuietInfo, setShowQuietInfo] = useState(false);
   const [showFAQ, setShowFAQ]           = useState(false);
   const [showTerms, setShowTerms]       = useState(false);
+  const [loginPromptVisible, setLoginPromptVisible] = useState(false);
+  const [linkOpenError, setLinkOpenError] = useState(false);
+  const [seedConfirmVisible, setSeedConfirmVisible] = useState(false);
+  const [adminToggleConfirm, setAdminToggleConfirm] = useState(false);
+  const [simpleAlert, setSimpleAlert] = useState<{ title: string; message?: string; tone?: AlertModalTone } | null>(null);
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -189,14 +194,7 @@ export default function SettingsScreen() {
 
   function requireLogin(then: () => void) {
     if (isLoggedIn) { then(); return; }
-    Alert.alert(
-      '로그인이 필요합니다',
-      '보호 그룹 기능을 사용하려면 먼저 로그인해 주세요.',
-      [
-        { text: '취소', style: 'cancel' },
-        { text: '로그인하기', onPress: () => navigation.navigate('Login') },
-      ],
-    );
+    setLoginPromptVisible(true);
   }
 
   async function saveSetting(patch: Partial<UserSettings>) {
@@ -207,7 +205,24 @@ export default function SettingsScreen() {
   }
 
   function openUrl(url: string) {
-    Linking.openURL(url).catch(() => Alert.alert('오류', '링크를 열 수 없습니다.'));
+    Linking.openURL(url).catch(() => setLinkOpenError(true));
+  }
+
+  async function performSeedDemo() {
+    setSeedConfirmVisible(false);
+    if (!userId) return;
+    try {
+      await seedDemoData(userId);
+      setSimpleAlert({ title: '완료', message: '시연 데이터가 추가되었습니다.\n홈으로 이동해서 확인해 주세요.', tone: 'success' });
+    } catch {
+      setSimpleAlert({ title: '오류', message: '데이터 추가에 실패했습니다.', tone: 'danger' });
+    }
+  }
+
+  function performAdminToggle() {
+    setAdminToggleConfirm(false);
+    if (!accessToken || !refreshToken || !userId) return;
+    saveSession({ accessToken, refreshToken, userId, userEmail: userEmail ?? null, userName, isAdmin: !isAdmin });
   }
 
   function openContact() {
@@ -509,23 +524,7 @@ export default function SettingsScreen() {
             <View style={styles.section}>
               <TouchableOpacity
                 style={styles.row}
-                onPress={async () => {
-                  if (!userId) return;
-                  Alert.alert('시연 데이터 추가', '약 5종과 7일치 복용 기록을 추가합니다. 계속할까요?', [
-                    { text: '취소', style: 'cancel' },
-                    {
-                      text: '추가',
-                      onPress: async () => {
-                        try {
-                          await seedDemoData(userId);
-                          Alert.alert('완료', '시연 데이터가 추가되었습니다.\n홈으로 이동해서 확인해 주세요.');
-                        } catch {
-                          Alert.alert('오류', '데이터 추가에 실패했습니다.');
-                        }
-                      },
-                    },
-                  ]);
-                }}
+                onPress={() => { if (userId) setSeedConfirmVisible(true); }}
               >
                 <Text style={styles.label}>앱스토어 스크린샷 데이터 추가</Text>
                 <Text style={styles.chevron}>›</Text>
@@ -533,22 +532,7 @@ export default function SettingsScreen() {
               <View style={styles.divider} />
               <TouchableOpacity
                 style={styles.row}
-                onPress={() => {
-                  if (!accessToken || !refreshToken || !userId) return;
-                  Alert.alert(
-                    isAdmin ? '관리자 모드 해제' : '관리자 모드 활성화',
-                    isAdmin
-                      ? '관리자 권한을 로컬에서 해제합니다. (서버 설정 무관)'
-                      : '관리자 UI를 로컬에서 활성화합니다.\n실제 API 호출은 서버 권한이 필요합니다.',
-                    [
-                      { text: '취소', style: 'cancel' },
-                      {
-                        text: '확인',
-                        onPress: () => saveSession({ accessToken, refreshToken, userId, userEmail: userEmail ?? null, userName, isAdmin: !isAdmin }),
-                      },
-                    ],
-                  );
-                }}
+                onPress={() => { if (accessToken && refreshToken && userId) setAdminToggleConfirm(true); }}
               >
                 <Text style={styles.label}>
                   {isAdmin ? '관리자 모드 해제' : '관리자 모드 활성화 (로컬)'}
@@ -628,6 +612,67 @@ export default function SettingsScreen() {
           </View>
         </View>
       </Modal>
+
+      <AlertModal
+        visible={loginPromptVisible}
+        icon="lock-closed"
+        title="로그인이 필요합니다"
+        message="보호 그룹 기능을 사용하려면 먼저 로그인해 주세요."
+        buttons={[
+          { text: '취소', style: 'cancel', onPress: () => setLoginPromptVisible(false) },
+          { text: '로그인하기', onPress: () => { setLoginPromptVisible(false); navigation.navigate('Login'); } },
+        ]}
+        onRequestClose={() => setLoginPromptVisible(false)}
+      />
+
+      <AlertModal
+        visible={linkOpenError}
+        icon="alert-circle"
+        tone="danger"
+        title="오류"
+        message="링크를 열 수 없습니다."
+        buttons={[{ text: '확인', onPress: () => setLinkOpenError(false) }]}
+        onRequestClose={() => setLinkOpenError(false)}
+      />
+
+      <AlertModal
+        visible={seedConfirmVisible}
+        icon="flask"
+        title="시연 데이터 추가"
+        message="약 5종과 7일치 복용 기록을 추가합니다. 계속할까요?"
+        buttons={[
+          { text: '취소', style: 'cancel', onPress: () => setSeedConfirmVisible(false) },
+          { text: '추가', onPress: performSeedDemo },
+        ]}
+        onRequestClose={() => setSeedConfirmVisible(false)}
+      />
+
+      <AlertModal
+        visible={adminToggleConfirm}
+        icon="shield-checkmark"
+        tone="warning"
+        title={isAdmin ? '관리자 모드 해제' : '관리자 모드 활성화'}
+        message={
+          isAdmin
+            ? '관리자 권한을 로컬에서 해제합니다. (서버 설정 무관)'
+            : '관리자 UI를 로컬에서 활성화합니다.\n실제 API 호출은 서버 권한이 필요합니다.'
+        }
+        buttons={[
+          { text: '취소', style: 'cancel', onPress: () => setAdminToggleConfirm(false) },
+          { text: '확인', onPress: performAdminToggle },
+        ]}
+        onRequestClose={() => setAdminToggleConfirm(false)}
+      />
+
+      <AlertModal
+        visible={simpleAlert !== null}
+        icon="alert-circle"
+        tone={simpleAlert?.tone ?? 'danger'}
+        title={simpleAlert?.title ?? ''}
+        message={simpleAlert?.message}
+        buttons={[{ text: '확인', onPress: () => setSimpleAlert(null) }]}
+        onRequestClose={() => setSimpleAlert(null)}
+      />
     </SafeAreaView>
   );
 }
