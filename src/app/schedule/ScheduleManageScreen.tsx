@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   FlatList,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -364,7 +365,7 @@ export default function ScheduleManageScreen() {
         ListEmptyComponent={
           activeItems.length === 0 && pastItems.length === 0 ? (
             <View style={styles.empty}>
-              <Text style={styles.emptyIcon}>💊</Text>
+              <Image source={require('../../../assets/splash-icon.png')} style={styles.emptyIcon} resizeMode="contain" />
               <Text style={styles.emptyText}>등록된 복용 일정이 없습니다</Text>
               <TouchableOpacity
                 style={styles.addBtn}
@@ -509,7 +510,7 @@ const styles = StyleSheet.create({
   pastToggleTxt: { fontSize: 14, color: '#6b7280', fontWeight: '500' },
 
   empty:     { alignItems: 'center', marginTop: 80 },
-  emptyIcon: { fontSize: 48, marginBottom: 12 },
+  emptyIcon: { width: 72, height: 72, marginBottom: 12 },
   emptyText: { fontSize: 16, color: '#9ca3af', marginBottom: 24 },
   addBtn:    { backgroundColor: '#3b82f6', borderRadius: 12, paddingVertical: 14, paddingHorizontal: 28 },
   addBtnTxt: { color: '#fff', fontSize: 16, fontWeight: '600' },
