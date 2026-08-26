@@ -306,6 +306,8 @@ export default function HomeScreen() {
                   medicationColors={medicationColors}
                   onTakePacket={handleTakePacket}
                   onSkipPacket={handleSkipPacket}
+                  now={now}
+                  graceMinutes={settings.missedToLateMinutes}
                 />
               );
             }

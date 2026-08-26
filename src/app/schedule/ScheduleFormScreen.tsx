@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
-import type { RootStackParamList } from '../../navigation';
+import type { RootStackParamList, PresetPacket } from '../../navigation';
 import type { Medication, Schedule, WithFood } from '../../domain';
 import { generateId, todayString } from '../../utils';
 import {
@@ -177,7 +177,8 @@ const dateStyles = {
 
 type RouteParams =
   | undefined
-  | { scheduleId: string; medicationId: string; suggestedTime?: string };
+  | { scheduleId: string; medicationId: string; suggestedTime?: string }
+  | { presetPacket?: PresetPacket };
 
 const DOSAGE_UNITS = ['mg', '정', 'mL'] as const;
 type DosageUnit = (typeof DOSAGE_UNITS)[number];
@@ -210,10 +211,15 @@ export default function ScheduleFormScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute();
   const params = route.params as RouteParams;
-  const isEdit = !!params?.scheduleId;
+  const isEdit = !!(params && 'scheduleId' in params && params.scheduleId);
+  const presetPacket = params && 'presetPacket' in params ? params.presetPacket : undefined;
 
-  const [medicationId] = useState(() => params?.medicationId ?? generateId());
-  const [scheduleId] = useState(() => params?.scheduleId ?? generateId());
+  const [medicationId] = useState(() =>
+    (params && 'medicationId' in params ? params.medicationId : undefined) ?? generateId(),
+  );
+  const [scheduleId] = useState(() =>
+    (params && 'scheduleId' in params ? params.scheduleId : undefined) ?? generateId(),
+  );
   const [medCreatedAt, setMedCreatedAt] = useState(() => new Date().toISOString());
   const [schedCreatedAt, setSchedCreatedAt] = useState(() => new Date().toISOString());
 
@@ -221,14 +227,14 @@ export default function ScheduleFormScreen() {
   const [dosageValue, setDosageValue] = useState('');
   const [dosageUnit, setDosageUnit] = useState<DosageUnit>('mg');
   const [color, setColor] = useState<string | undefined>();
-  const [times, setTimes] = useState<string[]>([]);
+  const [times, setTimes] = useState<string[]>(() => presetPacket?.times ?? []);
   const [repeatType, setRepeatType] = useState<'daily' | 'weekly'>('daily');
   const [selectedDays, setSelectedDays] = useState<number[]>([]);
-  const [startDate, setStartDate] = useState(todayString());
-  const [endDate,   setEndDate]   = useState(() => addDays(todayString(), 7));
+  const [startDate, setStartDate] = useState(() => presetPacket?.startDate ?? todayString());
+  const [endDate,   setEndDate]   = useState(() => presetPacket?.endDate ?? addDays(todayString(), 7));
   const [withFood, setWithFood] = useState<WithFood>('none');
-  const [packetId, setPacketId] = useState<string | undefined>();
-  const [packetName, setPacketName] = useState<string | undefined>();
+  const [packetId, setPacketId] = useState<string | undefined>(() => presetPacket?.packetId);
+  const [packetName, setPacketName] = useState<string | undefined>(() => presetPacket?.packetName);
   const [packetMemberCount, setPacketMemberCount] = useState(0);
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSaving, setIsSaving] = useState(false);
@@ -237,12 +243,13 @@ export default function ScheduleFormScreen() {
   const settings = useSettingsStore((s) => s.settings) ?? FALLBACK_SETTINGS;
 
   useEffect(() => {
-    if (!isEdit) return;
+    if (!isEdit || !params || !('scheduleId' in params) || !params.scheduleId) return;
+    const editParams = params;
     (async () => {
       try {
         const [med, sched] = await Promise.all([
-          getMedicationById(params!.medicationId),
-          getScheduleById(params!.scheduleId),
+          getMedicationById(editParams.medicationId),
+          getScheduleById(editParams.scheduleId),
         ]);
         if (med) {
           setName(med.name);
@@ -253,7 +260,7 @@ export default function ScheduleFormScreen() {
         }
         if (sched) {
           const baseTimes = sched.times;
-          const suggested = (params as { suggestedTime?: string })?.suggestedTime;
+          const suggested = editParams.suggestedTime;
           setTimes(suggested ? [suggested, ...baseTimes.filter((t) => t !== suggested)] : baseTimes);
           setStartDate(sched.startDate);
           setEndDate(sched.endDate ?? '');
@@ -497,108 +504,134 @@ export default function ScheduleFormScreen() {
       <Text style={styles.label}>색상</Text>
       <ColorPalette selected={color} onSelect={setColor} />
 
-      {/* ── 복용 시간 ── */}
-      <Text style={[styles.label, { marginTop: 16 }]}>복용 시간 *</Text>
-
-      {/* 식사 시간 단축 선택 */}
-      <View style={styles.mealRow}>
-        {(
-          [
-            { label: '아침', time: settings.mealTimeBreakfast },
-            { label: '점심', time: settings.mealTimeLunch },
-            { label: '저녁', time: settings.mealTimeDinner },
-          ] as const
-        ).map(({ label, time }) => {
-          const selected = times.includes(time);
-          return (
-            <TouchableOpacity
-              key={label}
-              testID={`btn-meal-${label}`}
-              onPress={() =>
-                setTimes((prev) =>
-                  selected
-                    ? prev.filter((t) => t !== time)
-                    : [...prev, time].sort(),
-                )
-              }
-              style={[styles.mealBtn, selected && styles.mealBtnActive]}
-              accessibilityRole="button"
-              accessibilityLabel={`${label} ${time} ${selected ? '선택됨' : ''}`}
-            >
-              <Text style={selected ? styles.mealTxtActive : styles.mealTxt}>{label}</Text>
-              <Text style={selected ? styles.mealTimeActive : styles.mealTime}>{time}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      <TimePickerList
-        times={times}
-        onAdd={(t) => setTimes((prev) => [...prev, t].sort())}
-        onRemove={(t) => setTimes((prev) => prev.filter((x) => x !== t))}
-      />
-      {!!errors.times && (
-        <Text testID="error-times" style={styles.errorText}>{errors.times}</Text>
-      )}
-
-      {/* ── 반복 ── */}
-      <Text style={[styles.label, { marginTop: 16 }]}>반복</Text>
-      <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
-        {(['daily', 'weekly'] as const).map((type) => (
-          <TouchableOpacity
-            key={type}
-            testID={`btn-repeat-${type}`}
-            onPress={() => setRepeatType(type)}
-            style={[styles.segBtn, { flex: 1 }, repeatType === type && styles.segBtnActive]}
-          >
-            <Text style={repeatType === type ? styles.segTxtActive : styles.segTxt}>
-              {type === 'daily' ? '매일' : '요일 선택'}
+      {presetPacket ? (
+        <>
+          {/* ── 포에 추가 — 시간·기간은 포와 동일하게 고정 ── */}
+          <View style={packetNoticeStyle}>
+            <Text style={packetNoticeTextStyle}>
+              💊 {presetPacket.packetName ? `'${presetPacket.packetName}'` : '이'} 포에 추가돼요.
+              복용 시간·기간은 포와 동일하게 고정됩니다.
             </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+          </View>
+          <Text style={[styles.label, { marginTop: 16 }]}>복용 시간</Text>
+          <View style={styles.mealRow}>
+            {presetPacket.times.map((t) => (
+              <View key={t} style={[styles.segBtn, styles.segBtnActive, { flex: 0, paddingHorizontal: 16 }]}>
+                <Text style={styles.segTxtActive}>{t}</Text>
+              </View>
+            ))}
+          </View>
+          <Text style={[styles.label, { marginTop: 16 }]}>복용 기간</Text>
+          <Text style={presetPeriodTextStyle}>
+            {formatDisplayDate(presetPacket.startDate)} ~ {presetPacket.endDate ? formatDisplayDate(presetPacket.endDate) : '상시'}
+          </Text>
+        </>
+      ) : (
+        <>
+          {/* ── 복용 시간 ── */}
+          <Text style={[styles.label, { marginTop: 16 }]}>복용 시간 *</Text>
 
-      {/* ── 요일 선택 ── */}
-      {repeatType === 'weekly' && (
-        <View style={{ flexDirection: 'row', gap: 4, marginBottom: 12 }}>
-          {DAYS_LABEL.map((label, idx) => (
-            <TouchableOpacity
-              key={idx}
-              testID={`btn-day-${idx}`}
-              onPress={() => toggleDay(idx)}
-              style={[styles.dayBtn, selectedDays.includes(idx) && styles.segBtnActive]}
-            >
-              <Text style={[{ fontSize: 12 }, selectedDays.includes(idx) ? styles.segTxtActive : styles.segTxt]}>
-                {label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
+          {/* 식사 시간 단축 선택 */}
+          <View style={styles.mealRow}>
+            {(
+              [
+                { label: '아침', time: settings.mealTimeBreakfast },
+                { label: '점심', time: settings.mealTimeLunch },
+                { label: '저녁', time: settings.mealTimeDinner },
+              ] as const
+            ).map(({ label, time }) => {
+              const selected = times.includes(time);
+              return (
+                <TouchableOpacity
+                  key={label}
+                  testID={`btn-meal-${label}`}
+                  onPress={() =>
+                    setTimes((prev) =>
+                      selected
+                        ? prev.filter((t) => t !== time)
+                        : [...prev, time].sort(),
+                    )
+                  }
+                  style={[styles.mealBtn, selected && styles.mealBtnActive]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${label} ${time} ${selected ? '선택됨' : ''}`}
+                >
+                  <Text style={selected ? styles.mealTxtActive : styles.mealTxt}>{label}</Text>
+                  <Text style={selected ? styles.mealTimeActive : styles.mealTime}>{time}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
 
-      {/* ── 시작일 ── */}
-      <Text style={styles.label}>시작일 *</Text>
-      <DatePickerField
-        testID="input-start-date"
-        value={startDate}
-        onChange={(v) => {
-          setStartDate(v);
-          if (endDate && endDate < v) setEndDate(addDays(v, 7));
-        }}
-        placeholder="시작일 선택"
-      />
+          <TimePickerList
+            times={times}
+            onAdd={(t) => setTimes((prev) => [...prev, t].sort())}
+            onRemove={(t) => setTimes((prev) => prev.filter((x) => x !== t))}
+          />
+          {!!errors.times && (
+            <Text testID="error-times" style={styles.errorText}>{errors.times}</Text>
+          )}
 
-      {/* ── 종료일 ── */}
-      <Text style={[styles.label, { marginTop: 8 }]}>종료일</Text>
-      <DatePickerField
-        testID="input-end-date"
-        value={endDate}
-        onChange={setEndDate}
-        placeholder="종료일 선택"
-        minimumDate={new Date(startDate + 'T00:00:00')}
-      />
-      {!!errors.endDate && (
-        <Text testID="error-endDate" style={styles.errorText}>{errors.endDate}</Text>
+          {/* ── 반복 ── */}
+          <Text style={[styles.label, { marginTop: 16 }]}>반복</Text>
+          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+            {(['daily', 'weekly'] as const).map((type) => (
+              <TouchableOpacity
+                key={type}
+                testID={`btn-repeat-${type}`}
+                onPress={() => setRepeatType(type)}
+                style={[styles.segBtn, { flex: 1 }, repeatType === type && styles.segBtnActive]}
+              >
+                <Text style={repeatType === type ? styles.segTxtActive : styles.segTxt}>
+                  {type === 'daily' ? '매일' : '요일 선택'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* ── 요일 선택 ── */}
+          {repeatType === 'weekly' && (
+            <View style={{ flexDirection: 'row', gap: 4, marginBottom: 12 }}>
+              {DAYS_LABEL.map((label, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  testID={`btn-day-${idx}`}
+                  onPress={() => toggleDay(idx)}
+                  style={[styles.dayBtn, selectedDays.includes(idx) && styles.segBtnActive]}
+                >
+                  <Text style={[{ fontSize: 12 }, selectedDays.includes(idx) ? styles.segTxtActive : styles.segTxt]}>
+                    {label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          {/* ── 시작일 ── */}
+          <Text style={styles.label}>시작일 *</Text>
+          <DatePickerField
+            testID="input-start-date"
+            value={startDate}
+            onChange={(v) => {
+              setStartDate(v);
+              if (endDate && endDate < v) setEndDate(addDays(v, 7));
+            }}
+            placeholder="시작일 선택"
+          />
+
+          {/* ── 종료일 ── */}
+          <Text style={[styles.label, { marginTop: 8 }]}>종료일</Text>
+          <DatePickerField
+            testID="input-end-date"
+            value={endDate}
+            onChange={setEndDate}
+            placeholder="종료일 선택"
+            minimumDate={new Date(startDate + 'T00:00:00')}
+          />
+          {!!errors.endDate && (
+            <Text testID="error-endDate" style={styles.errorText}>{errors.endDate}</Text>
+          )}
+        </>
       )}
 
       {/* ── 식전/식후 ── */}
@@ -646,6 +679,7 @@ const packetNoticeStyle = {
   paddingVertical: 10, paddingHorizontal: 12, marginBottom: 16,
 };
 const packetNoticeTextStyle = { fontSize: 13, color: '#1d4ed8', lineHeight: 19 };
+const presetPeriodTextStyle = { fontSize: 15, color: '#111827', marginBottom: 12 };
 
 const scanBtnStyle = {
   backgroundColor: '#eff6ff', borderRadius: 12, borderWidth: 1, borderColor: '#bfdbfe',

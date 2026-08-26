@@ -474,6 +474,9 @@ export default function ScanResultScreen() {
   });
   const [saving, setSaving] = useState(false);
   const [createdCount, setCreatedCount] = useState<number | null>(null);
+  const [moveConfirm, setMoveConfirm] = useState<
+    { packId: string; idx: number; fromName: string; toName: string; medName: string } | null
+  >(null);
 
   // 요약 카드(원터치 확인) ↔ 상세 편집 폼 토글. 약 이름이 비어 있으면
   // 바로 고쳐야 하니 처음부터 펼쳐서 보여준다.
@@ -1054,7 +1057,19 @@ export default function ScanResultScreen() {
                         <TouchableOpacity
                           key={i}
                           style={styles.packetRow}
-                          onPress={() => togglePackMember(pack.id, i)}
+                          onPress={() => {
+                            if (otherPack) {
+                              setMoveConfirm({
+                                packId: pack.id,
+                                idx: i,
+                                fromName: otherPack.name.trim() || '다른 포',
+                                toName: pack.name.trim() || '이 포',
+                                medName: items[i]?.medicationName || `약 ${i + 1}`,
+                              });
+                            } else {
+                              togglePackMember(pack.id, i);
+                            }
+                          }}
                           activeOpacity={0.7}
                         >
                           <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
@@ -1064,9 +1079,12 @@ export default function ScanResultScreen() {
                             {items[i]?.medicationName || `약 ${i + 1}`}
                           </Text>
                           {otherPack && (
-                            <Text style={styles.packetClaimedTag} numberOfLines={1}>
-                              {otherPack.name.trim() || '다른 포'}에 있음 · 탭해서 옮기기
-                            </Text>
+                            <View style={styles.packetClaimedBadge}>
+                              <Ionicons name="swap-horizontal" size={12} color="#6b7280" />
+                              <Text style={styles.packetClaimedTag} numberOfLines={1}>
+                                {otherPack.name.trim() || '다른 포'}에 있음
+                              </Text>
+                            </View>
                           )}
                         </TouchableOpacity>
                       );
@@ -1092,7 +1110,7 @@ export default function ScanResultScreen() {
       {/* 하단 버튼 */}
       <View style={[styles.footer, { paddingBottom: 24 + insets.bottom }]}>
         <Text style={styles.footerHint}>
-          {items.length - skipped.size}개 약 일정 등록 예정
+          약 {items.length - skipped.size}개 각각 복용 일정을 등록해요 (복용 횟수와는 다른 수예요)
         </Text>
         <TouchableOpacity
           style={[styles.createBtn, saving && { opacity: 0.6 }]}
@@ -1100,12 +1118,11 @@ export default function ScanResultScreen() {
           disabled={saving}
         >
           <Text style={styles.createBtnText}>
-            {saving ? '저장 중...' : `${items.length - skipped.size}개 일정 만들기`}
+            {saving ? '저장 중...' : `약 ${items.length - skipped.size}개 일정 만들기`}
           </Text>
         </TouchableOpacity>
       </View>
 
-      {/* 취침전 시간 지정 피커 */}
       <AlertModal
         visible={createdCount !== null}
         icon="🎉"
@@ -1113,6 +1130,25 @@ export default function ScanResultScreen() {
         message={`${createdCount ?? 0}개 약 일정이 등록되었습니다.`}
         buttons={[{ text: '확인', onPress: () => { setCreatedCount(null); navigation.popToTop(); } }]}
       />
+
+      <AlertModal
+        visible={moveConfirm !== null}
+        icon="🔀"
+        title="포 옮기기"
+        message={moveConfirm ? `'${moveConfirm.medName}'을(를) '${moveConfirm.fromName}'에서 '${moveConfirm.toName}'(으)로 옮길까요?` : undefined}
+        buttons={[
+          { text: '취소', style: 'cancel', onPress: () => setMoveConfirm(null) },
+          {
+            text: '옮기기',
+            onPress: () => {
+              if (moveConfirm) togglePackMember(moveConfirm.packId, moveConfirm.idx);
+              setMoveConfirm(null);
+            },
+          },
+        ]}
+      />
+
+      {/* 취침전 시간 지정 피커 */}
 
       {bedtimeTargetIdx !== null && (
         Platform.OS === 'ios' ? (
@@ -1260,7 +1296,8 @@ const styles = StyleSheet.create({
   checkboxChecked: { backgroundColor: '#3b82f6', borderColor: '#3b82f6' },
   checkmark:       { fontSize: 13, color: '#fff', fontWeight: '800' },
   packetItemName:  { flex: 1, fontSize: 14, fontWeight: '500', color: '#374151' },
-  packetClaimedTag:{ fontSize: 11, color: '#9ca3af', maxWidth: 130 },
+  packetClaimedBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, maxWidth: 130 },
+  packetClaimedTag:{ fontSize: 11, color: '#9ca3af' },
   packetWarning:   { fontSize: 12, color: '#f59e0b', marginTop: 8, textAlign: 'center' },
 
   subPacketCard: {

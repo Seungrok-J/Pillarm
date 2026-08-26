@@ -4,6 +4,7 @@ import type { RootStackParamList } from './types';
 import MainTabNavigator from './MainTabNavigator';
 import ScheduleFormScreen from '../app/schedule/ScheduleFormScreen';
 import ScheduleManageScreen from '../app/schedule/ScheduleManageScreen';
+import PacketEditScreen from '../app/schedule/PacketEditScreen';
 import ThemeShopScreen from '../features/points/ThemeShopScreen';
 import CareCircleScreen from '../features/careCircle/CareCircleScreen';
 import JoinCareCircleScreen from '../features/careCircle/JoinCareCircleScreen';
@@ -40,6 +41,11 @@ export default function ScheduleStackNavigator() {
         name="ScheduleEdit"
         component={ScheduleFormScreen}
         options={{ title: '일정 수정', headerBackTitle: '뒤로' }}
+      />
+      <Stack.Screen
+        name="PacketEdit"
+        component={PacketEditScreen}
+        options={{ title: '포 수정', headerBackTitle: '뒤로' }}
       />
       <Stack.Screen
         name="ThemeShop"

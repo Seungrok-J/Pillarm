@@ -405,37 +405,31 @@ export default function ScheduleManageScreen() {
           <Text style={styles.packetTimes}>{times.join('  ')}</Text>
         </View>
 
-        {/* 묶인 약 목록 */}
-        {group.items.map((item) => (
-          <View key={item.schedule.id} style={styles.packetItemRow}>
-            <View style={[styles.colorDot, { backgroundColor: item.medication.color ?? '#d1d5db' }]} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.medName} numberOfLines={1}>{item.medication.name}</Text>
-              <Text style={styles.dosage}>
-                {dateRange(item.schedule)}
-              </Text>
+        {/* 묶인 약 목록 — 읽기 전용 요약. 개별 수정은 "수정" 버튼으로 포 전체를 다루는 화면에서 처리 */}
+        <View style={styles.packetItemList}>
+          {group.items.map((item) => (
+            <View key={item.schedule.id} style={styles.packetItemRow}>
+              <View style={[styles.colorDot, { backgroundColor: item.medication.color ?? '#d1d5db' }]} />
+              <Text style={styles.packetItemName} numberOfLines={1}>{item.medication.name}</Text>
             </View>
-            <TouchableOpacity
-              style={styles.editBtnSmall}
-              onPress={() =>
-                navigation.navigate('ScheduleEdit', {
-                  scheduleId: item.schedule.id,
-                  medicationId: item.medication.id,
-                })
-              }
-            >
-              <Text style={styles.editBtnTxt}>수정</Text>
-            </TouchableOpacity>
-          </View>
-        ))}
+          ))}
+        </View>
 
-        {/* 포 전체 삭제 버튼 */}
-        <TouchableOpacity
-          style={styles.packetDeleteBtn}
-          onPress={() => confirmDeletePacket(group.items)}
-        >
-          <Text style={styles.deleteBtnTxt}>포 전체 삭제</Text>
-        </TouchableOpacity>
+        {/* 일반 일정 카드와 동일하게 수정/삭제 두 버튼만 노출 — 수정은 포 전체를 다루는 화면으로 이동 */}
+        <View style={styles.btnRow}>
+          <TouchableOpacity
+            style={styles.editBtn}
+            onPress={() => navigation.navigate('PacketEdit', { packetId: group.packetId })}
+          >
+            <Text style={styles.editBtnTxt}>수정</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.deleteBtn}
+            onPress={() => confirmDeletePacket(group.items)}
+          >
+            <Text style={styles.deleteBtnTxt}>삭제</Text>
+          </TouchableOpacity>
+        </View>
       </TouchableOpacity>
     );
   }
@@ -638,18 +632,16 @@ const styles = StyleSheet.create({
   packetTitle:     { fontSize: 16, fontWeight: '700', color: '#111827', flex: 1 },
   packetTimes:     { fontSize: 14, color: '#6b7280' },
 
+  packetItemList: {
+    flexDirection: 'row', flexWrap: 'wrap', gap: 8,
+    paddingTop: 10, marginTop: 2, borderTopWidth: 1, borderTopColor: '#f3f4f6',
+  },
   packetItemRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingVertical: 8, borderTopWidth: 1, borderTopColor: '#f3f4f6',
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: '#f9fafb', borderRadius: 20,
+    paddingVertical: 5, paddingHorizontal: 10,
   },
-  editBtnSmall: {
-    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8,
-    borderWidth: 1, borderColor: '#3b82f6',
-  },
-  packetDeleteBtn: {
-    marginTop: 12, paddingVertical: 10, borderRadius: 10,
-    borderWidth: 1, borderColor: '#ef4444', alignItems: 'center',
-  },
+  packetItemName: { fontSize: 13, fontWeight: '600', color: '#374151' },
 
   pastToggle: { alignItems: 'center', paddingVertical: 14, marginBottom: 4 },
   pastToggleTxt: { fontSize: 14, color: '#6b7280', fontWeight: '500' },

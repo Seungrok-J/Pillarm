@@ -21,4 +21,5 @@ server/.env
 server/.env.local
 server/.env.*
 .claude/settings.local.json
+.claude/scheduled_tasks.lock
 server/supabase/.temp/

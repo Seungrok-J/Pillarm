@@ -171,11 +171,14 @@ export default function LoginScreen() {
             accessibilityLabel="Apple로 계속하기"
           >
             {loadingProvider === 'Apple'
-              ? <ActivityIndicator color="#fff" />
+              ? <ActivityIndicator color="#111827" />
               : (
                 <View style={styles.socialBtnRow}>
-                  <Ionicons name="logo-apple" size={20} color="#fff" />
+                  <View style={styles.socialIconSlot}>
+                    <Ionicons name="logo-apple" size={20} color="#000" />
+                  </View>
                   <Text style={styles.appleBtnText}>Apple로 계속하기</Text>
+                  <View style={styles.socialIconSlot} />
                 </View>
               )
             }
@@ -194,8 +197,11 @@ export default function LoginScreen() {
             ? <ActivityIndicator color="#374151" />
             : (
               <View style={styles.socialBtnRow}>
-                <Ionicons name="logo-google" size={19} color="#4285F4" />
+                <View style={styles.socialIconSlot}>
+                  <Ionicons name="logo-google" size={19} color="#4285F4" />
+                </View>
                 <Text style={styles.googleBtnText}>Google로 계속하기</Text>
+                <View style={styles.socialIconSlot} />
               </View>
             )
           }
@@ -255,18 +261,22 @@ const styles = StyleSheet.create({
 
   socialGroup: { gap: 12 },
   socialBtn: {
-    borderRadius: 14, paddingVertical: 16,
+    borderRadius: 14, paddingVertical: 16, paddingHorizontal: 16,
     alignItems: 'center', borderWidth: 1,
   },
+  // 아이콘은 왼쪽에 고정, 텍스트는 남는 공간에서 가운데 정렬(오른쪽에 아이콘 폭만큼 빈 슬롯을 둬서 대칭 유지)
   socialBtnRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+    flexDirection: 'row', alignItems: 'center', width: '100%',
+  },
+  socialIconSlot: {
+    width: 28, alignItems: 'flex-start', justifyContent: 'center',
   },
 
-  appleBtn:     { backgroundColor: '#000', borderColor: '#000' },
-  appleBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  appleBtn:     { backgroundColor: '#fff', borderColor: '#d1d5db' },
+  appleBtnText: { flex: 1, textAlign: 'center', color: '#111827', fontSize: 16, fontWeight: '600' },
 
   googleBtn:     { backgroundColor: '#fff', borderColor: '#d1d5db' },
-  googleBtnText: { color: '#111827', fontSize: 16, fontWeight: '600' },
+  googleBtnText: { flex: 1, textAlign: 'center', color: '#111827', fontSize: 16, fontWeight: '600' },
 
   kakaoBtn:     { backgroundColor: '#FEE500', borderColor: '#FEE500' },
   kakaoBtnText: { color: '#191919', fontSize: 16, fontWeight: '600' },
