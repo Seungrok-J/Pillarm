@@ -1,6 +1,9 @@
 import {
   scheduleForSchedule,
+  scheduleForPacket,
   cancelForSchedule,
+  cancelForPacket,
+  cancelNotificationForDoseEvent,
   rescheduleSnooze,
   checkAndMarkMissed,
 } from '../../src/notifications/scheduler';
@@ -19,8 +22,11 @@ jest.mock('../../src/db', () => ({
   insertDoseEvent: jest.fn().mockResolvedValue(undefined),
   markOverdueEventsMissed: jest.fn().mockResolvedValue(undefined),
   markScheduledEventsLate: jest.fn().mockResolvedValue(undefined),
+  getAllSchedules: jest.fn().mockResolvedValue([]),
+  getMedicationById: jest.fn().mockResolvedValue(null),
   getDatabase: jest.fn().mockResolvedValue({
     getFirstAsync: jest.fn().mockResolvedValue(null),
+    getAllAsync: jest.fn().mockResolvedValue([]),
     runAsync: jest.fn().mockResolvedValue(undefined),
   }),
 }));
@@ -40,6 +46,12 @@ const mockCancel = Notifications.cancelScheduledNotificationAsync as jest.Mock;
 const mockInsertDoseEvent = db.insertDoseEvent as jest.Mock;
 const mockMarkMissed = db.markOverdueEventsMissed as jest.Mock;
 const mockMarkLate = (db as unknown as Record<string, jest.Mock>).markScheduledEventsLate as jest.Mock;
+
+/** getDatabase()가 매번 돌려주는 고정 mock 객체의 getAllAsync 반환값을 설정하는 헬퍼 */
+async function mockGetAllAsyncReturn(rows: unknown[]) {
+  const database = (await db.getDatabase()) as unknown as { getAllAsync: jest.Mock };
+  database.getAllAsync.mockResolvedValueOnce(rows);
+}
 
 // ── 픽스처 ─────────────────────────────────────────────────────────────────
 
@@ -288,6 +300,110 @@ describe('scheduleForSchedule', () => {
     expect(mockSchedule).toHaveBeenCalledTimes(1);
     // 가장 먼 기존 알림 1개가 취소되어 예산이 유지된다
     expect(mockCancel).toHaveBeenCalledWith('far-59');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// scheduleForSchedule — 포(packet) 멤버는 개별 알림을 만들지 않는다
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('scheduleForSchedule — 포 멤버', () => {
+  it('packetId 가 있으면 개별 약 이름의 알림을 등록하지 않는다', async () => {
+    // scheduleForPacket 내부의 조회는 빈 배열 → 등록할 알림이 없어 scheduleNotificationAsync 미호출
+    await scheduleForSchedule(
+      makeSchedule({ times: ['10:00'], endDate: '2026-04-22', packetId: 'pkt-1', packetName: '아침약' }),
+      MEDICATION,
+      SETTINGS,
+    );
+
+    // DoseEvent는 그대로 생성되지만, 개별 "혈압약 복용 시간이에요" 알림은 등록되지 않는다
+    expect(mockInsertDoseEvent).toHaveBeenCalledTimes(1);
+    expect(mockSchedule).not.toHaveBeenCalled();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// scheduleForPacket
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('scheduleForPacket', () => {
+  it('같은 plannedAt을 가진 포 멤버들을 알림 1건으로 묶어 등록한다', async () => {
+    await mockGetAllAsyncReturn([
+      { id: 'evt-1', planned_at: '2026-04-22T10:00:00', packet_name: '아침약' },
+      { id: 'evt-2', planned_at: '2026-04-22T10:00:00', packet_name: '아침약' },
+      { id: 'evt-3', planned_at: '2026-04-22T10:00:00', packet_name: '아침약' },
+    ]);
+
+    await scheduleForPacket('pkt-1', SETTINGS);
+
+    expect(mockSchedule).toHaveBeenCalledTimes(1);
+    const content = mockSchedule.mock.calls[0]?.[0].content;
+    expect(content.title).toBe('아침약 복용 시간이에요 💊');
+    expect(content.data).toMatchObject({
+      packetId: 'pkt-1',
+      doseEventIds: ['evt-1', 'evt-2', 'evt-3'],
+    });
+  });
+
+  it('서로 다른 plannedAt은 각각 별도 알림으로 등록한다', async () => {
+    await mockGetAllAsyncReturn([
+      { id: 'evt-1', planned_at: '2026-04-22T10:00:00', packet_name: '아침약' },
+      { id: 'evt-2', planned_at: '2026-04-22T18:00:00', packet_name: '아침약' },
+    ]);
+
+    await scheduleForPacket('pkt-1', SETTINGS);
+
+    expect(mockSchedule).toHaveBeenCalledTimes(2);
+  });
+
+  it('packetName이 없으면 "약 N개"로 대체한다', async () => {
+    await mockGetAllAsyncReturn([
+      { id: 'evt-1', planned_at: '2026-04-22T10:00:00', packet_name: null },
+      { id: 'evt-2', planned_at: '2026-04-22T10:00:00', packet_name: null },
+    ]);
+
+    await scheduleForPacket('pkt-1', SETTINGS);
+
+    expect(mockSchedule.mock.calls[0]?.[0].content.title).toBe('약 2개 복용 시간이에요 💊');
+  });
+
+  it('등록 전에 기존 포 알림을 먼저 취소한다', async () => {
+    mockGetAll.mockResolvedValue([fakeNotif('old-packet-notif', { packetId: 'pkt-1' })]);
+    await mockGetAllAsyncReturn([]);
+
+    await scheduleForPacket('pkt-1', SETTINGS);
+
+    expect(mockCancel).toHaveBeenCalledWith('old-packet-notif');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// cancelForPacket / cancelNotificationForDoseEvent(그룹 알림)
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('cancelForPacket', () => {
+  it('packetId 가 일치하는 알림만 취소한다', async () => {
+    mockGetAll.mockResolvedValue([
+      fakeNotif('n1', { packetId: 'pkt-1' }),
+      fakeNotif('n2', { packetId: 'pkt-2' }),
+    ]);
+
+    await cancelForPacket('pkt-1');
+
+    expect(mockCancel).toHaveBeenCalledWith('n1');
+    expect(mockCancel).not.toHaveBeenCalledWith('n2');
+  });
+});
+
+describe('cancelNotificationForDoseEvent', () => {
+  it('doseEventIds 배열 안에 id가 포함된 포 알림도 찾아 취소한다', async () => {
+    mockGetAll.mockResolvedValue([
+      fakeNotif('n1', { packetId: 'pkt-1', doseEventIds: ['evt-1', 'evt-2', 'evt-3'] }),
+    ]);
+
+    await cancelNotificationForDoseEvent('evt-2');
+
+    expect(mockCancel).toHaveBeenCalledWith('n1');
   });
 });
 

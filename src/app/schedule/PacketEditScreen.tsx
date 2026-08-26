@@ -20,7 +20,7 @@ import type { RootStackParamList } from '../../navigation';
 import {
   getAllSchedules, getAllMedications, upsertSchedule, deleteSchedule, deleteFutureDoseEvents,
 } from '../../db';
-import { cancelForSchedule, scheduleForSchedule } from '../../notifications';
+import { cancelForSchedule, cancelForPacket, scheduleForSchedule, scheduleForPacket } from '../../notifications';
 import { useAuthStore } from '../../store/authStore';
 import { useSettingsStore } from '../../store';
 import { isSyncEnabled, pushSchedule } from '../../sync/syncService';
@@ -239,8 +239,12 @@ export default function PacketEditScreen() {
     setRemoveConfirm(null);
 
     if (remaining.length <= 1) {
+      // 포가 통째로 해체됨 — 남아있던 포 단위 알림도 함께 취소
+      await cancelForPacket(packetId);
       navigation.goBack();
     } else {
+      // 포는 유지됨 — 빠진 멤버를 뺀 나머지로 포 알림을 다시 묶어 등록
+      if (settings) await scheduleForPacket(packetId, settings);
       await loadData();
     }
   }
@@ -251,6 +255,7 @@ export default function PacketEditScreen() {
       await deleteFutureDoseEvents(schedule.id);
       await cancelForSchedule(schedule.id);
     }
+    await cancelForPacket(packetId);
     setDeleteAllConfirm(false);
     navigation.goBack();
   }

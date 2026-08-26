@@ -43,6 +43,10 @@ export async function scheduleForSchedule(
   if (Platform.OS === 'web') return;
   await cancelForSchedule(schedule.id);
 
+  // 포에 속한 스케줄의 알림은 개별로 등록하지 않고 scheduleForPacket 이 포 전체를
+  // 묶어 하나로 등록한다 — DoseEvent(복용 기록)는 그대로 각 약마다 개별 생성한다.
+  const isPacketMember = !!schedule.packetId;
+
   const now = new Date();
   const todayMidnight = new Date(now);
   todayMidnight.setHours(0, 0, 0, 0);
@@ -77,22 +81,26 @@ export async function scheduleForSchedule(
       if (existing && existing.status !== 'scheduled') continue;
 
       const doseEventId = existing?.id ?? generateId();
-      const triggerAt = adjustForQuietHours(plannedAt, settings);
 
-      candidates.push({
-        content: {
-          title: `${medication.name} 복용 시간이에요 💊`,
-          body: withFoodBody(schedule.withFood),
-          data: {
-            scheduleId: schedule.id,
-            medicationId: medication.id,
-            doseEventId,
-            userId: currentUserId(),
-            triggerAt: triggerAt.getTime(),
+      // 포에 속하지 않은 일반 일정만 여기서 개별 알림 후보를 만든다.
+      // 포 멤버는 scheduleForPacket 이 포 전체를 하나로 묶어 등록한다.
+      if (!isPacketMember) {
+        const triggerAt = adjustForQuietHours(plannedAt, settings);
+        candidates.push({
+          content: {
+            title: `${medication.name} 복용 시간이에요 💊`,
+            body: withFoodBody(schedule.withFood),
+            data: {
+              scheduleId: schedule.id,
+              medicationId: medication.id,
+              doseEventId,
+              userId: currentUserId(),
+              triggerAt: triggerAt.getTime(),
+            },
           },
-        },
-        triggerAt,
-      });
+          triggerAt,
+        });
+      }
 
       if (!existing) {
         await insertDoseEvent({
@@ -110,6 +118,60 @@ export async function scheduleForSchedule(
         }, currentUserId());
       }
     }
+  }
+
+  if (isPacketMember) {
+    await scheduleForPacket(schedule.packetId!, settings);
+  } else {
+    await registerWithinBudget(candidates);
+  }
+}
+
+/**
+ * 포(packet)에 속한 모든 약의 알림을 하나로 묶어 등록합니다.
+ * 같은 시각(plannedAt)에 예정된 포 멤버들의 DoseEvent를 모아 알림 1건만 등록하고,
+ * data.doseEventIds 에 묶인 이벤트 id들을 전부 담아 복용 완료 처리 시 함께 취소할 수 있게 합니다.
+ * scheduleForSchedule 이 포 멤버 각각의 DoseEvent 를 만든 뒤 호출하므로, 여기서는
+ * DB에 이미 반영된 최신 상태를 기준으로 다시 계산합니다(멱등적으로 취소 후 재등록).
+ */
+export async function scheduleForPacket(packetId: string, settings: UserSettings): Promise<void> {
+  if (Platform.OS === 'web') return;
+  await cancelForPacket(packetId);
+
+  const db = await getDatabase();
+  const userId = currentUserId();
+  const rows = await db.getAllAsync<{ id: string; planned_at: string; packet_name: string | null }>(
+    `SELECT id, planned_at, packet_name FROM dose_events
+      WHERE user_id = ? AND packet_id = ? AND status = 'scheduled' AND planned_at > ?
+      ORDER BY planned_at ASC`,
+    userId,
+    packetId,
+    toLocalISOString(new Date()),
+  );
+  if (!rows.length) return;
+
+  const groups = new Map<string, { ids: string[]; packetName: string | null }>();
+  for (const row of rows) {
+    if (!groups.has(row.planned_at)) groups.set(row.planned_at, { ids: [], packetName: row.packet_name });
+    groups.get(row.planned_at)!.ids.push(row.id);
+  }
+
+  const candidates: NotificationCandidate[] = [];
+  for (const [plannedAtStr, group] of groups) {
+    const triggerAt = adjustForQuietHours(new Date(plannedAtStr), settings);
+    candidates.push({
+      content: {
+        title: `${group.packetName ?? `약 ${group.ids.length}개`} 복용 시간이에요 💊`,
+        body: `포함된 약 ${group.ids.length}개를 확인해주세요`,
+        data: {
+          packetId,
+          doseEventIds: group.ids,
+          userId,
+          triggerAt: triggerAt.getTime(),
+        },
+      },
+      triggerAt,
+    });
   }
 
   await registerWithinBudget(candidates);
@@ -177,9 +239,13 @@ export async function topUpNotifications(settings: UserSettings): Promise<void> 
   let budget = MAX_SCHEDULED_NOTIFICATIONS - all.length;
   if (budget <= 0) return;
 
-  const registered = new Set(
-    all.map((n) => (n.content.data as Record<string, unknown>)?.['doseEventId']),
-  );
+  const registered = new Set<string>();
+  for (const n of all) {
+    const data = n.content.data as Record<string, unknown> | undefined;
+    if (typeof data?.['doseEventId'] === 'string') registered.add(data['doseEventId'] as string);
+    const ids = data?.['doseEventIds'];
+    if (Array.isArray(ids)) ids.forEach((id) => registered.add(id as string));
+  }
 
   const db = await getDatabase();
   const userId = currentUserId();
@@ -188,8 +254,10 @@ export async function topUpNotifications(settings: UserSettings): Promise<void> 
     schedule_id: string;
     medication_id: string;
     planned_at: string;
+    packet_id: string | null;
+    packet_name: string | null;
   }>(
-    `SELECT id, schedule_id, medication_id, planned_at FROM dose_events
+    `SELECT id, schedule_id, medication_id, planned_at, packet_id, packet_name FROM dose_events
       WHERE user_id = ? AND status = 'scheduled' AND planned_at > ?
       ORDER BY planned_at ASC LIMIT ?`,
     userId,
@@ -202,7 +270,19 @@ export async function topUpNotifications(settings: UserSettings): Promise<void> 
   const scheduleMap = new Map(schedules.map((s) => [s.id, s]));
   const medCache = new Map<string, Medication | null>();
 
+  // 포 멤버는 (packetId, plannedAt) 기준으로 묶어 알림 1건으로, 일반 일정은 그대로 개별 처리한다.
+  const singleRows = rows.filter((r) => !r.packet_id);
+  const packetGroups = new Map<string, { packetId: string; plannedAt: string; packetName: string | null; ids: string[] }>();
   for (const row of rows) {
+    if (!row.packet_id) continue;
+    const key = `${row.packet_id}|${row.planned_at}`;
+    if (!packetGroups.has(key)) {
+      packetGroups.set(key, { packetId: row.packet_id, plannedAt: row.planned_at, packetName: row.packet_name, ids: [] });
+    }
+    packetGroups.get(key)!.ids.push(row.id);
+  }
+
+  for (const row of singleRows) {
     if (budget <= 0) break;
     if (registered.has(row.id)) continue;
 
@@ -235,6 +315,31 @@ export async function topUpNotifications(settings: UserSettings): Promise<void> 
     });
     budget--;
   }
+
+  for (const group of packetGroups.values()) {
+    if (budget <= 0) break;
+    const pendingIds = group.ids.filter((id) => !registered.has(id));
+    if (pendingIds.length === 0) continue;
+
+    const triggerAt = adjustForQuietHours(new Date(group.plannedAt), settings);
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: `${group.packetName ?? `약 ${pendingIds.length}개`} 복용 시간이에요 💊`,
+        body: `포함된 약 ${pendingIds.length}개를 확인해주세요`,
+        data: {
+          packetId: group.packetId,
+          doseEventIds: pendingIds,
+          userId,
+          triggerAt: triggerAt.getTime(),
+        },
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: triggerAt,
+      },
+    });
+    budget--;
+  }
 }
 
 // ── 취소 ──────────────────────────────────────────────────────────────────
@@ -246,9 +351,12 @@ export async function topUpNotifications(settings: UserSettings): Promise<void> 
 export async function cancelNotificationForDoseEvent(doseEventId: string): Promise<void> {
   if (Platform.OS === 'web') return;
   const all = await Notifications.getAllScheduledNotificationsAsync();
-  const target = all.find(
-    (n) => (n.content.data as Record<string, unknown>)?.['doseEventId'] === doseEventId,
-  );
+  const target = all.find((n) => {
+    const data = n.content.data as Record<string, unknown> | undefined;
+    if (data?.['doseEventId'] === doseEventId) return true;
+    const ids = data?.['doseEventIds'];
+    return Array.isArray(ids) && ids.includes(doseEventId);
+  });
   if (target) {
     await Notifications.cancelScheduledNotificationAsync(target.identifier);
   }
@@ -256,12 +364,27 @@ export async function cancelNotificationForDoseEvent(doseEventId: string): Promi
 
 /**
  * 특정 scheduleId 에 연결된 등록된 알림을 모두 취소합니다.
+ * (포에 속한 알림은 scheduleId가 아닌 packetId로 묶여있으므로 cancelForPacket을 함께 써야 한다)
  */
 export async function cancelForSchedule(scheduleId: string): Promise<void> {
   if (Platform.OS === 'web') return;
   const all = await Notifications.getAllScheduledNotificationsAsync();
   const toCancel = all.filter(
     (n) => (n.content.data as Record<string, unknown>)?.['scheduleId'] === scheduleId,
+  );
+  await Promise.all(
+    toCancel.map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier)),
+  );
+}
+
+/**
+ * 특정 packetId 로 묶여 등록된 포 알림을 모두 취소합니다.
+ */
+export async function cancelForPacket(packetId: string): Promise<void> {
+  if (Platform.OS === 'web') return;
+  const all = await Notifications.getAllScheduledNotificationsAsync();
+  const toCancel = all.filter(
+    (n) => (n.content.data as Record<string, unknown>)?.['packetId'] === packetId,
   );
   await Promise.all(
     toCancel.map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier)),

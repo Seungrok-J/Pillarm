@@ -19,7 +19,7 @@ import {
   deleteSchedule,
   deleteFutureDoseEvents,
 } from '../../db';
-import { cancelForSchedule } from '../../notifications';
+import { cancelForSchedule, cancelForPacket } from '../../notifications';
 import { useAuthStore } from '../../store/authStore';
 import { todayString } from '../../utils';
 import type { Schedule, Medication } from '../../domain';
@@ -162,11 +162,13 @@ export default function ScheduleManageScreen() {
 
   async function performDeleteAll() {
     const all = [...activeItems, ...pastItems];
+    const packetIds = new Set(all.map((item) => item.schedule.packetId).filter((id): id is string => !!id));
     for (const item of all) {
       await deleteSchedule(item.schedule.id);
       await deleteFutureDoseEvents(item.schedule.id);
       await cancelForSchedule(item.schedule.id);
     }
+    for (const packetId of packetIds) await cancelForPacket(packetId);
     setItems([]);
     setDeleteAllConfirm(false);
   }
@@ -194,11 +196,13 @@ export default function ScheduleManageScreen() {
 
   async function performDeletePacket() {
     if (!deletePacketConfirm) return;
+    const packetId = deletePacketConfirm[0]?.schedule.packetId;
     for (const item of deletePacketConfirm) {
       await deleteSchedule(item.schedule.id);
       await deleteFutureDoseEvents(item.schedule.id);
       await cancelForSchedule(item.schedule.id);
     }
+    if (packetId) await cancelForPacket(packetId);
     const ids = new Set(deletePacketConfirm.map((i) => i.schedule.id));
     setItems((prev) => prev.filter((i) => !ids.has(i.schedule.id)));
     setDeletePacketConfirm(null);
