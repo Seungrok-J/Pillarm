@@ -4,7 +4,6 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
-  withSpring,
   withSequence,
   withRepeat,
   runOnJS,
@@ -23,31 +22,33 @@ interface Props {
  * 앱 초기화가 끝날 때까지 애니메이션으로 이어받는다.
  */
 export default function AnimatedSplash({ visible, onExited }: Props) {
-  const iconScale   = useSharedValue(0.7);
-  const iconRotate  = useSharedValue(-6);
-  const iconOpacity = useSharedValue(0);
+  // 아이콘은 네이티브 스플래시와 동일한 크기·불투명도·각도(scale 1 / opacity 1 / rotate 0)로
+  // 시작한다 — 네이티브 → JS 전환 순간에 아이콘이 튀거나 커지는 "점프"가 보이지 않게 하기 위함.
+  const iconScale   = useSharedValue(1);
+  const iconOpacity = useSharedValue(1);
   const textOpacity = useSharedValue(0);
   const textY       = useSharedValue(8);
   const containerOpacity = useSharedValue(1);
 
-  // 등장 애니메이션 — 아이콘이 살짝 회전하며 스프링으로 튀어오르듯 나타난 뒤,
-  // 대기 시간 동안 은은하게 숨쉬듯 반복 확대/축소된다.
+  // 등장 애니메이션 — 아이콘은 이미 보이는 상태에서 살짝 통통 튀어 "살아있다"는 느낌만 더하고,
+  // 이후 텍스트가 이어서 나타난다. 대기 시간 동안은 은은하게 숨쉬듯 반복 확대/축소된다.
   useEffect(() => {
-    iconOpacity.value = withTiming(1, { duration: 260 });
-    iconRotate.value  = withTiming(0, { duration: 420, easing: Easing.out(Easing.cubic) });
-    iconScale.value = withSpring(1, { damping: 9, stiffness: 120 }, (finished) => {
-      if (finished) {
-        iconScale.value = withRepeat(
-          withSequence(
-            withTiming(1.04, { duration: 900, easing: Easing.inOut(Easing.quad) }),
-            withTiming(1, { duration: 900, easing: Easing.inOut(Easing.quad) }),
-          ),
-          -1,
-        );
-      }
-    });
+    iconScale.value = withSequence(
+      withTiming(1.08, { duration: 220, easing: Easing.out(Easing.quad) }),
+      withTiming(1, { duration: 220, easing: Easing.inOut(Easing.quad) }),
+    );
+    const t = setTimeout(() => {
+      iconScale.value = withRepeat(
+        withSequence(
+          withTiming(1.04, { duration: 900, easing: Easing.inOut(Easing.quad) }),
+          withTiming(1, { duration: 900, easing: Easing.inOut(Easing.quad) }),
+        ),
+        -1,
+      );
+    }, 440);
     textOpacity.value = withTiming(1, { duration: 380, easing: Easing.out(Easing.quad) });
     textY.value        = withTiming(0, { duration: 380, easing: Easing.out(Easing.quad) });
+    return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -64,10 +65,7 @@ export default function AnimatedSplash({ visible, onExited }: Props) {
   const containerStyle = useAnimatedStyle(() => ({ opacity: containerOpacity.value }));
   const iconStyle = useAnimatedStyle(() => ({
     opacity: iconOpacity.value,
-    transform: [
-      { scale: iconScale.value },
-      { rotate: `${iconRotate.value}deg` },
-    ],
+    transform: [{ scale: iconScale.value }],
   }));
   const textStyle = useAnimatedStyle(() => ({
     opacity: textOpacity.value,
@@ -101,6 +99,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 999,
   },
-  icon:  { width: 140, height: 140 },
+  // 네이티브 스플래시(app.json splash.image)가 렌더링하는 크기와 맞춘 값 — 실기기 캡처로 추정
+  icon:  { width: 96, height: 96 },
   title: { marginTop: 18, fontSize: 22, fontWeight: '800', color: '#111827', textAlign: 'center' },
 });
