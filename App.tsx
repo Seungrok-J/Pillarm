@@ -16,15 +16,29 @@ import { retrySyncIfPending } from './src/sync/syncService';
 import { todayString } from './src/utils';
 import RootNavigator from './src/navigation';
 import OfflineBanner from './src/components/OfflineBanner';
+import AnimatedSplash from './src/components/AnimatedSplash';
 // permissions.ts 에서 setNotificationHandler + userId 필터링을 통합 관리
 import './src/notifications/permissions';
 
-// 네이티브 스플래시를 유지 — RootNavigator 마운트 후 hideAsync 호출
+// 네이티브 스플래시를 유지 — 마운트 직후 바로 내리고 이후는 AnimatedSplash(JS)가 이어받는다
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function App() {
-  const [isReady, setIsReady] = useState(false);
+  const [dbReady,      setDbReady]      = useState(false);
+  const [navReady,     setNavReady]     = useState(false);
+  const [minTimeDone,  setMinTimeDone]  = useState(false);
+  const [splashMounted, setSplashMounted] = useState(true);
+  const appReady = dbReady && navReady && minTimeDone;
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+
+  // 네이티브 스플래시는 최대한 빨리 내리고, 초기화가 끝날 때까지는
+  // AnimatedSplash가 대신 화면을 덮은 채 애니메이션을 보여준다.
+  // 초기화가 너무 빨리 끝나 애니메이션이 아예 안 보이는 걸 막기 위해 최소 노출 시간을 둔다.
+  useEffect(() => {
+    SplashScreen.hideAsync().catch(() => {});
+    const t = setTimeout(() => setMinTimeDone(true), 700);
+    return () => clearTimeout(t);
+  }, []);
   // 시스템 폰트 스케일을 끄고 앱 자체 fontScale 설정으로 제어
   useEffect(() => {
     (Text as { defaultProps?: Record<string, unknown> }).defaultProps =
@@ -52,7 +66,7 @@ export default function App() {
       } catch (e) {
         console.error('[App] init error:', e);
       } finally {
-        setIsReady(true);
+        setDbReady(true);
       }
     })();
   }, []);
@@ -89,17 +103,17 @@ export default function App() {
     return () => sub.remove();
   }, []);
 
-  // isReady 전까지 null 반환 → 네이티브 스플래시 유지
-  if (!isReady) return null;
-
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <View style={{ flex: 1 }}>
-          <RootNavigator />
+          {dbReady && <RootNavigator onReady={() => setNavReady(true)} />}
           <OfflineBanner />
         </View>
         <StatusBar style="dark" />
+        {splashMounted && (
+          <AnimatedSplash visible={!appReady} onExited={() => setSplashMounted(false)} />
+        )}
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

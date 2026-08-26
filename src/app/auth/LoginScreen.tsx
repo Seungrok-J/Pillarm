@@ -6,7 +6,7 @@ import React, { useState } from 'react';
 import {
   View, Text, TouchableOpacity,
   ActivityIndicator, StyleSheet,
-  ScrollView,
+  ScrollView, Image,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -153,7 +153,7 @@ export default function LoginScreen() {
     <>
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
       <View style={styles.header}>
-        <Text style={styles.logo}>💊</Text>
+        <Image source={require('../../../assets/splash-icon.png')} style={styles.logo} resizeMode="contain" />
         <Text style={styles.title}>필람에 오신 걸 환영해요</Text>
         <Text style={styles.sub}>간편로그인으로 시작하세요</Text>
       </View>
@@ -293,7 +293,7 @@ const styles = StyleSheet.create({
   },
 
   header: { alignItems: 'center', marginBottom: 44 },
-  logo:   { fontSize: 56, marginBottom: 16 },
+  logo:   { width: 92, height: 92, marginBottom: 16 },
   title:  { fontSize: 24, fontWeight: '800', color: '#111827', textAlign: 'center' },
   sub:    { fontSize: 15, color: '#6b7280', marginTop: 8, textAlign: 'center' },
 

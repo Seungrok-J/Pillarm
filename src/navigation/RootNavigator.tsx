@@ -2,7 +2,6 @@ import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import type { LinkingOptions } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as SplashScreen from 'expo-splash-screen';
 import * as ExpoLinking from 'expo-linking';
 import OnboardingScreen, { ONBOARDING_KEY } from '../app/onboarding/OnboardingScreen';
 import ScheduleStackNavigator from './ScheduleStackNavigator';
@@ -22,7 +21,12 @@ const linking: LinkingOptions<RootStackParamList> = {
   },
 };
 
-export default function RootNavigator() {
+interface Props {
+  /** 온보딩 여부·세션·테마 로딩이 끝나면 호출 — App의 애니메이션 스플래시를 내리는 신호로 쓰인다 */
+  onReady?: () => void;
+}
+
+export default function RootNavigator({ onReady }: Props) {
   const { loadSession } = useAuthStore();
   const loadTheme = useThemeStore((s) => s.loadTheme);
   const [onboardingDone, setOnboardingDone] = React.useState<boolean | null>(null);
@@ -34,7 +38,7 @@ export default function RootNavigator() {
       loadTheme(),
     ]).then(([value]) => {
       setOnboardingDone(value === 'true');
-      SplashScreen.hideAsync().catch(() => {});
+      onReady?.();
       // 이미 로그인된 경우 토큰 갱신 (기기 재시작·토큰 만료 대응)
       if (useAuthStore.getState().isLoggedIn) {
         syncPushToken().catch(() => {});
