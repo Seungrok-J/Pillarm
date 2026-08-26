@@ -219,8 +219,11 @@ export default function LoginScreen() {
             ? <ActivityIndicator color="#191919" />
             : (
               <View style={styles.socialBtnRow}>
-                <Ionicons name="chatbubble" size={18} color="#191919" />
+                <View style={styles.socialIconSlot}>
+                  <Ionicons name="chatbubble" size={18} color="#191919" />
+                </View>
                 <Text style={styles.kakaoBtnText}>카카오로 계속하기</Text>
+                <View style={styles.socialIconSlot} />
               </View>
             )
           }
@@ -279,7 +282,7 @@ const styles = StyleSheet.create({
   googleBtnText: { flex: 1, textAlign: 'center', color: '#111827', fontSize: 16, fontWeight: '600' },
 
   kakaoBtn:     { backgroundColor: '#FEE500', borderColor: '#FEE500' },
-  kakaoBtnText: { color: '#191919', fontSize: 16, fontWeight: '600' },
+  kakaoBtnText: { flex: 1, textAlign: 'center', color: '#191919', fontSize: 16, fontWeight: '600' },
 
   loadingOverlay: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
