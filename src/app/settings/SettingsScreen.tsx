@@ -517,8 +517,11 @@ export default function SettingsScreen() {
           </>
         )}
 
-        {/* ── 개발자 도구 (관리자 계정 · 로컬(비로그인) · 개발 빌드 전용) ────── */}
-        {(!isLoggedIn || isAdmin || __DEV__) && (
+        {/* ── 개발자 도구 (관리자 계정 또는 개발 빌드 전용) ──────────────────
+            비로그인(로컬) 상태를 조건에 넣으면 스토어 배포본에서 로그인을 건너뛴
+            일반 사용자에게도 노출되므로 제외한다. 스토어 스크린샷용 시연 데이터는
+            관리자 계정으로 로그인한 뒤 사용한다. */}
+        {(isAdmin || __DEV__) && (
           <>
             <Text style={styles.sectionTitle}>개발자 도구</Text>
             <View style={styles.section}>
