@@ -105,7 +105,8 @@ export default function CareCircleScreen() {
   const [refreshing,     setRefreshing]     = useState(false);
   const [inviteCode,     setInviteCode]     = useState<string | null>(null);
   const [inviteVisible,  setInviteVisible]  = useState(false);
-  const [inviteLoading,  setInviteLoading]  = useState(false);
+  // 초대 코드 생성 중인 그룹 id — 해당 그룹의 버튼만 로딩 상태로 표시한다
+  const [invitingCircleId, setInvitingCircleId] = useState<string | null>(null);
   const [newName,        setNewName]        = useState('');
   const [creating,       setCreating]       = useState(false);
 
@@ -174,7 +175,7 @@ export default function CareCircleScreen() {
   // ── 초대 코드 생성 ─────────────────────────────────────────────────────────
 
   async function handleInvite(circleId: string) {
-    setInviteLoading(true);
+    setInvitingCircleId(circleId);
     try {
       const { code } = await createInvite(circleId);
       setInviteCode(code);
@@ -182,7 +183,7 @@ export default function CareCircleScreen() {
     } catch {
       setSimpleAlert({ title: '오류', message: '초대 코드 생성에 실패했습니다', tone: 'danger' });
     } finally {
-      setInviteLoading(false);
+      setInvitingCircleId(null);
     }
   }
 
@@ -259,11 +260,11 @@ export default function CareCircleScreen() {
             testID={`btn-invite-${circle.id}`}
             style={styles.inviteBtn}
             onPress={() => handleInvite(circle.id)}
-            disabled={inviteLoading}
+            disabled={invitingCircleId === circle.id}
             accessibilityLabel="피보호자 초대하기"
             accessibilityRole="button"
           >
-            {inviteLoading
+            {invitingCircleId === circle.id
               ? <ActivityIndicator size="small" color="#fff" />
               : <Text style={styles.inviteBtnText}>+ 피보호자 초대</Text>
             }
@@ -532,14 +533,28 @@ export default function CareCircleScreen() {
       )}
 
       {/* ── 참여 중인 그룹 (피보호자 뷰) ─ */}
-      {joinedCircles.length > 0 && (
-        <>
-          <Text style={[styles.sectionTitle, { marginTop: 24 }]}>내가 속한 그룹 (피보호자)</Text>
-          {joinedCircles.map((c) => (
-            <View key={c.id}>{renderMemberCircle(c)}</View>
-          ))}
-        </>
+      <Text style={[styles.sectionTitle, { marginTop: 24 }]}>내가 속한 그룹 (피보호자)</Text>
+
+      {joinedCircles.length === 0 && (
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyTitle}>아직 참여한 그룹이 없어요</Text>
+          <Text style={styles.emptySub}>보호자에게 받은 코드나 QR로 그룹에 참여해보세요</Text>
+        </View>
       )}
+
+      {joinedCircles.map((c) => (
+        <View key={c.id}>{renderMemberCircle(c)}</View>
+      ))}
+
+      <TouchableOpacity
+        testID="btn-join-circle"
+        style={styles.addGroupBtn}
+        onPress={() => navigation.navigate('JoinCareCircle')}
+        accessibilityLabel="코드로 보호 그룹 참여하기"
+        accessibilityRole="button"
+      >
+        <Text style={styles.addGroupBtnText}>+ 코드로 그룹 참여하기</Text>
+      </TouchableOpacity>
 
       <InviteModal
         visible={inviteVisible}

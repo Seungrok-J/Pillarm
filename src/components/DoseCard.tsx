@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { DoseEvent } from '../domain';
 import { useThemeStore } from '../store/themeStore';
 import {
@@ -87,6 +88,7 @@ export default function DoseCard({
   graceMinutes = 120,
 }: DoseCardProps) {
   const theme = useThemeStore((s) => s.activeTheme);
+  const insets = useSafeAreaInsets();
   const nowMs = (now ?? new Date()).getTime();
   const graceMs = graceMinutes * 60_000;
   const displayState = computeDisplayState(event, nowMs, graceMs);
@@ -303,7 +305,7 @@ export default function DoseCard({
               behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
               style={styles.sheetWrapper}
             >
-              <View style={styles.sheet}>
+              <View style={[styles.sheet, { paddingBottom: 20 + insets.bottom }]}>
                 <View style={styles.sheetHeader}>
                   <Text style={styles.sheetTitle}>메모 추가 (선택사항)</Text>
                   <TouchableOpacity
