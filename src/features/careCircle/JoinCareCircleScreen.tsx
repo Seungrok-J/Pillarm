@@ -28,6 +28,23 @@ type Nav = StackNavigationProp<RootStackParamList>;
 
 const CODE_LEN = 6;
 
+/**
+ * QR 코드 원문에서 초대 코드 6자리를 추출한다.
+ * 초대 QR은 쿼리 파라미터 형식(`.../join?code=XXXXXX`, CareCircleScreen의
+ * InviteModal이 생성하는 실제 형식)으로 인코딩되므로 이를 최우선으로 매칭하고,
+ * 딥링크 경로 형식(`.../join/XXXXXX`)과 코드 원문만 있는 경우도 함께 지원한다.
+ */
+export function extractInviteCode(data: string): string | null {
+  const queryMatch = data.match(/[?&]code=([A-Z0-9]{6})\b/i);
+  if (queryMatch) return queryMatch[1].toUpperCase();
+
+  const pathMatch = data.match(/\/join\/([A-Z0-9]{6})\b/i);
+  if (pathMatch) return pathMatch[1].toUpperCase();
+
+  const trimmed = data.trim().toUpperCase();
+  return /^[A-Z0-9]{6}$/.test(trimmed) ? trimmed : null;
+}
+
 // ── 코드 입력 탭 ───────────────────────────────────────────────────────────────
 
 interface CodeInputProps {
@@ -146,9 +163,8 @@ function QrScanTab({ onScan }: QrScanProps) {
   function handleScan({ data }: { data: string }) {
     if (scanned) return;
     setScanned(true);
-    const urlMatch = data.match(/\/join\/([A-Z0-9]{6})/i);
-    const code = urlMatch ? urlMatch[1].toUpperCase() : data.trim().toUpperCase();
-    if (/^[A-Z0-9]{6}$/.test(code)) {
+    const code = extractInviteCode(data);
+    if (code) {
       onScan(code);
     } else {
       setInvalidQr(true);
