@@ -1,10 +1,11 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, Fragment } from 'react';
 import {
   View, Text, TouchableOpacity, Modal,
   ActivityIndicator, StyleSheet,
   ScrollView, TextInput, Share, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RootStackParamList } from '../../navigation';
@@ -242,20 +243,32 @@ export default function CareCircleScreen() {
   function renderOwnedCircle(circle: ApiCareCircle) {
     const members = circle.members.filter((m) => m.memberUserId !== userId);
     return (
-      <View testID={`card-circle-${circle.id}`} style={styles.circleCard}>
-        <View style={styles.circleHeader}>
-          <Text style={styles.circleName}>{circle.name}</Text>
-          <Text style={styles.memberCount}>피보호자 {members.length}명</Text>
+      <View testID={`card-circle-${circle.id}`} style={styles.card}>
+        <View style={styles.cardHeader}>
+          <View style={styles.titlePill}>
+            <Text style={styles.cardTitle}>{circle.name}</Text>
+            <View style={styles.badgeTeal}>
+              <Text style={styles.badgeTealText}>진행중</Text>
+            </View>
+          </View>
+          <Text style={styles.metaText}>피보호자 {members.length}명</Text>
         </View>
+
+        <View style={styles.divider} />
 
         {/* 피보호자 목록 */}
         {members.length > 0 ? (
-          members.map((m) => renderMemberRow(m, circle.id))
+          members.map((m, i) => (
+            <Fragment key={m.id}>
+              {i > 0 && <View style={styles.divider} />}
+              {renderMemberRow(m, circle.id)}
+            </Fragment>
+          ))
         ) : (
           <Text style={styles.emptyMembers}>연결된 피보호자가 없습니다</Text>
         )}
 
-        <View style={styles.circleActions}>
+        <View style={styles.footerRow}>
           <TouchableOpacity
             testID={`btn-invite-${circle.id}`}
             style={styles.inviteBtn}
@@ -264,10 +277,14 @@ export default function CareCircleScreen() {
             accessibilityLabel="피보호자 초대하기"
             accessibilityRole="button"
           >
-            {invitingCircleId === circle.id
-              ? <ActivityIndicator size="small" color="#fff" />
-              : <Text style={styles.inviteBtnText}>+ 피보호자 초대</Text>
-            }
+            {invitingCircleId === circle.id ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <>
+                <Ionicons name="add" size={16} color="#fff" />
+                <Text style={styles.inviteBtnText}>피보호자 초대</Text>
+              </>
+            )}
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -284,7 +301,7 @@ export default function CareCircleScreen() {
     );
   }
 
-  // ── 렌더: 멤버 행 ──────────────────────────────────────────────────────────
+  // ── 렌더: 멤버 행 (프로필 + 복용 현황 보기 버튼) ────────────────────────────
 
   function renderMemberRow(member: ApiCareMember, circleId: string) {
     const isEditing = editingNickname?.memberId === member.id;
@@ -294,37 +311,39 @@ export default function CareCircleScreen() {
 
     if (isEditing) {
       return (
-        <View key={member.id} testID={`member-${member.id}`} style={styles.memberRow}>
-          <View style={styles.memberIcon}>
-            <Text style={styles.memberIconText}>👤</Text>
-          </View>
-          <View style={styles.memberEditArea}>
-            <TextInput
-              testID={`input-nickname-${member.id}`}
-              style={styles.nicknameInput}
-              value={editingNickname!.value}
-              onChangeText={(t) => setEditingNickname((prev) => prev && { ...prev, value: t })}
-              placeholder="예: 엄마, 할머니"
-              placeholderTextColor="#9ca3af"
-              autoFocus
-              maxLength={20}
-              returnKeyType="done"
-              onSubmitEditing={handleSaveNickname}
-            />
-            <View style={styles.nicknameEditBtns}>
-              <TouchableOpacity
-                testID={`btn-nickname-save-${member.id}`}
-                style={styles.nicknameSaveBtn}
-                onPress={handleSaveNickname}
-              >
-                <Text style={styles.nicknameSaveTxt}>저장</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.nicknameCancelBtn}
-                onPress={() => setEditingNickname(null)}
-              >
-                <Text style={styles.nicknameCancelTxt}>취소</Text>
-              </TouchableOpacity>
+        <View testID={`member-${member.id}`} style={styles.memberBlock}>
+          <View style={styles.memberRow}>
+            <View style={styles.avatar}>
+              <Ionicons name="person" size={20} color="#6b7280" />
+            </View>
+            <View style={styles.memberEditArea}>
+              <TextInput
+                testID={`input-nickname-${member.id}`}
+                style={styles.nicknameInput}
+                value={editingNickname!.value}
+                onChangeText={(t) => setEditingNickname((prev) => prev && { ...prev, value: t })}
+                placeholder="예: 엄마, 할머니"
+                placeholderTextColor="#9ca3af"
+                autoFocus
+                maxLength={20}
+                returnKeyType="done"
+                onSubmitEditing={handleSaveNickname}
+              />
+              <View style={styles.nicknameEditBtns}>
+                <TouchableOpacity
+                  testID={`btn-nickname-save-${member.id}`}
+                  style={styles.nicknameSaveBtn}
+                  onPress={handleSaveNickname}
+                >
+                  <Text style={styles.nicknameSaveTxt}>저장</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.nicknameCancelBtn}
+                  onPress={() => setEditingNickname(null)}
+                >
+                  <Text style={styles.nicknameCancelTxt}>취소</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </View>
@@ -332,40 +351,40 @@ export default function CareCircleScreen() {
     }
 
     return (
-      <View key={member.id} testID={`member-${member.id}`} style={styles.memberRowWrap}>
+      <View testID={`member-${member.id}`} style={styles.memberBlock}>
         <View style={styles.memberRow}>
-          <View style={styles.memberIcon}>
-            <Text style={styles.memberIconText}>👤</Text>
+          <View style={styles.avatar}>
+            <Ionicons name="person" size={20} color="#6b7280" />
           </View>
           <View style={styles.memberInfo}>
-            <Text style={styles.memberId} numberOfLines={1}>{display}</Text>
+            <Text style={styles.memberName} numberOfLines={1}>{display}</Text>
             {hasNickname && realName ? (
               <Text style={styles.memberRealName} numberOfLines={1}>{realName}</Text>
             ) : null}
             <Text style={styles.memberRole}>{ROLE_LABEL[member.role] ?? member.role}</Text>
           </View>
-          <View style={styles.memberActions}>
+          <View style={styles.smallActions}>
             <TouchableOpacity
               testID={`btn-nickname-${member.id}`}
-              style={styles.memberActionBtn}
+              style={styles.pillNeutral}
               onPress={() => setEditingNickname({ circleId, memberId: member.id, value: member.nickname ?? '' })}
               accessibilityLabel="별칭 수정"
             >
-              <Text style={styles.memberActionTxt}>별칭</Text>
+              <Text style={styles.pillNeutralText}>별칭</Text>
             </TouchableOpacity>
             <TouchableOpacity
               testID={`btn-remove-${member.id}`}
-              style={[styles.memberActionBtn, styles.memberActionDanger]}
+              style={styles.pillDanger}
               onPress={() => handleDeleteMember(circleId, member)}
               accessibilityLabel="피보호자 삭제"
             >
-              <Text style={[styles.memberActionTxt, styles.memberActionDangerTxt]}>삭제</Text>
+              <Text style={styles.pillDangerText}>삭제</Text>
             </TouchableOpacity>
           </View>
         </View>
         <TouchableOpacity
           testID={`btn-monitor-${member.id}`}
-          style={styles.monitorBtn}
+          style={styles.viewBtn}
           onPress={() => navigation.navigate('CareMonitor', {
             circleId,
             patientId: member.memberUserId,
@@ -374,7 +393,8 @@ export default function CareCircleScreen() {
           accessibilityLabel={`${display}님의 복용 현황 보기`}
           accessibilityRole="button"
         >
-          <Text style={styles.monitorBtnText}>복용 현황 보기</Text>
+          <Ionicons name="stats-chart-outline" size={16} color="#2d8a81" />
+          <Text style={styles.viewBtnText}>복용 현황 보기</Text>
         </TouchableOpacity>
       </View>
     );
@@ -409,21 +429,34 @@ export default function CareCircleScreen() {
   function renderMemberCircle(circle: ApiCareCircle) {
     const ownerName = circle.ownerUserName ?? circle.ownerUserEmail ?? '관리자';
     return (
-      <View testID={`card-joined-${circle.id}`} style={styles.memberCircleCard}>
-        {/* 헤더: 그룹명 + 피보호자 배지 */}
-        <View style={styles.memberCircleTop}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.circleName}>{circle.name}</Text>
-            <Text style={styles.memberCircleOwner} numberOfLines={1}>
-              👤 {ownerName}
-            </Text>
+      <View testID={`card-joined-${circle.id}`} style={styles.card}>
+        <View style={styles.cardHeader}>
+          <View style={styles.titlePill}>
+            <Text style={styles.cardTitle}>{circle.name}</Text>
+            <View style={styles.badgeGreen}>
+              <Text style={styles.badgeGreenText}>보호중</Text>
+            </View>
           </View>
-          <View style={styles.memberBadge}>
-            <Text style={styles.memberBadgeText}>피보호자</Text>
+          <Text style={styles.metaText}>보호자 1명</Text>
+        </View>
+
+        <View style={styles.divider} />
+
+        <View style={styles.guardiansList}>
+          <Text style={styles.guardiansLabel}>담당 보호자</Text>
+          <View style={styles.guardianRow}>
+            <View style={styles.guardianAvatar}>
+              <Ionicons name="person" size={18} color="#4b5f5a" />
+            </View>
+            <View>
+              <Text style={styles.guardianName} numberOfLines={1}>{ownerName}</Text>
+              <Text style={styles.guardianRole}>주 보호자</Text>
+            </View>
           </View>
         </View>
 
-        {/* 나가기 버튼 */}
+        <View style={styles.divider} />
+
         <TouchableOpacity
           testID={`btn-leave-${circle.id}`}
           style={styles.leaveBtn}
@@ -445,8 +478,11 @@ export default function CareCircleScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>보호자 관리 👥</Text>
+        </View>
         <View style={styles.center}>
-          <ActivityIndicator size="large" color="#3b82f6" />
+          <ActivityIndicator size="large" color="#2d8a81" />
         </View>
       </SafeAreaView>
     );
@@ -454,12 +490,25 @@ export default function CareCircleScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>보호자 관리 👥</Text>
+        <TouchableOpacity
+          testID="btn-quick-create"
+          style={styles.headerAddBtn}
+          onPress={() => setShowCreateForm(true)}
+          accessibilityLabel="새 보호 그룹 만들기"
+          accessibilityRole="button"
+        >
+          <Ionicons name="add" size={18} color="#2d8a81" />
+        </TouchableOpacity>
+      </View>
+
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
       testID="screen-care-circle"
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#3b82f6" colors={['#3b82f6']} />
+        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#2d8a81" colors={['#2d8a81']} />
       }
     >
       {/* ── 오프라인 배너 ── */}
@@ -470,12 +519,12 @@ export default function CareCircleScreen() {
       )}
 
       {/* ── 내가 관리하는 그룹 (보호자 뷰) ──── */}
-      <Text style={styles.sectionTitle}>내가 관리하는 그룹 (보호자)</Text>
+      <Text style={styles.sectionTitle}>내가 관리하는 그룹</Text>
 
       {ownedCircles.length === 0 && (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>아직 보호 그룹이 없어요</Text>
-          <Text style={styles.emptySub}>그룹을 만들고 피보호자를 초대하세요</Text>
+        <View style={styles.plainEmptyCard}>
+          <Text style={styles.plainEmptyTitle}>아직 보호 그룹이 없어요</Text>
+          <Text style={styles.plainEmptySub}>그룹을 만들고 피보호자를 초대하세요</Text>
         </View>
       )}
 
@@ -528,33 +577,51 @@ export default function CareCircleScreen() {
           onPress={() => setShowCreateForm(true)}
           accessibilityRole="button"
         >
-          <Text style={styles.addGroupBtnText}>+ 새 보호 그룹 만들기</Text>
+          <Ionicons name="add-circle-outline" size={18} color="#2d8a81" />
+          <Text style={styles.addGroupBtnText}>새 보호 그룹 만들기</Text>
         </TouchableOpacity>
       )}
 
       {/* ── 참여 중인 그룹 (피보호자 뷰) ─ */}
       <Text style={[styles.sectionTitle, { marginTop: 24 }]}>내가 속한 그룹 (피보호자)</Text>
 
-      {joinedCircles.length === 0 && (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>아직 참여한 그룹이 없어요</Text>
-          <Text style={styles.emptySub}>보호자에게 받은 코드나 QR로 그룹에 참여해보세요</Text>
+      {joinedCircles.length === 0 ? (
+        <View style={styles.emptyStateCard}>
+          <View style={styles.emptyIconWrap}>
+            <Ionicons name="people-outline" size={28} color="#8b95a1" />
+          </View>
+          <View style={styles.emptyTextWrap}>
+            <Text style={styles.emptyStateTitle}>아직 참여한 그룹이 없어요</Text>
+            <Text style={styles.emptyStateSub}>보호자에게 받은 코드나 QR로 그룹에 참여해보세요</Text>
+          </View>
+          <TouchableOpacity
+            testID="btn-join-circle"
+            style={styles.joinCtaBtn}
+            onPress={() => navigation.navigate('JoinCareCircle')}
+            accessibilityLabel="코드로 보호 그룹 참여하기"
+            accessibilityRole="button"
+          >
+            <Ionicons name="add" size={16} color="#fff" />
+            <Text style={styles.joinCtaBtnText}>코드로 그룹 참여하기</Text>
+          </TouchableOpacity>
         </View>
+      ) : (
+        <>
+          {joinedCircles.map((c) => (
+            <View key={c.id}>{renderMemberCircle(c)}</View>
+          ))}
+          <TouchableOpacity
+            testID="btn-join-circle"
+            style={styles.addGroupBtn}
+            onPress={() => navigation.navigate('JoinCareCircle')}
+            accessibilityLabel="코드로 보호 그룹 참여하기"
+            accessibilityRole="button"
+          >
+            <Ionicons name="add-circle-outline" size={18} color="#2d8a81" />
+            <Text style={styles.addGroupBtnText}>코드로 그룹 참여하기</Text>
+          </TouchableOpacity>
+        </>
       )}
-
-      {joinedCircles.map((c) => (
-        <View key={c.id}>{renderMemberCircle(c)}</View>
-      ))}
-
-      <TouchableOpacity
-        testID="btn-join-circle"
-        style={styles.addGroupBtn}
-        onPress={() => navigation.navigate('JoinCareCircle')}
-        accessibilityLabel="코드로 보호 그룹 참여하기"
-        accessibilityRole="button"
-      >
-        <Text style={styles.addGroupBtnText}>+ 코드로 그룹 참여하기</Text>
-      </TouchableOpacity>
 
       <InviteModal
         visible={inviteVisible}
@@ -617,11 +684,26 @@ export default function CareCircleScreen() {
 
 // ── 스타일 ────────────────────────────────────────────────────────────────────
 
+const CARD_SHADOW = {
+  shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 1,
+};
+
 const styles = StyleSheet.create({
-  safeArea:  { flex: 1, backgroundColor: '#f9fafb' },
-  container: { flex: 1, backgroundColor: '#f9fafb' },
-  content:   { padding: 16, paddingBottom: 40 },
+  safeArea:  { flex: 1, backgroundColor: '#f5f7f6' },
+  container: { flex: 1, backgroundColor: '#f5f7f6' },
+  content:   { padding: 20, paddingBottom: 40 },
   center:    { flex: 1, alignItems: 'center', justifyContent: 'center' },
+
+  header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    height: 56, paddingHorizontal: 20,
+    backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e8eceb',
+  },
+  headerTitle: { fontSize: 18, fontWeight: '800', color: '#191f28' },
+  headerAddBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: '#ebf5f3', alignItems: 'center', justifyContent: 'center',
+  },
 
   offlineBanner: {
     backgroundColor: '#1f2937', borderRadius: 10,
@@ -631,153 +713,172 @@ const styles = StyleSheet.create({
   offlineBannerText: { color: '#f9fafb', fontSize: 13, fontWeight: '500', textAlign: 'center' },
 
   sectionTitle: {
-    fontSize: 13, fontWeight: '600', color: '#6b7280',
-    textTransform: 'uppercase', letterSpacing: 0.5,
-    marginBottom: 8,
+    fontSize: 15, fontWeight: '700', color: '#4e5968',
+    marginBottom: 12,
   },
 
-  circleCard: {
+  card: {
     backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 20,
+    padding: 20,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#f3f4f6',
+    borderColor: '#e8eceb',
+    gap: 16,
+    ...CARD_SHADOW,
   },
-  circleHeader: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'center', marginBottom: 12,
+  cardHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
   },
-  circleName:  { fontSize: 17, fontWeight: '700', color: '#111827' },
-  memberCount: { fontSize: 13, color: '#6b7280' },
+  titlePill: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 },
+  cardTitle: { fontSize: 18, fontWeight: '800', color: '#191f28' },
+  metaText:  { fontSize: 13, fontWeight: '600', color: '#8b95a1' },
 
-  memberRowWrap: {
-    borderTopWidth: 1, borderTopColor: '#f3f4f6',
-    paddingVertical: 8,
-  },
+  badgeTeal:     { backgroundColor: '#ebf5f3', borderRadius: 100, paddingHorizontal: 8, paddingVertical: 3 },
+  badgeTealText: { fontSize: 11, fontWeight: '700', color: '#2d8a81' },
+  badgeGreen:     { backgroundColor: '#ebf7f1', borderRadius: 100, paddingHorizontal: 8, paddingVertical: 3 },
+  badgeGreenText: { fontSize: 11, fontWeight: '700', color: '#42a873' },
+
+  divider: { height: 1, backgroundColor: '#e8eceb' },
+
+  memberBlock: { gap: 16 },
   memberRow: {
     flexDirection: 'row', alignItems: 'center',
   },
-  memberIcon:     { width: 36, height: 36, borderRadius: 18, backgroundColor: '#eff6ff', alignItems: 'center', justifyContent: 'center', marginRight: 10 },
-  memberIconText: { fontSize: 18 },
-  memberInfo:     { flex: 1 },
-  memberId:       { fontSize: 14, color: '#374151', fontWeight: '500' },
-  memberRealName: { fontSize: 12, color: '#6b7280', marginTop: 1 },
-  memberRole:     { fontSize: 12, color: '#9ca3af', marginTop: 1 },
-  memberActions:  { flexDirection: 'row', gap: 6, marginLeft: 8 },
-  memberActionBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: '#f3f4f6' },
-  memberActionDanger: { backgroundColor: '#fef2f2' },
-  memberActionTxt:    { fontSize: 12, fontWeight: '600', color: '#374151' },
-  memberActionDangerTxt: { color: '#ef4444' },
+  avatar: {
+    width: 40, height: 40, borderRadius: 20, backgroundColor: '#e1e6e8',
+    alignItems: 'center', justifyContent: 'center', marginRight: 12,
+  },
+  memberInfo:     { flex: 1, gap: 2 },
+  memberName:     { fontSize: 15, fontWeight: '700', color: '#191f28' },
+  memberRealName: { fontSize: 12, fontWeight: '600', color: '#8b95a1' },
+  memberRole:     { fontSize: 12, fontWeight: '600', color: '#8b95a1' },
+  smallActions:   { flexDirection: 'row', gap: 6, marginLeft: 8 },
+
+  pillNeutral:     { backgroundColor: '#ebf5f3', borderRadius: 100, paddingHorizontal: 10, paddingVertical: 6 },
+  pillNeutralText: { fontSize: 12, fontWeight: '700', color: '#2d8a81' },
+  pillDanger:      { backgroundColor: '#fdebec', borderRadius: 100, paddingHorizontal: 10, paddingVertical: 6 },
+  pillDangerText:  { fontSize: 12, fontWeight: '700', color: '#e84a5f' },
 
   memberEditArea:   { flex: 1 },
   nicknameInput: {
-    borderWidth: 1, borderColor: '#3b82f6', borderRadius: 8,
-    paddingHorizontal: 10, paddingVertical: 6, fontSize: 14, color: '#111827',
-    backgroundColor: '#f9fafb',
+    borderWidth: 1, borderColor: '#2d8a81', borderRadius: 8,
+    paddingHorizontal: 10, paddingVertical: 6, fontSize: 14, color: '#191f28',
+    backgroundColor: '#f5f7f6',
   },
   nicknameEditBtns:  { flexDirection: 'row', gap: 6, marginTop: 6 },
-  nicknameSaveBtn:   { flex: 1, backgroundColor: '#3b82f6', borderRadius: 8, paddingVertical: 6, alignItems: 'center' },
+  nicknameSaveBtn:   { flex: 1, backgroundColor: '#2d8a81', borderRadius: 8, paddingVertical: 6, alignItems: 'center' },
   nicknameSaveTxt:   { fontSize: 12, fontWeight: '700', color: '#fff' },
-  nicknameCancelBtn: { flex: 1, backgroundColor: '#f3f4f6', borderRadius: 8, paddingVertical: 6, alignItems: 'center' },
-  nicknameCancelTxt: { fontSize: 12, fontWeight: '600', color: '#374151' },
+  nicknameCancelBtn: { flex: 1, backgroundColor: '#ebeef0', borderRadius: 8, paddingVertical: 6, alignItems: 'center' },
+  nicknameCancelTxt: { fontSize: 12, fontWeight: '600', color: '#4e5968' },
 
-  emptyMembers: { fontSize: 14, color: '#9ca3af', textAlign: 'center', paddingVertical: 8 },
+  emptyMembers: { fontSize: 14, color: '#8b95a1', textAlign: 'center', paddingVertical: 8 },
 
-  circleActions: { flexDirection: 'row', gap: 8, marginTop: 12 },
-  inviteBtn:     { flex: 1, backgroundColor: '#3b82f6', borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
-  inviteBtnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
-  deleteBtn:     { paddingHorizontal: 16, borderRadius: 10, paddingVertical: 12, backgroundColor: '#fef2f2', alignItems: 'center' },
-  deleteBtnText: { color: '#ef4444', fontWeight: '600', fontSize: 14 },
+  viewBtn: {
+    flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#ebf5f3', borderRadius: 12, paddingVertical: 12,
+  },
+  viewBtnText: { color: '#2d8a81', fontWeight: '700', fontSize: 14 },
 
-  monitorBtn:     { backgroundColor: '#eff6ff', borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 8 },
-  monitorBtnText: { color: '#3b82f6', fontWeight: '600', fontSize: 14 },
-  leaveBtn:       { borderRadius: 10, paddingVertical: 10, alignItems: 'center', marginTop: 6 },
-  leaveBtnText:   { color: '#9ca3af', fontWeight: '500', fontSize: 13 },
+  footerRow: { flexDirection: 'row', gap: 8 },
+  inviteBtn: {
+    flex: 1, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#2d8a81', borderRadius: 12, paddingVertical: 12,
+  },
+  inviteBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  deleteBtn: {
+    paddingHorizontal: 16, borderRadius: 12, paddingVertical: 12,
+    backgroundColor: '#fff', borderWidth: 1, borderColor: '#e84a5f', alignItems: 'center', justifyContent: 'center',
+  },
+  deleteBtnText: { color: '#e84a5f', fontWeight: '700', fontSize: 14 },
 
-  memberCircleCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
+  guardiansList:  { gap: 12 },
+  guardiansLabel: { fontSize: 12, fontWeight: '600', color: '#8b95a1' },
+  guardianRow:    { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  guardianAvatar: {
+    width: 36, height: 36, borderRadius: 18, backgroundColor: '#d2e3e1',
+    alignItems: 'center', justifyContent: 'center',
   },
-  memberCircleTop: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 10,
-  },
-  memberCircleOwner: {
-    fontSize: 13,
-    color: '#6b7280',
-    marginTop: 3,
-  },
-  memberBadge: {
-    backgroundColor: '#f0fdf4',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    marginLeft: 8,
-    alignSelf: 'flex-start',
-  },
-  memberBadgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#16a34a',
-  },
+  guardianName: { fontSize: 14, fontWeight: '700', color: '#191f28' },
+  guardianRole: { fontSize: 11, fontWeight: '600', color: '#8b95a1', marginTop: 1 },
 
-  emptyCard: {
-    backgroundColor: '#fff', borderRadius: 16, padding: 20,
-    borderWidth: 1, borderColor: '#f3f4f6', alignItems: 'center', marginBottom: 12,
+  leaveBtn: {
+    borderRadius: 12, paddingVertical: 12, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#fff', borderWidth: 1, borderColor: '#e84a5f',
   },
-  emptyTitle: { fontSize: 16, fontWeight: '600', color: '#374151' },
-  emptySub:   { fontSize: 13, color: '#9ca3af', marginTop: 4 },
+  leaveBtnText: { color: '#e84a5f', fontWeight: '700', fontSize: 14 },
+
+  plainEmptyCard: {
+    backgroundColor: '#fff', borderRadius: 20, padding: 20,
+    borderWidth: 1, borderColor: '#e8eceb', alignItems: 'center', marginBottom: 12,
+  },
+  plainEmptyTitle: { fontSize: 15, fontWeight: '700', color: '#191f28' },
+  plainEmptySub:   { fontSize: 13, color: '#8b95a1', marginTop: 4 },
+
+  emptyStateCard: {
+    backgroundColor: '#fff', borderRadius: 20, padding: 24,
+    borderWidth: 1, borderColor: '#e8eceb', alignItems: 'center', gap: 16, marginBottom: 12,
+    ...CARD_SHADOW,
+  },
+  emptyIconWrap: {
+    width: 56, height: 56, borderRadius: 28, backgroundColor: '#f2f4f6',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  emptyTextWrap:   { alignItems: 'center', gap: 6 },
+  emptyStateTitle: { fontSize: 15, fontWeight: '700', color: '#191f28', textAlign: 'center' },
+  emptyStateSub:   { fontSize: 13, fontWeight: '500', color: '#8b95a1', textAlign: 'center' },
+
+  joinCtaBtn: {
+    width: '100%', flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#2d8a81', borderRadius: 12, paddingVertical: 13,
+  },
+  joinCtaBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
 
   addGroupBtn: {
-    borderWidth: 1.5, borderColor: '#3b82f6', borderStyle: 'dashed',
-    borderRadius: 14, paddingVertical: 14, alignItems: 'center', marginBottom: 12,
+    flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1.5, borderColor: '#2d8a81', borderStyle: 'dashed',
+    borderRadius: 16, paddingVertical: 16, marginBottom: 12, backgroundColor: '#fff',
   },
-  addGroupBtnText: { color: '#3b82f6', fontWeight: '600', fontSize: 15 },
+  addGroupBtnText: { color: '#2d8a81', fontWeight: '700', fontSize: 14 },
 
   createFormCard: {
-    backgroundColor: '#fff', borderRadius: 16, padding: 16,
-    borderWidth: 1, borderColor: '#3b82f6', marginBottom: 12,
+    backgroundColor: '#fff', borderRadius: 20, padding: 20,
+    borderWidth: 1, borderColor: '#2d8a81', marginBottom: 12,
   },
-  createFormTitle: { fontSize: 15, fontWeight: '700', color: '#111827', marginBottom: 12 },
+  createFormTitle: { fontSize: 15, fontWeight: '700', color: '#191f28', marginBottom: 12 },
   createInput: {
-    borderWidth: 1, borderColor: '#d1d5db', borderRadius: 10,
-    paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: '#111827',
-    backgroundColor: '#f9fafb',
+    borderWidth: 1, borderColor: '#e8eceb', borderRadius: 10,
+    paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: '#191f28',
+    backgroundColor: '#f5f7f6',
   },
   createFormBtns:    { flexDirection: 'row', gap: 8, marginTop: 12 },
-  createBtn:         { flex: 1, backgroundColor: '#3b82f6', borderRadius: 10, paddingVertical: 12, alignItems: 'center', justifyContent: 'center' },
+  createBtn:         { flex: 1, backgroundColor: '#2d8a81', borderRadius: 10, paddingVertical: 12, alignItems: 'center', justifyContent: 'center' },
   btnDisabled:       { opacity: 0.5 },
   createBtnText:     { color: '#fff', fontWeight: '600', fontSize: 14 },
-  cancelCreateBtn:   { flex: 1, backgroundColor: '#f3f4f6', borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
-  cancelCreateBtnText: { color: '#374151', fontWeight: '600', fontSize: 14 },
+  cancelCreateBtn:   { flex: 1, backgroundColor: '#ebeef0', borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
+  cancelCreateBtnText: { color: '#4e5968', fontWeight: '600', fontSize: 14 },
 
   // Invite modal
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modal:   { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 28, alignItems: 'center' },
-  modalTitle: { fontSize: 20, fontWeight: '700', color: '#111827' },
-  modalSub:   { fontSize: 14, color: '#6b7280', marginTop: 6, marginBottom: 20 },
+  modalTitle: { fontSize: 20, fontWeight: '700', color: '#191f28' },
+  modalSub:   { fontSize: 14, color: '#8b95a1', marginTop: 6, marginBottom: 20 },
 
   codeRow: { flexDirection: 'row', gap: 8, marginBottom: 20 },
   codeBox: {
     width: 44, height: 52, borderRadius: 10,
-    backgroundColor: '#eff6ff', borderWidth: 2, borderColor: '#3b82f6',
+    backgroundColor: '#ebf5f3', borderWidth: 2, borderColor: '#2d8a81',
     alignItems: 'center', justifyContent: 'center',
   },
-  codeChar: { fontSize: 22, fontWeight: '800', color: '#1d4ed8', letterSpacing: 1 },
+  codeChar: { fontSize: 22, fontWeight: '800', color: '#2d8a81', letterSpacing: 1 },
 
   qrWrap:     { padding: 16, backgroundColor: '#fff', borderRadius: 12, marginBottom: 12, elevation: 2 },
   qrFallback: { fontSize: 12, color: '#9ca3af', textAlign: 'center', marginBottom: 12 },
-  expireNote: { fontSize: 13, color: '#9ca3af', marginBottom: 20 },
+  expireNote: { fontSize: 13, color: '#8b95a1', marginBottom: 20 },
 
   modalBtns: { flexDirection: 'row', gap: 12, width: '100%' },
-  shareBtn:  { flex: 1, backgroundColor: '#3b82f6', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  shareBtn:  { flex: 1, backgroundColor: '#2d8a81', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
   shareBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  closeBtn:     { flex: 1, backgroundColor: '#f3f4f6', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
-  closeBtnText: { color: '#374151', fontWeight: '600', fontSize: 15 },
+  closeBtn:     { flex: 1, backgroundColor: '#ebeef0', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  closeBtnText: { color: '#4e5968', fontWeight: '600', fontSize: 15 },
 });

@@ -210,9 +210,8 @@ export default function SettingsScreen() {
 
   async function performSeedDemo() {
     setSeedConfirmVisible(false);
-    if (!userId) return;
     try {
-      await seedDemoData(userId);
+      await seedDemoData(userId ?? 'local');
       setSimpleAlert({ title: '완료', message: '시연 데이터가 추가되었습니다.\n홈으로 이동해서 확인해 주세요.', tone: 'success' });
     } catch {
       setSimpleAlert({ title: '오류', message: '데이터 추가에 실패했습니다.', tone: 'danger' });
@@ -222,6 +221,7 @@ export default function SettingsScreen() {
   function performAdminToggle() {
     setAdminToggleConfirm(false);
     if (!accessToken || !refreshToken || !userId) return;
+    // 서버 권한은 건드리지 않고 이 기기의 관리자 UI 표시만 뒤집는다 — 재로그인하면 서버 값으로 되돌아간다
     saveSession({ accessToken, refreshToken, userId, userEmail: userEmail ?? null, userName, isAdmin: !isAdmin });
   }
 
@@ -517,14 +517,14 @@ export default function SettingsScreen() {
           </>
         )}
 
-        {/* ── 개발자 도구 (seungrokjeong@gmail.com 전용) ──────────── */}
-        {isLoggedIn && userEmail === 'seungrokjeong@gmail.com' && (
+        {/* ── 개발자 도구 (관리자 계정 · 로컬(비로그인) · 개발 빌드 전용) ────── */}
+        {(!isLoggedIn || isAdmin || __DEV__) && (
           <>
             <Text style={styles.sectionTitle}>개발자 도구</Text>
             <View style={styles.section}>
               <TouchableOpacity
                 style={styles.row}
-                onPress={() => { if (userId) setSeedConfirmVisible(true); }}
+                onPress={() => setSeedConfirmVisible(true)}
               >
                 <Text style={styles.label}>앱스토어 스크린샷 데이터 추가</Text>
                 <Text style={styles.chevron}>›</Text>
@@ -532,13 +532,38 @@ export default function SettingsScreen() {
               <View style={styles.divider} />
               <TouchableOpacity
                 style={styles.row}
-                onPress={() => { if (accessToken && refreshToken && userId) setAdminToggleConfirm(true); }}
+                onPress={() => navigation.navigate('ScanResult', {
+                  results: [
+                    { medicationName: '암마겔정', dosageValue: 500, dosageUnit: 'mg', durationDays: 3, withFood: 'after', suggestedTimes: ['09:30', '17:30'], mealSlots: [] },
+                    { medicationName: '슈기메트사방정 5/100', suggestedTimes: ['09:30', '17:30'], mealSlots: [] },
+                    { medicationName: '뉴비메트사방정 0.5/10', suggestedTimes: ['09:30'], mealSlots: [] },
+                    { medicationName: '경동아스피린장용정', suggestedTimes: ['09:30'], mealSlots: [] },
+                    { medicationName: '리피토정 10mg', suggestedTimes: ['21:00'], mealSlots: [] },
+                    { medicationName: '에니코콘캡슐 300mg', suggestedTimes: ['09:30', '17:30'], mealSlots: [] },
+                    { medicationName: '다이크로진정', suggestedTimes: ['09:30'], mealSlots: [] },
+                    { medicationName: '소론도정', suggestedTimes: ['09:30'], mealSlots: [] },
+                  ],
+                })}
               >
-                <Text style={styles.label}>
-                  {isAdmin ? '관리자 모드 해제' : '관리자 모드 활성화 (로컬)'}
-                </Text>
+                <Text style={styles.label}>스캔 결과 화면 미리보기</Text>
                 <Text style={styles.chevron}>›</Text>
               </TouchableOpacity>
+              {/* 관리자 UI 로컬 토글 — 개발 빌드에서만 노출한다.
+                  릴리스 빌드에서는 서버가 내려준 isAdmin 만이 관리자 권한의 기준이다. */}
+              {isLoggedIn && __DEV__ && (
+                <>
+                  <View style={styles.divider} />
+                  <TouchableOpacity
+                    style={styles.row}
+                    onPress={() => { if (accessToken && refreshToken && userId) setAdminToggleConfirm(true); }}
+                  >
+                    <Text style={styles.label}>
+                      {isAdmin ? '관리자 모드 해제 (로컬)' : '관리자 모드 활성화 (로컬)'}
+                    </Text>
+                    <Text style={styles.chevron}>›</Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
           </>
         )}
@@ -654,8 +679,8 @@ export default function SettingsScreen() {
         title={isAdmin ? '관리자 모드 해제' : '관리자 모드 활성화'}
         message={
           isAdmin
-            ? '관리자 권한을 로컬에서 해제합니다. (서버 설정 무관)'
-            : '관리자 UI를 로컬에서 활성화합니다.\n실제 API 호출은 서버 권한이 필요합니다.'
+            ? '이 기기에서만 관리자 UI를 숨깁니다. (서버 권한은 그대로)\n다시 로그인하면 복구됩니다.'
+            : '관리자 UI를 이 기기에서만 켭니다.\n실제 API 호출은 서버 권한이 필요합니다.'
         }
         buttons={[
           { text: '취소', style: 'cancel', onPress: () => setAdminToggleConfirm(false) },

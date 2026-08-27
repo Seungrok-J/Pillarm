@@ -4,6 +4,7 @@ import {
   StyleSheet, ActivityIndicator, TouchableOpacity, AppState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../../navigation';
@@ -26,12 +27,12 @@ interface SnapshotEvent {
   note?:        string;
 }
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: string }> = {
-  taken:     { label: '복용 완료', color: '#16a34a', bg: '#f0fdf4', icon: '✅' },
-  late:      { label: '복용 완료', color: '#16a34a', bg: '#f0fdf4', icon: '✅' },
-  missed:    { label: '복용 누락', color: '#dc2626', bg: '#fef2f2', icon: '❌' },
-  skipped:   { label: '건너뜀',   color: '#6b7280', bg: '#f9fafb', icon: '⏭️' },
-  scheduled: { label: '예정',     color: '#3b82f6', bg: '#eff6ff', icon: '💊' },
+const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+  taken:     { label: '복용 완료', color: '#42a873', bg: '#ebf7f1' },
+  late:      { label: '복용 완료', color: '#42a873', bg: '#ebf7f1' },
+  missed:    { label: '복용 누락', color: '#e84a5f', bg: '#fdebec' },
+  skipped:   { label: '건너뜀',   color: '#8b95a1', bg: '#f2f4f6' },
+  scheduled: { label: '복용 예정', color: '#eca154', bg: '#fef5ec' },
 };
 
 function fmtTime(iso: string): string {
@@ -48,6 +49,21 @@ function fmtDateTime(iso: string): string {
   return `${mm}/${dd} ${hh}:${mi}`;
 }
 
+// ── 상태 아이콘 ───────────────────────────────────────────────────────────────
+
+function StatusIcon({ status }: { status: SnapshotEvent['status'] }) {
+  if (status === 'taken' || status === 'late') {
+    return <Ionicons name="checkmark" size={20} color="#42a873" />;
+  }
+  if (status === 'missed') {
+    return <Ionicons name="alert-circle" size={20} color="#e84a5f" />;
+  }
+  if (status === 'skipped') {
+    return <Text style={styles.cardIconEmoji}>⏭️</Text>;
+  }
+  return <Text style={styles.cardIconEmoji}>💊</Text>;
+}
+
 // ── 이벤트 카드 ───────────────────────────────────────────────────────────────
 
 function EventCard({ event, allowedFields }: { event: SnapshotEvent; allowedFields: string[] }) {
@@ -57,18 +73,24 @@ function EventCard({ event, allowedFields }: { event: SnapshotEvent; allowedFiel
   const showNote = allowedFields.includes('note') && event.note;
 
   return (
-    <View testID={`event-card-${event.id}`} style={[styles.card, { backgroundColor: cfg.bg }]}>
-      <Text style={styles.cardIcon}>{cfg.icon}</Text>
-      <View style={styles.cardBody}>
-        {showName && <Text style={styles.cardMedName}>{event.medicationName}</Text>}
-        <Text style={[styles.cardStatus, { color: cfg.color }]}>{cfg.label}</Text>
-        {showTime && (
-          <Text style={styles.cardTime}>
-            예정 {fmtTime(event.plannedAt)}
-            {event.takenAt ? `  →  복용 ${fmtTime(event.takenAt)}` : ''}
-          </Text>
-        )}
-        {showNote && <Text style={styles.cardNote}>{event.note}</Text>}
+    <View testID={`event-card-${event.id}`} style={styles.card}>
+      <View style={styles.cardLeft}>
+        <View style={[styles.cardIconWrap, { backgroundColor: cfg.bg }]}>
+          <StatusIcon status={event.status} />
+        </View>
+        <View style={styles.cardTextMeta}>
+          {showName && <Text style={styles.cardMedName}>{event.medicationName}</Text>}
+          {showTime && (
+            <Text style={styles.cardTime}>
+              예정 {fmtTime(event.plannedAt)}
+              {event.takenAt ? <Text style={styles.cardTimeTaken}>{`  →  복용 ${fmtTime(event.takenAt)}`}</Text> : ''}
+            </Text>
+          )}
+          {showNote && <Text style={styles.cardNote}>{event.note}</Text>}
+        </View>
+      </View>
+      <View style={[styles.statusTag, { backgroundColor: cfg.bg }]}>
+        <Text style={[styles.statusTagText, { color: cfg.color }]}>{cfg.label}</Text>
       </View>
     </View>
   );
@@ -152,17 +174,16 @@ export default function CareMonitorScreen() {
   // 통계
   const takenCount    = events.filter((e) => e.status === 'taken' || e.status === 'late').length;
   const missedCount   = events.filter((e) => e.status === 'missed').length;
-  const skippedCount  = events.filter((e) => e.status === 'skipped').length;
   const scheduledCount = events.filter((e) => e.status === 'scheduled').length;
   const totalCount    = events.length;
-  const hasMissed     = missedCount > 0;
+  const progressPct   = totalCount > 0 ? Math.round((takenCount / totalCount) * 100) : 0;
 
   // ── 렌더 ───────────────────────────────────────────────────────────────────
 
   const today = new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' });
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
@@ -171,93 +192,110 @@ export default function CareMonitorScreen() {
         <RefreshControl
           refreshing={refreshing}
           onRefresh={handleRefresh}
-          tintColor="#3b82f6"
-          colors={['#3b82f6']}
+          tintColor="#2d8a81"
+          colors={['#2d8a81']}
         />
       }
     >
       {/* 헤더 */}
-      <View style={styles.header}>
-        <Text style={styles.headerDate}>{today}</Text>
-        <Text style={styles.headerPatient}>
-          {patientName ? `${patientName}님의 복용 현황` : '보호 대상자 복용 현황'}
-        </Text>
-        {lastSync && (
-          <Text style={styles.lastSync}>마지막 업데이트: {fmtDateTime(lastSync.toISOString())}</Text>
-        )}
-        <TouchableOpacity
-          testID="btn-refresh"
-          onPress={handleRefresh}
-          style={styles.refreshBtn}
-          accessibilityLabel="새로고침"
-          accessibilityRole="button"
-        >
-          <Text style={styles.refreshBtnText}>↻ 새로고침</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* 로딩 */}
-      {loading && <ActivityIndicator testID="loading-indicator" style={{ marginTop: 40 }} color="#3b82f6" />}
-
-      {/* 에러 */}
-      {!loading && error && (
-        <View style={styles.errorCard}>
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity onPress={() => loadSnapshot()} style={styles.retryBtn}>
-            <Text style={styles.retryBtnText}>다시 시도</Text>
+      <View style={styles.headerSection}>
+        <View style={styles.userIntro}>
+          <View>
+            <Text style={styles.eyebrow}>CARE & PROTECT</Text>
+            <Text style={styles.headerPatient}>
+              {patientName ? `${patientName}님의 복용 현황` : '보호 대상자 복용 현황'}
+            </Text>
+          </View>
+          <TouchableOpacity
+            testID="btn-refresh"
+            onPress={handleRefresh}
+            style={styles.profileTrigger}
+            accessibilityLabel="새로고침"
+            accessibilityRole="button"
+          >
+            <Ionicons name="person" size={20} color="#4e5968" />
           </TouchableOpacity>
         </View>
-      )}
 
-      {/* 통계 요약 */}
-      {!loading && !error && (
-        <View style={[styles.summaryCard, hasMissed && styles.summaryCardWarning]}>
-          {totalCount === 0 ? (
-            <Text style={styles.summaryOk}>오늘 예정된 복용이 없습니다</Text>
-          ) : (
-            <>
-              {hasMissed && (
-                <Text testID="txt-missed-warning" style={styles.missedWarning}>
-                  ⚠️ {missedCount}건 누락됨
-                </Text>
-              )}
-              <View style={styles.summaryGrid}>
-                <View style={styles.summaryItem}>
-                  <Text style={styles.summaryCount}>{takenCount}</Text>
-                  <Text style={styles.summaryLabel}>복용 완료</Text>
+        {/* 로딩 */}
+        {loading && <ActivityIndicator testID="loading-indicator" style={{ marginTop: 40 }} color="#2d8a81" />}
+
+        {/* 에러 */}
+        {!loading && error && (
+          <View style={styles.errorCard}>
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity onPress={() => loadSnapshot()} style={styles.retryBtn}>
+              <Text style={styles.retryBtnText}>다시 시도</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* 요약 카드 */}
+        {!loading && !error && (
+          <View style={styles.summaryCard}>
+            <View style={styles.cardTopRow}>
+              <Text style={styles.cardTopTitle}>오늘의 복용 진척도 🗓️</Text>
+              <Text style={styles.cardTopDate}>{today}</Text>
+            </View>
+
+            {totalCount === 0 ? (
+              <Text style={styles.summaryOk}>오늘 예정된 복용이 없습니다</Text>
+            ) : (
+              <>
+                <View style={styles.progressWrap}>
+                  <View style={styles.progressTrack}>
+                    <View style={[styles.progressFill, { width: `${progressPct}%` }]} />
+                  </View>
+                  <View style={styles.progressLabels}>
+                    <Text style={styles.progressDone}>{takenCount}건 완료</Text>
+                    <Text style={styles.progressTotal}>전체 {totalCount}건 중</Text>
+                  </View>
                 </View>
-                {skippedCount > 0 && (
-                  <View style={styles.summaryItem}>
-                    <Text style={[styles.summaryCount, { color: '#6b7280' }]}>{skippedCount}</Text>
-                    <Text style={styles.summaryLabel}>건너뜀</Text>
+
+                <View style={styles.statsRow}>
+                  <View style={[styles.statPill, { backgroundColor: '#ebf7f1' }]}>
+                    <View style={styles.statIconWrap}>
+                      <Ionicons name="checkmark" size={14} color="#42a873" />
+                    </View>
+                    <View>
+                      <Text style={[styles.statLabel, { color: '#42a873' }]}>완료</Text>
+                      <Text style={styles.statCount}>{takenCount}건</Text>
+                    </View>
                   </View>
-                )}
-                {missedCount > 0 && (
-                  <View style={styles.summaryItem}>
-                    <Text style={[styles.summaryCount, { color: '#dc2626' }]}>{missedCount}</Text>
-                    <Text style={styles.summaryLabel}>누락</Text>
+                  <View style={[styles.statPill, { backgroundColor: '#fef5ec' }]}>
+                    <View style={styles.statIconWrap}>
+                      <Ionicons name="time-outline" size={14} color="#eca154" />
+                    </View>
+                    <View>
+                      <Text style={[styles.statLabel, { color: '#eca154' }]}>예정</Text>
+                      <Text style={styles.statCount}>{scheduledCount}건</Text>
+                    </View>
                   </View>
-                )}
-                {scheduledCount > 0 && (
-                  <View style={styles.summaryItem}>
-                    <Text style={[styles.summaryCount, { color: '#3b82f6' }]}>{scheduledCount}</Text>
-                    <Text style={styles.summaryLabel}>예정</Text>
+                  <View style={[styles.statPill, { backgroundColor: '#fdebec' }]}>
+                    <View style={styles.statIconWrap}>
+                      <Ionicons name="alert-circle-outline" size={14} color="#e84a5f" />
+                    </View>
+                    <View>
+                      <Text style={[styles.statLabel, { color: '#e84a5f' }]}>누락</Text>
+                      <Text style={styles.statCount}>{missedCount}건</Text>
+                    </View>
                   </View>
-                )}
-                <View style={styles.summaryItem}>
-                  <Text style={[styles.summaryCount, { color: '#9ca3af' }]}>{totalCount}</Text>
-                  <Text style={styles.summaryLabel}>전체</Text>
                 </View>
-              </View>
-            </>
-          )}
-        </View>
-      )}
+              </>
+            )}
+          </View>
+        )}
+      </View>
 
       {/* 이벤트 목록 */}
       {!loading && !error && events.length > 0 && (
-        <View style={styles.eventList}>
-          <Text style={styles.sectionTitle}>복용 내역</Text>
+        <View style={styles.medicationListSection}>
+          <View style={styles.sectionTitleBar}>
+            <Text style={styles.sectionTitle}>오늘의 복용 내역 💊</Text>
+            {lastSync && (
+              <Text style={styles.lastSync}>마지막 업데이트: {fmtDateTime(lastSync.toISOString())}</Text>
+            )}
+          </View>
           {events
             .slice()
             .sort((a, b) => a.plannedAt.localeCompare(b.plannedAt))
@@ -281,66 +319,82 @@ export default function CareMonitorScreen() {
 
 // ── 스타일 ────────────────────────────────────────────────────────────────────
 
+const CARD_SHADOW = {
+  shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 1,
+};
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
+  safeArea:  { flex: 1, backgroundColor: '#f5f7f6' },
+  container: { flex: 1, backgroundColor: '#f5f7f6' },
   content:   { paddingBottom: 40 },
 
-  header: {
-    backgroundColor: '#3b82f6',
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 20,
+  headerSection: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16, gap: 12 },
+  userIntro: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  eyebrow: { fontSize: 13, fontWeight: '600', color: '#2d8a81', textTransform: 'uppercase' },
+  headerPatient: { fontSize: 22, fontWeight: '800', color: '#191f28', marginTop: 2 },
+  profileTrigger: {
+    width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff',
+    alignItems: 'center', justifyContent: 'center', ...CARD_SHADOW,
   },
-  headerDate:    { color: '#bfdbfe', fontSize: 13 },
-  headerPatient: { color: '#fff', fontSize: 17, fontWeight: '700', marginTop: 4 },
-  lastSync:      { color: '#bfdbfe', fontSize: 12, marginTop: 4 },
-
-  refreshBtn:     { marginTop: 10, alignSelf: 'flex-start', backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12 },
-  refreshBtnText: { color: '#fff', fontSize: 13, fontWeight: '600' },
 
   summaryCard: {
-    margin: 16,
-    backgroundColor: '#f0fdf4',
-    borderRadius: 12,
-    padding: 16,
-    borderLeftWidth: 4,
-    borderLeftColor: '#16a34a',
+    backgroundColor: '#fff', borderRadius: 20, padding: 20, gap: 16, ...CARD_SHADOW,
   },
-  summaryCardWarning: { backgroundColor: '#fef2f2', borderLeftColor: '#dc2626' },
-  summaryOk:       { fontSize: 15, color: '#16a34a', fontWeight: '600' },
-  missedWarning:   { fontSize: 15, color: '#dc2626', fontWeight: '700', marginBottom: 10 },
-  summaryGrid:     { flexDirection: 'row', gap: 16 },
-  summaryItem:     { alignItems: 'center' },
-  summaryCount:    { fontSize: 22, fontWeight: '700', color: '#16a34a' },
-  summaryLabel:    { fontSize: 11, color: '#6b7280', marginTop: 2 },
+  cardTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  cardTopTitle: { fontSize: 16, fontWeight: '700', color: '#191f28' },
+  cardTopDate:  { fontSize: 13, fontWeight: '600', color: '#8b95a1' },
+  summaryOk:    { fontSize: 15, color: '#42a873', fontWeight: '600' },
 
-  eventList:    { paddingHorizontal: 16 },
-  sectionTitle: {
-    fontSize: 13, fontWeight: '600', color: '#6b7280',
-    textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8,
+  progressWrap:  { gap: 8 },
+  progressTrack: { height: 10, borderRadius: 100, backgroundColor: '#eceff0', overflow: 'hidden' },
+  progressFill:  { height: '100%', borderRadius: 100, backgroundColor: '#2d8a81' },
+  progressLabels: { flexDirection: 'row', justifyContent: 'space-between' },
+  progressDone:  { fontSize: 13, fontWeight: '600', color: '#2d8a81' },
+  progressTotal: { fontSize: 13, fontWeight: '500', color: '#4e5968' },
+
+  statsRow: { flexDirection: 'row', gap: 12 },
+  statPill: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12,
   },
+  statIconWrap: {
+    width: 24, height: 24, borderRadius: 12, backgroundColor: '#fff',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  statLabel: { fontSize: 11, fontWeight: '600' },
+  statCount: { fontSize: 14, fontWeight: '700', color: '#191f28', marginTop: 1 },
+
+  medicationListSection: { paddingHorizontal: 20, paddingBottom: 32, gap: 12 },
+  sectionTitleBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
+  sectionTitle: { fontSize: 16, fontWeight: '700', color: '#191f28' },
+  lastSync:     { fontSize: 12, fontWeight: '600', color: '#2e8c7d' },
 
   card: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 8,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: '#fff', borderWidth: 1, borderColor: '#e8eceb', borderRadius: 16,
+    padding: 16, ...CARD_SHADOW,
   },
-  cardIcon:    { fontSize: 22, marginRight: 12, lineHeight: 28 },
-  cardBody:    { flex: 1 },
-  cardMedName: { fontSize: 15, fontWeight: '600', color: '#111827', marginBottom: 2 },
-  cardStatus:  { fontSize: 14, fontWeight: '600' },
-  cardTime:    { fontSize: 13, color: '#6b7280', marginTop: 2 },
-  cardNote:    { fontSize: 12, color: '#9ca3af', marginTop: 4, fontStyle: 'italic' },
+  cardLeft: { flexDirection: 'row', alignItems: 'center', gap: 14, flexShrink: 1 },
+  cardIconWrap: {
+    width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center',
+  },
+  cardIconEmoji: { fontSize: 20 },
+  cardTextMeta: { gap: 3, flexShrink: 1 },
+  cardMedName:  { fontSize: 16, fontWeight: '700', color: '#191f28' },
+  cardTime:     { fontSize: 12, color: '#8b95a1' },
+  cardTimeTaken: { fontWeight: '700', color: '#42a873' },
+  cardNote:     { fontSize: 12, color: '#8b95a1', marginTop: 2, fontStyle: 'italic' },
 
-  errorCard:   { margin: 16, backgroundColor: '#fef2f2', borderRadius: 12, padding: 16, alignItems: 'center' },
-  errorText:   { fontSize: 14, color: '#dc2626', textAlign: 'center' },
-  retryBtn:    { marginTop: 12, backgroundColor: '#3b82f6', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 20 },
+  statusTag: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  statusTagText: { fontSize: 12, fontWeight: '700' },
+
+  errorCard:   { marginTop: 16, backgroundColor: '#fdebec', borderRadius: 12, padding: 16, alignItems: 'center' },
+  errorText:   { fontSize: 14, color: '#e84a5f', textAlign: 'center' },
+  retryBtn:    { marginTop: 12, backgroundColor: '#2d8a81', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 20 },
   retryBtnText:{ color: '#fff', fontWeight: '600' },
 
   emptyText: {
-    textAlign: 'center', color: '#9ca3af', fontSize: 14,
+    textAlign: 'center', color: '#8b95a1', fontSize: 14,
     lineHeight: 22, marginTop: 40, paddingHorizontal: 32,
   },
 });

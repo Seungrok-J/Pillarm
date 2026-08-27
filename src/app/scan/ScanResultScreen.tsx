@@ -206,7 +206,7 @@ const dpStyles = {
     borderBottomWidth: 1, borderBottomColor: '#f3f4f6',
   },
   cancelTxt:  { fontSize: 16, color: '#6b7280' },
-  confirmTxt: { fontSize: 16, color: '#3b82f6', fontWeight: '600' as const },
+  confirmTxt: { fontSize: 16, color: '#3182f6', fontWeight: '600' as const },
 };
 
 // ── MedicationCard — 슬라이드 페이지 1장(= 약 1개) ─────────────────────────────
@@ -241,48 +241,81 @@ function MedicationCard({
   onToggleMealSlot, onRemoveMealSlot, onSetWithFood, onAddManualTime, onRemoveTime, slotTimeLabel,
 }: MedicationCardProps) {
   return (
-    <View style={width ? { width } : styles.pageFallback}>
+    <View style={width ? [styles.page, { width }] : styles.pageFallback}>
       <View style={[styles.fieldGroup, isSkipped && styles.dimmed]}>
         {!isExpanded ? (
-          <TouchableOpacity style={styles.summaryCard} onPress={() => onToggleExpanded(idx)} activeOpacity={0.7}>
+          <View style={styles.summaryCard}>
             <View style={styles.summaryTopRow}>
-              <Text style={styles.summaryName} numberOfLines={2}>
-                {item.medicationName || `약 ${idx + 1}`}
-              </Text>
-              <View style={styles.summaryEditBadge}>
-                <Ionicons name="pencil" size={12} color="#3b82f6" />
-                <Text style={styles.summaryEditText}>수정</Text>
+              <View style={styles.summaryTitleWrap}>
+                <View style={styles.summaryPillIcon}>
+                  <Ionicons name="medical-outline" size={18} color="#3182f6" />
+                </View>
+                <Text style={styles.summaryName} numberOfLines={2}>
+                  {item.medicationName || `약 ${idx + 1}`}
+                </Text>
               </View>
+              <TouchableOpacity
+                style={styles.summaryEditBadge}
+                onPress={() => onToggleExpanded(idx)}
+                accessibilityLabel="수정"
+                accessibilityRole="button"
+              >
+                <Ionicons name="pencil" size={12} color="#4e5968" />
+                <Text style={styles.summaryEditText}>수정</Text>
+              </TouchableOpacity>
             </View>
 
-            {(item.dosageValue != null || item.dosageUnit) && (
-              <Text style={styles.summaryLine}>
-                💊 {item.dosageValue ?? ''}{item.dosageUnit ?? ''}
-              </Text>
-            )}
+            <View style={styles.summaryDivider} />
 
-            <Text style={styles.summaryLine}>
-              ⏰ {item.suggestedTimes.length > 0
-                    ? item.suggestedTimes.join('  ·  ')
-                    : '복용 시간 미설정'}
-            </Text>
+            <View style={styles.summaryDetailGrid}>
+              {(item.dosageValue != null || item.dosageUnit) && (
+                <View style={styles.summaryDetailRow}>
+                  <View style={styles.summaryDetailIconWrap}>
+                    <Ionicons name="flask-outline" size={16} color="#4e5968" />
+                  </View>
+                  <Text style={styles.summaryDetailLabel}>1회 복용량 : </Text>
+                  <Text style={styles.summaryDetailValue}>{item.dosageValue ?? ''}{item.dosageUnit ?? ''}</Text>
+                </View>
+              )}
 
-            <Text style={styles.summaryLine}>
-              📅 {item.durationDays ? `${item.durationDays}일분` : '상시 복용'}
-              {item.withFood ? `  ·  ${WITH_FOOD_LABELS[item.withFood]}` : ''}
-            </Text>
+              <View style={styles.summaryDetailRow}>
+                <View style={styles.summaryDetailIconWrap}>
+                  <Ionicons name="time-outline" size={16} color="#4e5968" />
+                </View>
+                <Text style={styles.summaryDetailLabel}>복용 시간 : </Text>
+                <Text style={styles.summaryDetailValue} numberOfLines={1}>
+                  {item.suggestedTimes.length > 0
+                    ? `${item.suggestedTimes.join(' · ')} (하루 ${item.suggestedTimes.length}회)`
+                    : '미설정'}
+                </Text>
+              </View>
+
+              <View style={styles.summaryDetailRow}>
+                <View style={styles.summaryDetailIconWrap}>
+                  <Ionicons name="calendar-outline" size={16} color="#4e5968" />
+                </View>
+                <Text style={styles.summaryDetailLabel}>복용 기간 : </Text>
+                <Text style={styles.summaryDetailValue}>
+                  {item.durationDays ? `${item.durationDays}일분` : '상시 복용'}
+                  {item.withFood ? ` · ${WITH_FOOD_LABELS[item.withFood]}` : ''}
+                </Text>
+              </View>
+            </View>
 
             {item.note ? (
               <Text style={styles.summaryNote} numberOfLines={2}>{item.note}</Text>
             ) : null}
 
-            <Text style={styles.summaryHint}>AI가 인식한 정보예요. 다르면 눌러서 수정하세요.</Text>
-          </TouchableOpacity>
+            <View style={styles.aiNoticeBanner}>
+              <Ionicons name="information-circle" size={16} color="#3182f6" />
+              <Text style={styles.aiNoticeText}>AI가 스마트하게 인식한 정보예요. 다른 부분이 있다면 수정해주세요.</Text>
+            </View>
+          </View>
         ) : (
           <>
             <TouchableOpacity style={styles.collapseLink} onPress={() => onToggleExpanded(idx)}>
               <Text style={styles.collapseLinkText}>간단히 보기</Text>
-              <Ionicons name="chevron-up" size={14} color="#3b82f6" />
+              <Ionicons name="chevron-up" size={14} color="#3182f6" />
             </TouchableOpacity>
 
             {/* 약 이름 */}
@@ -431,7 +464,7 @@ function MedicationCard({
 
       {/* 건너뛰기 토글 */}
       <TouchableOpacity style={styles.skipBtn} onPress={() => onToggleSkip(idx)}>
-        <Text style={[styles.skipBtnText, isSkipped && { color: '#3b82f6' }]}>
+        <Text style={[styles.skipBtnText, isSkipped && { color: '#3182f6' }]}>
           {isSkipped ? '이 약 포함하기' : '이 약 건너뛰기'}
         </Text>
       </TouchableOpacity>
@@ -860,6 +893,12 @@ export default function ScanResultScreen() {
 
   if (items.length === 0) return null;
 
+  const activeCount = items.length - skipped.size;
+  // 실제로 포로 등록될 묶음 수 — 멤버가 2개 이상이어야 포가 된다
+  const packedCount = packs.filter(
+    (p) => p.times.length > 0 && p.memberIdxs.filter((i) => !skipped.has(i)).length >= 2,
+  ).length;
+
   const mealSlotOptions: MealSlot[] = ['morning', 'lunch', 'dinner', 'bedtime'];
 
   const mealTimeLabels = settings
@@ -974,9 +1013,13 @@ export default function ScanResultScreen() {
         {items.length >= 2 && (
           <View style={styles.packetSection}>
             <View style={styles.packetTitleRow}>
-              <Text style={styles.packetTitle}>💊 포 만들기</Text>
+              <View style={styles.packetTitleBadge}>
+                <View style={styles.packetTitleDot} />
+                <Text style={styles.packetTitle}>포 만들기</Text>
+              </View>
               <Text style={styles.packetHint}>
-                같은 시간에 함께 먹는 약끼리 포로 묶으면 홈에서 한 번에 체크돼요 · 같은 약도 시간대별로 여러 포에 나눠 넣을 수 있어요 · 다른 포에 있는 약도 탭하면 이 포로 옮겨져요
+                약국에서 &apos;아침 약&apos; 한 봉지를 받는 것처럼, 같은 시간에 먹는 약을 하나의 포로 묶어요.
+                홈과 기록에서는 안에 든 약 대신 포 이름 하나로 표시돼요.
               </Text>
             </View>
 
@@ -984,9 +1027,15 @@ export default function ScanResultScreen() {
               const candidates = candidateIdxsFor(pack);
               const memberCount = pack.memberIdxs.length;
 
+              const isPacked = memberCount >= 2;
+
               return (
-                <View key={pack.id} style={styles.subPacketCard}>
+                <View key={pack.id} style={[styles.subPacketCard, isPacked && styles.subPacketCardActive]}>
+                  {/* 포 머리 — 포 배지 + 이름. 포 하나가 한 봉지로 읽히도록 카드로 감싼다 */}
                   <View style={styles.subPacketHeader}>
+                    <View style={[styles.packChip, isPacked && styles.packChipActive]}>
+                      <Text style={[styles.packChipText, isPacked && styles.packChipTextActive]}>포</Text>
+                    </View>
                     <TextInput
                       style={styles.subPacketNameInput}
                       value={pack.name}
@@ -994,94 +1043,115 @@ export default function ScanResultScreen() {
                       placeholder="포 이름 (예: 아침저녁 포)"
                       maxLength={20}
                     />
-                    <TouchableOpacity onPress={() => deletePack(pack.id)}>
+                    <TouchableOpacity
+                      onPress={() => deletePack(pack.id)}
+                      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                    >
                       <Text style={styles.deletePackText}>삭제</Text>
                     </TouchableOpacity>
                   </View>
 
-                  <Text style={styles.packTimeLabel}>복용 시간</Text>
-                  <View style={styles.packTimeRow}>
-                    {allTimes.map((t) => {
-                      const selected = pack.times.includes(t);
-                      return (
-                        <TouchableOpacity
-                          key={t}
-                          style={[styles.timeChip, selected && styles.timeChipActive]}
-                          onPress={() => togglePackTime(pack.id, t)}
-                        >
-                          <Text style={[styles.timeChipText, selected && styles.timeChipTextActive]}>
-                            {labelForTime(t)}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
+                  <Text style={styles.packSummary}>
+                    {isPacked
+                      ? `이 포를 홈에서 한 번에 체크해요 · 약 ${memberCount}개`
+                      : '약을 2개 이상 담으면 하나의 포가 돼요'}
+                  </Text>
 
-                  {pack.times.length > 0 && candidates.length > 0 && (
-                    <View style={styles.selectAllRow}>
-                      <TouchableOpacity
-                        style={styles.selectAllBtn}
-                        onPress={() => selectAllCandidates(pack.id)}
-                        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                      >
-                        <Text style={styles.selectAllText}>전체 선택</Text>
-                      </TouchableOpacity>
-                      {memberCount > 0 && (
-                        <TouchableOpacity
-                          style={styles.selectAllBtn}
-                          onPress={() => deselectAllMembers(pack.id)}
-                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                        >
-                          <Text style={styles.selectAllText}>전체 해제</Text>
-                        </TouchableOpacity>
-                      )}
+                  <View style={styles.subPacketDivider} />
+
+                  <View>
+                    <Text style={styles.packTimeLabel}>포 복용 시간</Text>
+                    <View style={styles.packTimeRow}>
+                      {allTimes.map((t) => {
+                        const selected = pack.times.includes(t);
+                        return (
+                          <TouchableOpacity
+                            key={t}
+                            style={[styles.timeChip, selected && styles.timeChipActive]}
+                            onPress={() => togglePackTime(pack.id, t)}
+                          >
+                            <Ionicons name="time" size={14} color={selected ? '#3182f6' : '#4e5968'} />
+                            <Text style={[styles.timeChipText, selected && styles.timeChipTextActive]}>
+                              {labelForTime(t)}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
                     </View>
-                  )}
+                  </View>
 
                   {pack.times.length === 0 ? (
                     <Text style={styles.packetWarning}>시간을 먼저 선택하면 넣을 수 있는 약이 나와요</Text>
                   ) : candidates.length === 0 ? (
                     <Text style={styles.packetWarning}>선택한 시간을 모두 가진 약이 없어요</Text>
                   ) : (
-                    candidates.map((i) => {
-                      const checked    = pack.memberIdxs.includes(i);
-                      const otherPack  = !checked ? claimedByOtherPack(pack, i) : undefined;
-                      return (
-                        <TouchableOpacity
-                          key={i}
-                          style={styles.packetRow}
-                          onPress={() => {
-                            if (otherPack) {
-                              setMoveConfirm({
-                                packId: pack.id,
-                                idx: i,
-                                fromName: otherPack.name.trim() || '다른 포',
-                                toName: pack.name.trim() || '이 포',
-                                medName: items[i]?.medicationName || `약 ${i + 1}`,
-                              });
-                            } else {
-                              togglePackMember(pack.id, i);
-                            }
-                          }}
-                          activeOpacity={0.7}
-                        >
-                          <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
-                            {checked && <Text style={styles.checkmark}>✓</Text>}
-                          </View>
-                          <Text style={styles.packetItemName} numberOfLines={1}>
-                            {items[i]?.medicationName || `약 ${i + 1}`}
-                          </Text>
-                          {otherPack && (
-                            <View style={styles.packetClaimedBadge}>
-                              <Ionicons name="swap-horizontal" size={12} color="#6b7280" />
-                              <Text style={styles.packetClaimedTag} numberOfLines={1}>
-                                {otherPack.name.trim() || '다른 포'}에 있음
-                              </Text>
+                    <View>
+                      {/* 목록 머리 — Figma: 좌측 제목+개수, 우측 전체 해제 | 전체 선택 */}
+                      <View style={styles.memberHeader}>
+                        <View style={styles.memberTitleWrap}>
+                          <Text style={styles.memberTitle}>포함할 약 선택</Text>
+                          <Text style={styles.memberCount}>{memberCount}</Text>
+                        </View>
+                        <View style={styles.memberActions}>
+                          <TouchableOpacity
+                            onPress={() => deselectAllMembers(pack.id)}
+                            disabled={memberCount === 0}
+                            hitSlop={{ top: 14, bottom: 14, left: 10, right: 10 }}
+                          >
+                            <Text style={[styles.memberActionText, memberCount === 0 && styles.memberActionDisabled]}>
+                              전체 해제
+                            </Text>
+                          </TouchableOpacity>
+                          <View style={styles.memberActionDivider} />
+                          <TouchableOpacity
+                            onPress={() => selectAllCandidates(pack.id)}
+                            hitSlop={{ top: 14, bottom: 14, left: 10, right: 10 }}
+                          >
+                            <Text style={[styles.memberActionText, styles.memberActionPrimary]}>전체 선택</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+
+                      {candidates.map((i) => {
+                        const checked    = pack.memberIdxs.includes(i);
+                        const otherPack  = !checked ? claimedByOtherPack(pack, i) : undefined;
+                        return (
+                          <TouchableOpacity
+                            key={i}
+                            style={styles.packetRow}
+                            onPress={() => {
+                              if (otherPack) {
+                                setMoveConfirm({
+                                  packId: pack.id,
+                                  idx: i,
+                                  fromName: otherPack.name.trim() || '다른 포',
+                                  toName: pack.name.trim() || '이 포',
+                                  medName: items[i]?.medicationName || `약 ${i + 1}`,
+                                });
+                              } else {
+                                togglePackMember(pack.id, i);
+                              }
+                            }}
+                            activeOpacity={0.7}
+                          >
+                            <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
+                              {checked && <Ionicons name="checkmark" size={14} color="#fff" />}
                             </View>
-                          )}
-                        </TouchableOpacity>
-                      );
-                    })
+                            <Text style={styles.packetItemName} numberOfLines={1}>
+                              {items[i]?.medicationName || `약 ${i + 1}`}
+                            </Text>
+                            {otherPack && (
+                              <View style={styles.packetClaimedBadge}>
+                                <Ionicons name="swap-horizontal" size={12} color="#8b95a1" />
+                                <Text style={styles.packetClaimedTag} numberOfLines={1}>
+                                  {otherPack.name.trim() || '다른 포'}
+                                </Text>
+                              </View>
+                            )}
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
                   )}
 
                   {pack.times.length > 0 && candidates.length > 0 && memberCount < 2 && (
@@ -1094,7 +1164,8 @@ export default function ScanResultScreen() {
             })}
 
             <TouchableOpacity style={styles.addPackBtn} onPress={addPack}>
-              <Text style={styles.addPackBtnText}>＋ 새 포 만들기</Text>
+              <Ionicons name="add" size={16} color="#4e5968" />
+              <Text style={styles.addPackBtnText}>새 포 만들기</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -1103,7 +1174,9 @@ export default function ScanResultScreen() {
       {/* 하단 버튼 */}
       <View style={[styles.footer, { paddingBottom: 24 + insets.bottom }]}>
         <Text style={styles.footerHint}>
-          약 {items.length - skipped.size}개 각각 복용 일정을 등록해요 (복용 횟수와는 다른 수예요)
+          {packedCount > 0
+            ? `포 ${packedCount}개로 묶고, 약 ${activeCount}개의 복용 일정을 등록해요`
+            : `약 ${activeCount}개 각각 복용 일정을 등록해요`}
         </Text>
         <TouchableOpacity
           style={[styles.createBtn, saving && { opacity: 0.6 }]}
@@ -1111,7 +1184,7 @@ export default function ScanResultScreen() {
           disabled={saving}
         >
           <Text style={styles.createBtnText}>
-            {saving ? '저장 중...' : `약 ${items.length - skipped.size}개 일정 만들기`}
+            {saving ? '저장 중...' : `약 ${activeCount}개 일정 만들기`}
           </Text>
         </TouchableOpacity>
       </View>
@@ -1219,51 +1292,70 @@ function FieldLabel({ label }: { label: string }) {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#f9fafb' },
+  safeArea: { flex: 1, backgroundColor: '#f2f4f7' },
 
-  tabWrap:        { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  tabScroll:      { maxHeight: 52 },
-  tabContent:     { paddingHorizontal: 12, paddingVertical: 8, paddingRight: 28, gap: 8 },
+  tabWrap:        { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e5e8eb' },
+  tabScroll:      { flexGrow: 0 },
+  tabContent:     { paddingHorizontal: 20, paddingVertical: 12, paddingRight: 36, gap: 8, alignItems: 'center' },
   tabScrollHint: {
     position: 'absolute', right: 0, top: 0, bottom: 0, width: 28,
     alignItems: 'flex-end', justifyContent: 'center', paddingRight: 4,
     backgroundColor: '#fff',
   },
-  tab:            { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: '#f3f4f6', minWidth: 60 },
-  tabActive:      { backgroundColor: '#3b82f6' },
-  tabSkipped:     { backgroundColor: '#e5e7eb', opacity: 0.6 },
-  tabText:        { fontSize: 13, fontWeight: '500', color: '#6b7280' },
-  tabTextActive:  { color: '#fff', fontWeight: '600' },
+  tab: {
+    paddingHorizontal: 14, borderRadius: 100,
+    backgroundColor: '#fff', borderWidth: 1, borderColor: '#e5e8eb',
+    minWidth: 60, minHeight: 40, alignItems: 'center', justifyContent: 'center',
+  },
+  tabActive:      { backgroundColor: '#3182f6', borderColor: '#3182f6' },
+  tabSkipped:     { backgroundColor: '#f2f4f7', opacity: 0.6 },
+  tabText:        { fontSize: 13, fontWeight: '700', color: '#4e5968', lineHeight: 18 },
+  tabTextActive:  { color: '#fff' },
 
-  content:      { padding: 20, paddingBottom: 120 },
-  pageFallback: { width: '100%' },
+  // 가로 패딩은 각 페이지 안쪽에서 준다 — 페이저 폭과 패딩이 겹쳐 내용이 화면 밖으로
+  // 밀려나던 문제(안내 배너 텍스트 잘림)를 막기 위함.
+  content:      { paddingVertical: 16, paddingBottom: 120 },
+  page:         { paddingHorizontal: 16 },
+  pageFallback: { width: '100%', paddingHorizontal: 16 },
 
-  pageDots:       { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 10 },
-  pageDot:        { width: 6, height: 6, borderRadius: 3, backgroundColor: '#d1d5db' },
-  pageDotActive:  { backgroundColor: '#3b82f6', width: 16 },
+  pageDots:       { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 12, paddingVertical: 12 },
+  pageDot:        { width: 6, height: 6, borderRadius: 3, backgroundColor: '#e5e8eb' },
+  pageDotActive:  { backgroundColor: '#3182f6', width: 14 },
 
-  fieldGroup: { backgroundColor: '#fff', borderRadius: 16, padding: 16, gap: 4 },
+  fieldGroup: { backgroundColor: '#fff', borderRadius: 20, borderWidth: 1, borderColor: '#e5e8eb', padding: 20, gap: 4 },
   dimmed:     { opacity: 0.4 },
 
-  fieldLabel: { fontSize: 13, fontWeight: '600', color: '#6b7280', marginTop: 12, marginBottom: 4 },
+  fieldLabel: { fontSize: 13, fontWeight: '600', color: '#4e5968', marginTop: 12, marginBottom: 4 },
 
-  summaryCard:     { paddingVertical: 4 },
-  summaryTopRow:   { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10 },
-  summaryName:     { flex: 1, fontSize: 20, fontWeight: '700', color: '#111827', marginRight: 8 },
+  summaryCard:     { gap: 16 },
+  summaryTopRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  summaryTitleWrap:{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, marginRight: 8 },
+  summaryPillIcon: { backgroundColor: '#e8f3ff', borderWidth: 1, borderColor: '#d2e4fc', borderRadius: 10, padding: 6 },
+  summaryName:     { flex: 1, fontSize: 18, fontWeight: '700', color: '#191f28' },
   summaryEditBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 3,
-    backgroundColor: '#eff6ff', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 5,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: '#f2f4f7', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6,
   },
-  summaryEditText: { fontSize: 12, fontWeight: '600', color: '#3b82f6' },
-  summaryLine:     { fontSize: 16, color: '#374151', marginBottom: 6, lineHeight: 22 },
-  summaryNote:     { fontSize: 13, color: '#9ca3af', marginTop: 2, marginBottom: 6, lineHeight: 18 },
-  summaryHint:     { fontSize: 12, color: '#9ca3af', marginTop: 6 },
+  summaryEditText: { fontSize: 12, fontWeight: '700', color: '#4e5968' },
+  summaryDivider:  { height: 1, backgroundColor: '#f2f3f4' },
+  summaryDetailGrid: { gap: 12 },
+  summaryDetailRow:  { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  summaryDetailIconWrap: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
+  summaryDetailLabel: { fontSize: 14, color: '#4e5968' },
+  summaryDetailValue: { fontSize: 15, fontWeight: '700', color: '#191f28', flexShrink: 1 },
+  summaryNote:     { fontSize: 13, color: '#8b95a1', lineHeight: 18 },
+  aiNoticeBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    alignSelf: 'stretch', width: '100%',
+    backgroundColor: '#e8f3ff', borderWidth: 1, borderColor: '#d2e4fc', borderRadius: 10, padding: 12,
+  },
+  aiNoticeText: { flex: 1, minWidth: 0, flexShrink: 1, fontSize: 12, fontWeight: '500', color: '#3182f6', lineHeight: 17 },
 
   collapseLink: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     alignSelf: 'flex-end', paddingVertical: 6, marginBottom: 4,
   },
-  collapseLinkText: { fontSize: 13, fontWeight: '600', color: '#3b82f6' },
+  collapseLinkText: { fontSize: 13, fontWeight: '600', color: '#3182f6' },
 
   input: {
     borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10,
@@ -1278,93 +1370,114 @@ const styles = StyleSheet.create({
     borderColor: '#e5e7eb', backgroundColor: '#f9fafb',
     alignItems: 'center', justifyContent: 'center',
   },
-  unitBtnActive:     { backgroundColor: '#3b82f6', borderColor: '#3b82f6' },
+  unitBtnActive:     { backgroundColor: '#3182f6', borderColor: '#3182f6' },
   unitBtnText:       { fontSize: 16, fontWeight: '600', color: '#6b7280' },
   unitBtnTextActive: { color: '#fff' },
 
   // 식사 시간 단축 버튼 (일정추가 화면과 동일)
   mealRow:       { flexDirection: 'row', gap: 8, marginBottom: 10, marginTop: 4 },
   mealBtn:       { flex: 1, paddingVertical: 10, borderWidth: 1, borderColor: '#d1d5db', borderRadius: 10, alignItems: 'center', gap: 2, position: 'relative' },
-  mealBtnActive: { backgroundColor: '#eff6ff', borderColor: '#3b82f6' },
+  mealBtnActive: { backgroundColor: '#eff6ff', borderColor: '#3182f6' },
   mealBtnRemove: { position: 'absolute', top: -6, right: -6, backgroundColor: '#fff', borderRadius: 8 },
   mealTxt:       { fontSize: 13, fontWeight: '600', color: '#374151' },
-  mealTxtActive: { fontSize: 13, fontWeight: '600', color: '#3b82f6' },
+  mealTxtActive: { fontSize: 13, fontWeight: '600', color: '#3182f6' },
   mealTime:      { fontSize: 11, color: '#9ca3af' },
-  mealTimeActive:{ fontSize: 11, color: '#3b82f6' },
+  mealTimeActive:{ fontSize: 11, color: '#3182f6' },
   mealEditHint:  { fontSize: 9, color: '#93c5fd' },
 
   segBtn:           { flex: 1, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingVertical: 10, alignItems: 'center', marginRight: 6, backgroundColor: '#f9fafb' },
-  segBtnActive:     { backgroundColor: '#3b82f6', borderColor: '#3b82f6' },
+  segBtnActive:     { backgroundColor: '#3182f6', borderColor: '#3182f6' },
   segBtnText:       { fontSize: 14, fontWeight: '500', color: '#6b7280' },
   segBtnTextActive: { color: '#fff', fontWeight: '700' },
 
   noteText: { fontSize: 13, color: '#6b7280', lineHeight: 20, marginTop: 4 },
 
   skipBtn:     { alignSelf: 'center', marginTop: 16 },
-  skipBtnText: { fontSize: 14, color: '#ef4444', fontWeight: '500' },
+  skipBtnText: { fontSize: 14, color: '#ff5e5b', fontWeight: '700' },
 
   packetSection: {
-    marginTop: 20, backgroundColor: '#fff', borderRadius: 16,
-    padding: 16, borderWidth: 1.5, borderColor: '#e0eaff',
+    marginTop: 16, marginHorizontal: 16, backgroundColor: '#fff', borderRadius: 20,
+    padding: 20, borderWidth: 1, borderColor: '#e5e8eb', gap: 16,
   },
-  packetTitleRow: { marginBottom: 12 },
-  packetTitle:    { fontSize: 15, fontWeight: '700', color: '#111827', marginBottom: 4 },
-  packetHint:     { fontSize: 12, color: '#6b7280' },
+  packetTitleRow: { gap: 6 },
+  packetTitleBadge: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  packetTitleDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#3182f6' },
+  packetTitle:    { fontSize: 15, fontWeight: '700', color: '#191f28' },
+  packetHint:     { fontSize: 13, color: '#4e5968', lineHeight: 18 },
   packetRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#f3f4f6',
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f2f3f4',
   },
   checkbox: {
-    width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: '#d1d5db',
-    alignItems: 'center', justifyContent: 'center', backgroundColor: '#f9fafb',
+    width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: '#d1d5db',
+    alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff',
   },
-  checkboxChecked: { backgroundColor: '#3b82f6', borderColor: '#3b82f6' },
-  checkmark:       { fontSize: 13, color: '#fff', fontWeight: '800' },
-  packetItemName:  { flex: 1, fontSize: 14, fontWeight: '500', color: '#374151' },
-  packetClaimedBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, maxWidth: 130 },
-  packetClaimedTag:{ fontSize: 11, color: '#9ca3af' },
-  packetWarning:   { fontSize: 12, color: '#f59e0b', marginTop: 8, textAlign: 'center' },
+  checkboxChecked: { backgroundColor: '#3182f6', borderColor: '#3182f6' },
+  packetItemName:  { flex: 1, fontSize: 15, fontWeight: '700', color: '#191f28' },
+  packetClaimedBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, maxWidth: 120 },
+  packetClaimedTag:{ fontSize: 11, color: '#8b95a1', flexShrink: 1 },
+  packetWarning:   { fontSize: 12, color: '#eca154', textAlign: 'center' },
 
+  // 포 카드 — 각 포가 하나의 봉지로 구분되어 보이도록 테두리 있는 카드로 감싼다
   subPacketCard: {
-    marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: '#e0eaff',
+    borderWidth: 1, borderColor: '#e5e8eb', borderRadius: 16,
+    backgroundColor: '#fafbfc', padding: 16, gap: 12,
   },
-  subPacketHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+  subPacketCardActive: { borderColor: '#d2e4fc', backgroundColor: '#f7fbff' },
+  subPacketDivider: { height: 1, backgroundColor: '#e5e8eb' },
+  subPacketHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  packChip: {
+    width: 26, height: 26, borderRadius: 8,
+    alignItems: 'center', justifyContent: 'center', backgroundColor: '#8b95a1',
+  },
+  packChipActive:    { backgroundColor: '#3182f6' },
+  packChipText:      { fontSize: 12, fontWeight: '800', color: '#fff' },
+  packChipTextActive:{ color: '#fff' },
   subPacketNameInput: {
-    flex: 1, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10,
-    paddingHorizontal: 12, paddingVertical: 8, fontSize: 14, color: '#111827',
+    flex: 1, borderWidth: 1, borderColor: '#e5e8eb', borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, fontWeight: '600', color: '#191f28',
     backgroundColor: '#fff',
   },
-  deletePackText: { fontSize: 13, fontWeight: '600', color: '#ef4444', paddingHorizontal: 4 },
+  deletePackText: { fontSize: 13, fontWeight: '700', color: '#ff5e5b', paddingHorizontal: 4 },
+  packSummary:    { fontSize: 12, color: '#8b95a1' },
 
-  packTimeLabel: { fontSize: 12, fontWeight: '600', color: '#6b7280', marginBottom: 6 },
-  packTimeRow:   { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
-  selectAllRow:  { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 6, marginBottom: 2 },
-  selectAllBtn: {
-    minHeight: 44, minWidth: 44, paddingHorizontal: 14, paddingVertical: 10,
-    borderRadius: 10, borderWidth: 1, borderColor: '#bfdbfe', backgroundColor: '#eff6ff',
-    alignItems: 'center', justifyContent: 'center',
+  packTimeLabel: { fontSize: 13, fontWeight: '700', color: '#4e5968', marginBottom: 8 },
+  packTimeRow:   { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+
+  memberHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginBottom: 2,
   },
-  selectAllText: { fontSize: 14, fontWeight: '700', color: '#3b82f6' },
+  memberTitleWrap: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  memberTitle:     { fontSize: 15, fontWeight: '700', color: '#191f28' },
+  memberCount:     { fontSize: 14, fontWeight: '700', color: '#3182f6' },
+  memberActions:      { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  memberActionText:   { fontSize: 12, fontWeight: '700', color: '#4e5968' },
+  memberActionPrimary:{ color: '#3182f6' },
+  memberActionDisabled:{ color: '#c4cbd3' },
+  memberActionDivider: { width: 1, height: 12, backgroundColor: '#e5e8eb' },
   timeChip: {
-    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20,
-    borderWidth: 1, borderColor: '#d1d5db', backgroundColor: '#f9fafb',
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8,
+    borderWidth: 1, borderColor: '#e5e8eb', backgroundColor: '#fff',
   },
-  timeChipActive:     { backgroundColor: '#eff6ff', borderColor: '#3b82f6' },
-  timeChipText:       { fontSize: 13, fontWeight: '600', color: '#374151' },
-  timeChipTextActive: { color: '#3b82f6' },
+  timeChipActive:     { backgroundColor: '#e8f3ff', borderColor: '#e8f3ff' },
+  timeChipText:       { fontSize: 13, fontWeight: '700', color: '#4e5968' },
+  timeChipTextActive: { color: '#3182f6' },
 
   addPackBtn: {
-    marginTop: 14, paddingVertical: 12, borderRadius: 10,
-    borderWidth: 1, borderColor: '#3b82f6', borderStyle: 'dashed', alignItems: 'center',
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    paddingVertical: 14, borderRadius: 12,
+    borderWidth: 1, borderColor: '#e5e8eb', backgroundColor: '#f2f4f7',
   },
-  addPackBtnText: { fontSize: 14, fontWeight: '700', color: '#3b82f6' },
+  addPackBtnText: { fontSize: 15, fontWeight: '700', color: '#4e5968' },
 
   footer: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f3f4f6',
+    backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e5e8eb',
     paddingHorizontal: 20, paddingVertical: 14, paddingBottom: 24, gap: 8,
   },
-  footerHint:    { fontSize: 13, color: '#9ca3af', textAlign: 'center' },
-  createBtn:     { backgroundColor: '#3b82f6', borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
+  footerHint:    { fontSize: 12, color: '#4e5968', textAlign: 'center' },
+  createBtn:     { backgroundColor: '#3182f6', borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
   createBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });

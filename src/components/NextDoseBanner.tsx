@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import type { DoseEvent } from '../domain';
 
 interface Props {
@@ -8,7 +9,6 @@ interface Props {
 }
 
 function formatRemaining(ms: number): string {
-  if (ms <= 0) return '곧 복용 시간이에요';
   const totalMins = Math.floor(ms / 60_000);
   const hours = Math.floor(totalMins / 60);
   const mins = totalMins % 60;
@@ -18,6 +18,7 @@ function formatRemaining(ms: number): string {
 
 export default function NextDoseBanner({ events, medicationNames }: Props) {
   const [now, setNow] = useState(() => Date.now());
+  const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 60_000);
@@ -30,6 +31,11 @@ export default function NextDoseBanner({ events, medicationNames }: Props) {
     .sort((a, b) => a.plannedAt.localeCompare(b.plannedAt));
 
   const next = pending[0];
+
+  // 다음 복용 대상이 바뀌면 접힘 상태를 초기화한다
+  useEffect(() => {
+    setCollapsed(false);
+  }, [next?.id]);
 
   if (!next) {
     return (
@@ -46,33 +52,89 @@ export default function NextDoseBanner({ events, medicationNames }: Props) {
     ? `${firstName} 외 ${sameSlot.length - 1}건`
     : firstName;
 
-  const remaining = formatRemaining(new Date(next.plannedAt).getTime() - now);
+  const remainingMs = new Date(next.plannedAt).getTime() - now;
+  const isOverdue = remainingMs <= 0;
+  const label = isOverdue ? '복용 시간이 지났어요' : '다음 복용 예정';
+
+  if (collapsed) {
+    return (
+      <TouchableOpacity
+        testID="banner-collapsed"
+        style={styles.collapsedBar}
+        onPress={() => setCollapsed(false)}
+        activeOpacity={0.85}
+      >
+        <Ionicons name="notifications" size={14} color="#3182f6" />
+        <Text style={styles.collapsedText}>{label}</Text>
+        <Ionicons name="chevron-down" size={14} color="#8b95a1" />
+      </TouchableOpacity>
+    );
+  }
 
   return (
-    <View testID="banner-next-dose" style={[styles.banner, styles.nextBanner]}>
-      <Text style={styles.nextLabel}>다음 복용</Text>
-      <Text testID="banner-med-name" style={styles.nextName}>{displayName}</Text>
-      <Text testID="banner-time" style={styles.nextTime}>{timeSlot}</Text>
-      <Text testID="banner-remaining" style={styles.remaining}>({remaining})</Text>
-    </View>
+    <TouchableOpacity
+      testID="banner-next-dose"
+      style={styles.banner}
+      onPress={() => setCollapsed(true)}
+      activeOpacity={0.9}
+    >
+      <View style={styles.left}>
+        <View style={styles.bellWrap}>
+          <Ionicons name="notifications" size={18} color="#fff" />
+        </View>
+        <View style={styles.textGroup}>
+          <Text style={styles.label}>{label}</Text>
+          {isOverdue ? (
+            <Text testID="banner-message" style={styles.message}>
+              {timeSlot} <Text testID="banner-med-name">{displayName}</Text>{'\n'}지금 복용해주세요
+            </Text>
+          ) : (
+            <Text testID="banner-message" style={styles.message}>
+              {timeSlot} <Text testID="banner-med-name">{displayName}</Text>{'\n'}복용까지 <Text testID="banner-remaining">{formatRemaining(remainingMs)}</Text>
+            </Text>
+          )}
+        </View>
+      </View>
+      <Ionicons name="chevron-up" size={16} color="rgba(255,255,255,0.6)" />
+    </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   banner: {
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    borderRadius: 14,
+    padding: 16,
     marginBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'space-between',
+    backgroundColor: '#3182f6',
   },
-  doneBanner: { backgroundColor: '#f0fdf4' },
-  doneText: { fontSize: 15, fontWeight: '600', color: '#16a34a' },
-  nextBanner: { backgroundColor: '#eff6ff' },
-  nextLabel: { fontSize: 12, color: '#6b7280' },
-  nextName: { fontSize: 15, fontWeight: '600', color: '#1d4ed8', flex: 1 },
-  nextTime: { fontSize: 15, fontWeight: '600', color: '#1d4ed8' },
-  remaining: { fontSize: 13, color: '#6b7280' },
+  doneBanner: { backgroundColor: '#00b894' },
+  doneText: { fontSize: 15, fontWeight: '700', color: '#fff', textAlign: 'center', width: '100%' },
+
+  left: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+  bellWrap: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.13)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  textGroup: { gap: 2, flexShrink: 1 },
+  label:   { fontSize: 12, color: 'rgba(255,255,255,0.8)', fontWeight: '700' },
+  message: { fontSize: 14, color: '#fff', fontWeight: '700', lineHeight: 20 },
+
+  collapsedBar: {
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#e8f3ff',
+    borderWidth: 1,
+    borderColor: '#d2e4fc',
+  },
+  collapsedText: { fontSize: 13, fontWeight: '700', color: '#3182f6' },
 });

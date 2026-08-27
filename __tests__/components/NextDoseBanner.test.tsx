@@ -48,7 +48,8 @@ describe('NextDoseBanner', () => {
     // formatRemaining 의 hours===0 경로 (line 16) 를 커버
     expect(getByTestId('banner-next-dose')).toBeTruthy();
     const remaining = getByTestId('banner-remaining');
-    const text = (remaining.props.children as string[]).join('');
+    const children = remaining.props.children;
+    const text = Array.isArray(children) ? children.join('') : String(children);
     expect(text).toMatch(/분 후/);
   });
 

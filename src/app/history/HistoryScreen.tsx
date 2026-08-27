@@ -27,6 +27,7 @@ import {
   computeDisplayState,
   DOSE_DISPLAY_LABEL,
   DOSE_DISPLAY_COLOR,
+  type DoseDisplayState,
 } from '../../utils/doseDisplay';
 import type { DoseEvent } from '../../domain';
 
@@ -149,6 +150,27 @@ const ps = StyleSheet.create({
   cancelTxt:  { fontSize: 15, color: '#6b7280', fontWeight: '600' },
 });
 
+// ── 목록 아이템 ────────────────────────────────────────────────────────────────
+
+type HistoryItem =
+  | { kind: 'single'; key: string; event: DoseEvent }
+  | { kind: 'packet'; key: string; events: DoseEvent[] };
+
+/** 포에 든 이벤트들을 하나의 표시 상태로 합친다 — 개별 약이 아니라 포 단위로 읽히게 한다. */
+function packetDisplayState(
+  events: DoseEvent[],
+  nowMs: number,
+  graceMs: number,
+): DoseDisplayState {
+  if (events.every((e) => e.status === 'taken'))   return 'taken';
+  if (events.every((e) => e.status === 'skipped')) return 'skipped';
+  const allDone = events.every(
+    (e) => e.status === 'taken' || e.status === 'skipped' || e.status === 'missed',
+  );
+  if (allDone && events.some((e) => e.status === 'missed')) return 'missed';
+  return computeDisplayState(events[0], nowMs, graceMs);
+}
+
 // ── 화면 ──────────────────────────────────────────────────────────────────────
 
 export default function HistoryScreen() {
@@ -228,6 +250,31 @@ export default function HistoryScreen() {
     [monthEvents, selectedDate],
   );
 
+  // 포는 홈 화면과 동일하게 packetId+plannedAt 기준 한 줄로 묶는다 —
+  // 약국에서 "아침 약" 한 봉지를 받듯, 안에 든 개별 약은 상세에서만 확인한다.
+  const listItems = useMemo<HistoryItem[]>(() => {
+    const packetMap = new Map<string, DoseEvent[]>();
+    for (const e of selectedEvents) {
+      if (!e.packetId) continue;
+      const key = `${e.packetId}|${e.plannedAt}`;
+      if (!packetMap.has(key)) packetMap.set(key, []);
+      packetMap.get(key)!.push(e);
+    }
+    const added = new Set<string>();
+    const result: HistoryItem[] = [];
+    for (const e of selectedEvents) {
+      if (e.packetId) {
+        const key = `${e.packetId}|${e.plannedAt}`;
+        if (added.has(key)) continue;
+        added.add(key);
+        result.push({ kind: 'packet', key, events: packetMap.get(key)! });
+      } else {
+        result.push({ kind: 'single', key: e.id, event: e });
+      }
+    }
+    return result;
+  }, [selectedEvents]);
+
   const [labelY, labelM] = currentMonth.split('-');
   const monthLabel = `${labelY}년 ${Number(labelM)}월`;
 
@@ -293,10 +340,51 @@ export default function HistoryScreen() {
   ).current;
 
   // ── 이벤트 카드 렌더 ────────────────────────────────────────────────────────
-  function renderItem({ item: event }: { item: DoseEvent }) {
-    const plannedTime = fmtLocalTime(event.plannedAt);
+  function renderItem({ item }: { item: HistoryItem }) {
+    const graceMs = graceMinutes * 60_000;
+
+    if (item.kind === 'packet') {
+      const rep = item.events[0];
+      const displayState = packetDisplayState(item.events, Date.now(), graceMs);
+      const takenAt = item.events.every((e) => e.status === 'taken')
+        ? item.events.map((e) => e.takenAt).filter(Boolean).sort()[0]
+        : undefined;
+      return (
+        <TouchableOpacity
+          testID={`history-card-${item.key}`}
+          style={styles.card}
+          onPress={() => setModalEvent(rep)}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.time}>{fmtLocalTime(rep.plannedAt)}</Text>
+          <View style={styles.cardBody}>
+            <View style={styles.nameRow}>
+              <View style={styles.packetBadge}>
+                <Text style={styles.packetBadgeText}>포</Text>
+              </View>
+              <Text
+                testID={`history-name-${item.key}`}
+                style={[styles.name, styles.nameFlex]}
+                numberOfLines={1}
+              >
+                {rep.packetName || `약 ${item.events.length}개 묶음`}
+              </Text>
+            </View>
+            <Text
+              testID={`history-status-${item.key}`}
+              style={[styles.status, { color: DOSE_DISPLAY_COLOR[displayState] }]}
+            >
+              {DOSE_DISPLAY_LABEL[displayState]}
+              {takenAt ? `  복용 ${fmtLocalTime(takenAt)}` : ''}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      );
+    }
+
+    const event = item.event;
     const name = medicationNames[event.medicationId] ?? event.medicationId;
-    const displayState = computeDisplayState(event, Date.now(), graceMinutes * 60_000);
+    const displayState = computeDisplayState(event, Date.now(), graceMs);
 
     return (
       <TouchableOpacity
@@ -306,7 +394,7 @@ export default function HistoryScreen() {
         activeOpacity={0.85}
       >
         <Text testID={`history-time-${event.id}`} style={styles.time}>
-          {plannedTime}
+          {fmtLocalTime(event.plannedAt)}
         </Text>
         <View style={styles.cardBody}>
           <Text testID={`history-name-${event.id}`} style={styles.name}>{name}</Text>
@@ -377,10 +465,10 @@ export default function HistoryScreen() {
       {isLoading ? (
         <ActivityIndicator testID="loading-indicator" style={{ marginTop: 24 }} color="#3b82f6" />
       ) : (
-        <FlatList<DoseEvent>
+        <FlatList<HistoryItem>
           testID="list-history"
-          data={selectedEvents}
-          keyExtractor={(e) => e.id}
+          data={listItems}
+          keyExtractor={(i) => i.key}
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
           refreshControl={
@@ -423,12 +511,33 @@ export default function HistoryScreen() {
 
             {modalEvent && (
               <ScrollView showsVerticalScrollIndicator={false}>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>약 이름</Text>
-                  <Text testID="detail-med-name" style={styles.detailValue}>
-                    {medicationNames[modalEvent.medicationId] ?? modalEvent.medicationId}
-                  </Text>
-                </View>
+                {modalEvent.packetId ? (
+                  <>
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>포 이름</Text>
+                      <Text testID="detail-packet-name" style={styles.detailValue}>
+                        {modalEvent.packetName || '이름 없는 포'}
+                      </Text>
+                    </View>
+                    <View style={styles.detailNoteRow}>
+                      <Text style={styles.detailLabel}>포에 든 약</Text>
+                      {selectedEvents
+                        .filter((e) => e.packetId === modalEvent.packetId && e.plannedAt === modalEvent.plannedAt)
+                        .map((e) => (
+                          <Text key={e.id} style={styles.detailMember}>
+                            · {medicationNames[e.medicationId] ?? e.medicationId}
+                          </Text>
+                        ))}
+                    </View>
+                  </>
+                ) : (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>약 이름</Text>
+                    <Text testID="detail-med-name" style={styles.detailValue}>
+                      {medicationNames[modalEvent.medicationId] ?? modalEvent.medicationId}
+                    </Text>
+                  </View>
+                )}
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>예정 시간</Text>
                   <Text testID="detail-time" style={styles.detailValue}>
@@ -438,7 +547,13 @@ export default function HistoryScreen() {
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>상태</Text>
                   {(() => {
-                    const ds = computeDisplayState(modalEvent, Date.now(), graceMinutes * 60_000);
+                    const graceMs = graceMinutes * 60_000;
+                    const members = modalEvent.packetId
+                      ? selectedEvents.filter((e) => e.packetId === modalEvent.packetId && e.plannedAt === modalEvent.plannedAt)
+                      : [];
+                    const ds = members.length > 0
+                      ? packetDisplayState(members, Date.now(), graceMs)
+                      : computeDisplayState(modalEvent, Date.now(), graceMs);
                     return (
                       <Text testID="detail-status" style={[styles.detailValue, { color: DOSE_DISPLAY_COLOR[ds] }]}>
                         {DOSE_DISPLAY_LABEL[ds]}
@@ -514,6 +629,14 @@ const styles = StyleSheet.create({
   cardBody: { flex: 1, marginHorizontal: 10 },
   name:     { fontSize: 14, color: '#111827' },
   status:   { fontSize: 12, marginTop: 2 },
+
+  nameRow:     { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  nameFlex:    { flexShrink: 1 },
+  packetBadge: {
+    width: 18, height: 18, borderRadius: 5,
+    backgroundColor: '#3b82f6', alignItems: 'center', justifyContent: 'center',
+  },
+  packetBadgeText: { fontSize: 10, fontWeight: '800', color: '#fff' },
   detailOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
   detailCard:    { width: '85%', maxHeight: '80%', backgroundColor: '#fff', borderRadius: 16, padding: 20 },
   detailHeader:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
@@ -524,5 +647,6 @@ const styles = StyleSheet.create({
   detailValue:   { fontSize: 14, fontWeight: '500', color: '#111827' },
   detailNoteRow: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
   detailNote:    { fontSize: 14, color: '#374151', marginTop: 6, lineHeight: 20 },
+  detailMember:  { fontSize: 14, color: '#374151', marginTop: 6 },
   detailPhoto:   { width: '100%', height: 200, borderRadius: 10, marginTop: 14 },
 });

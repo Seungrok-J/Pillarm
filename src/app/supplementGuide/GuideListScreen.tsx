@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity,
   TextInput, StyleSheet, ScrollView,
@@ -6,13 +6,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
+import { Ionicons } from '@expo/vector-icons';
 import type { RootStackParamList } from '../../navigation';
 import {
   useSupplementGuide,
   CATEGORY_LABELS,
-  timingLabel,
 } from '../../features/supplementGuide/useSupplementGuide';
 import type { SupplementGuide, SupplementCategory } from '../../features/supplementGuide/types';
+import AlertModal from '../../components/AlertModal';
 
 type Nav = StackNavigationProp<RootStackParamList>;
 
@@ -24,8 +25,26 @@ export default function GuideListScreen() {
   const navigation = useNavigation<Nav>();
   const [category, setCategory] = useState<SupplementCategory | 'all'>('all');
   const [query, setQuery]       = useState('');
+  const [disclaimerVisible, setDisclaimerVisible] = useState(false);
 
   const items = useSupplementGuide(category, query);
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          testID="btn-guide-disclaimer"
+          onPress={() => setDisclaimerVisible(true)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          style={{ marginRight: 16 }}
+          accessibilityLabel="안내"
+          accessibilityRole="button"
+        >
+          <Ionicons name="alert-circle-outline" size={22} color="#191f28" />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation]);
 
   function renderItem({ item }: { item: SupplementGuide }) {
     return (
@@ -34,63 +53,67 @@ export default function GuideListScreen() {
         onPress={() => navigation.navigate('GuideDetail', { id: item.id })}
         accessibilityRole="button"
       >
-        <View style={styles.cardLeft}>
-          <Text style={styles.cardEmoji}>{item.emoji}</Text>
-        </View>
-        <View style={styles.cardBody}>
-          <Text style={styles.cardName}>{item.name}</Text>
-          {item.nameEn && (
-            <Text style={styles.cardNameEn}>{item.nameEn}</Text>
-          )}
-          <Text style={styles.cardSummary} numberOfLines={2}>
-            {item.summary}
-          </Text>
-          <View style={styles.cardMeta}>
-            <View style={styles.timingBadge}>
-              <Text style={styles.timingBadgeText}>
-                ⏰ {item.timing.detail}
-              </Text>
+        <View style={styles.cardHeader}>
+          <View style={styles.leftGroup}>
+            <View style={styles.cardLeft}>
+              <Text style={styles.cardEmoji}>{item.emoji}</Text>
+            </View>
+            <View style={styles.titleGroup}>
+              <Text style={styles.cardName}>{item.name}</Text>
+              {item.nameEn && (
+                <Text style={styles.cardNameEn}>{item.nameEn}</Text>
+              )}
             </View>
           </View>
+          <Ionicons name="chevron-forward" size={18} color="#8b95a1" />
         </View>
-        <Text style={styles.chevron}>›</Text>
+        <Text style={styles.cardSummary} numberOfLines={2}>
+          {item.summary}
+        </Text>
+        <View style={styles.timingTag}>
+          <Ionicons name="time-outline" size={14} color="#3182f6" />
+          <Text style={styles.timingTagText}>{item.timing.detail}</Text>
+        </View>
       </TouchableOpacity>
     );
   }
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['bottom']}>
-      {/* 검색 */}
-      <View style={styles.searchRow}>
-        <TextInput
-          style={styles.searchInput}
-          value={query}
-          onChangeText={setQuery}
-          placeholder="영양제 이름으로 검색..."
-          placeholderTextColor="#9ca3af"
-          clearButtonMode="while-editing"
-        />
-      </View>
+      <View style={styles.scrollContentTop}>
+        {/* 검색 */}
+        <View style={styles.searchContainer}>
+          <Ionicons name="search" size={18} color="#8b95a1" />
+          <TextInput
+            style={styles.searchInput}
+            value={query}
+            onChangeText={setQuery}
+            placeholder="궁금한 영양제를 검색해보세요"
+            placeholderTextColor="#8b95a1"
+            clearButtonMode="while-editing"
+          />
+        </View>
 
-      {/* 카테고리 탭 */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.tabScroll}
-        contentContainerStyle={styles.tabContent}
-      >
-        {CATEGORIES.map((cat) => (
-          <TouchableOpacity
-            key={cat}
-            style={[styles.tab, category === cat && styles.tabActive]}
-            onPress={() => setCategory(cat)}
-          >
-            <Text style={[styles.tabText, category === cat && styles.tabTextActive]}>
-              {CATEGORY_LABELS[cat]}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+        {/* 카테고리 탭 */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.tabScroll}
+          contentContainerStyle={styles.tabContent}
+        >
+          {CATEGORIES.map((cat) => (
+            <TouchableOpacity
+              key={cat}
+              style={[styles.chip, category === cat && styles.chipActive]}
+              onPress={() => setCategory(cat)}
+            >
+              <Text style={[styles.chipText, category === cat && styles.chipTextActive]}>
+                {CATEGORY_LABELS[cat]}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
 
       {/* 목록 */}
       <FlatList
@@ -103,73 +126,77 @@ export default function GuideListScreen() {
         }
         ItemSeparatorComponent={() => <View style={styles.separator} />}
       />
+
+      <AlertModal
+        visible={disclaimerVisible}
+        icon="alert-circle-outline"
+        tone="warning"
+        title="안내"
+        message="이 정보는 일반적인 참고용이며 의료 전문가의 진단이나 처방을 대체하지 않습니다. 복용 전 담당 의사·약사와 상담해 주세요."
+        buttons={[{ text: '확인', onPress: () => setDisclaimerVisible(false) }]}
+        onRequestClose={() => setDisclaimerVisible(false)}
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#f9fafb' },
+  safeArea: { flex: 1, backgroundColor: '#f2f4f7' },
 
-  searchRow: {
+  scrollContentTop: { padding: 20, paddingBottom: 4, gap: 16 },
+
+  searchContainer: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: '#fff', borderRadius: 12,
+    borderWidth: 1, borderColor: '#e5e8eb',
+    paddingHorizontal: 16, paddingVertical: 12,
+  },
+  searchInput: { flex: 1, fontSize: 14, color: '#191f28' },
+
+  tabScroll: { flexGrow: 0 },
+  tabContent: { gap: 8, alignItems: 'center' },
+  chip: {
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 8,
+    borderRadius: 100,
     backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-  },
-  searchInput: {
-    backgroundColor: '#f3f4f6',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    fontSize: 15,
-    color: '#111827',
-  },
-
-  tabScroll: { backgroundColor: '#fff' },
-  tabContent: { paddingHorizontal: 12, paddingVertical: 10, gap: 8, alignItems: 'center' },
-  tab: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    backgroundColor: '#f3f4f6',
+    borderWidth: 1,
+    borderColor: '#e5e8eb',
     justifyContent: 'center',
     alignItems: 'center',
     minHeight: 44,
   },
-  tabActive:     { backgroundColor: '#3b82f6' },
-  tabText:       { fontSize: 13, lineHeight: 20, fontWeight: '500', color: '#6b7280' },
-  tabTextActive: { color: '#fff', fontWeight: '600' },
+  chipActive:     { backgroundColor: '#3182f6', borderColor: '#3182f6' },
+  chipText:       { fontSize: 14, fontWeight: '700', color: '#4e5968' },
+  chipTextActive: { color: '#fff' },
 
-  listContent: { padding: 16, paddingBottom: 40 },
-  separator:   { height: 10 },
-  emptyText:   { textAlign: 'center', color: '#9ca3af', marginTop: 60, fontSize: 15 },
+  listContent: { paddingHorizontal: 20, paddingBottom: 40 },
+  separator:   { height: 12 },
+  emptyText:   { textAlign: 'center', color: '#8b95a1', marginTop: 60, fontSize: 15 },
 
   card: {
     backgroundColor: '#fff',
-    borderRadius: 14,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    padding: 14,
+    borderRadius: 18,
+    padding: 18,
+    gap: 12,
     shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
     elevation: 2,
   },
-  cardLeft:   { marginRight: 12, paddingTop: 2 },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  leftGroup:  { flexDirection: 'row', alignItems: 'center', gap: 12, flexShrink: 1 },
+  cardLeft:   { alignItems: 'center', justifyContent: 'center' },
   cardEmoji:  { fontSize: 28 },
-  cardBody:   { flex: 1 },
-  cardName:   { fontSize: 16, fontWeight: '700', color: '#111827' },
-  cardNameEn: { fontSize: 12, color: '#9ca3af', marginTop: 1 },
-  cardSummary:{ fontSize: 13, color: '#6b7280', marginTop: 4, lineHeight: 19 },
-  cardMeta:   { marginTop: 8 },
-  timingBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#eff6ff',
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+  titleGroup: { gap: 2 },
+  cardName:   { fontSize: 14, fontWeight: '700', color: '#191f28' },
+  cardNameEn: { fontSize: 12, color: '#8b95a1' },
+  cardSummary:{ fontSize: 12, color: '#4e5968', lineHeight: 18 },
+  timingTag: {
+    flexDirection: 'row', alignSelf: 'flex-start', alignItems: 'center', gap: 4,
+    backgroundColor: '#e8f3ff', borderRadius: 8,
+    paddingHorizontal: 10, paddingVertical: 6,
   },
-  timingBadgeText: { fontSize: 12, color: '#3b82f6', fontWeight: '500' },
-  chevron: { fontSize: 20, color: '#d1d5db', alignSelf: 'center', marginLeft: 6 },
+  timingTagText: { fontSize: 12, color: '#3182f6', fontWeight: '700' },
 });

@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
+import { Ionicons } from '@expo/vector-icons';
 import type { RootStackParamList } from '../../navigation';
 import {
   useDoseEventStore,
@@ -25,12 +26,12 @@ import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
 import { isSyncEnabled, uploadTodaySnapshot } from '../../sync/syncService';
 import { rescheduleSnooze } from '../../notifications';
-import { updateDoseEventMemo } from '../../db';
+import { updateDoseEventMemo, getAllSchedules } from '../../db';
 import { todayString } from '../../utils';
 import DoseCard from '../../components/DoseCard';
 import PacketCard from '../../components/PacketCard';
 import NextDoseBanner from '../../components/NextDoseBanner';
-import type { DoseEvent } from '../../domain';
+import type { DoseEvent, WithFood } from '../../domain';
 
 type PacketGroup = { kind: 'packet'; packetId: string; plannedAt: string; events: DoseEvent[] };
 type SingleEvent = { kind: 'single'; event: DoseEvent };
@@ -61,13 +62,22 @@ export default function HomeScreen() {
   const { medications, fetchMedications } = useMedicationStore((s) => s);
   const settings = useSettingsStore((s) => s.settings) ?? FALLBACK_SETTINGS;
   const { fetchBalance } = usePointStore();
-  const { userId } = useAuthStore();
+  const { userId, isLoggedIn } = useAuthStore();
   const theme = useThemeStore((s) => s.activeTheme);
 
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const [showStreakModal, setShowStreakModal] = useState(false);
   const [refreshing,      setRefreshing]      = useState(false);
   const [now,             setNow]             = useState(() => new Date());
+  // scheduleId → 식전/식후 여부 (오늘 일정 카드에 표시)
+  const [withFoodBySchedule, setWithFoodBySchedule] = useState<Record<string, WithFood>>({});
+
+  const loadWithFoodMap = useCallback(async () => {
+    const schedules = await getAllSchedules(userId ?? 'local');
+    const map: Record<string, WithFood> = {};
+    for (const s of schedules) map[s.id] = s.withFood;
+    setWithFoodBySchedule(map);
+  }, [userId]);
 
   // 버튼 활성/비활성 상태가 분 단위로 바뀌므로 1분마다 갱신
   useEffect(() => {
@@ -81,6 +91,7 @@ export default function HomeScreen() {
       fetchTodayEvents(todayString()),
       fetchMedications(),
       fetchBalance(),
+      loadWithFoodMap(),
     ]);
     setRefreshing(false);
   }
@@ -91,6 +102,7 @@ export default function HomeScreen() {
       fetchTodayEvents(todayString());
       fetchMedications();
       fetchBalance();
+      loadWithFoodMap();
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [userId]),
   );
@@ -101,6 +113,7 @@ export default function HomeScreen() {
       if (appStateRef.current !== 'active' && nextState === 'active') {
         await fetchTodayEvents(todayString());
         await fetchBalance();
+        await loadWithFoodMap();
         if (isSyncEnabled() && userId) {
           const events = useDoseEventStore.getState().todayEvents;
           uploadTodaySnapshot(userId, events).catch(() => {});
@@ -109,7 +122,7 @@ export default function HomeScreen() {
       appStateRef.current = nextState;
     });
     return () => sub.remove();
-  }, [userId]);
+  }, [userId, loadWithFoodMap]);
 
   // ── 파생 값 ────────────────────────────────────────────────────────────
   const medicationNames = useMemo<Record<string, string>>(
@@ -218,6 +231,15 @@ export default function HomeScreen() {
     }
   }
 
+  // ── 프로필 배지 탭 ────────────────────────────────────────────────────────
+  function handleProfilePress() {
+    if (isLoggedIn) {
+      navigation.navigate('Account');
+    } else {
+      navigation.navigate('Login');
+    }
+  }
+
   // ── 날짜 헤더 ──────────────────────────────────────────────────────────
   const today = new Date();
   const dateHeader = today.toLocaleDateString('ko-KR', {
@@ -237,52 +259,65 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
     <View style={styles.container} testID="screen-home">
-      {/* 날짜 + 포인트 헤더 */}
+      {/* 날짜 헤더 */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <Text testID="header-date" style={styles.dateText}>{dateHeader}</Text>
-          <View style={styles.headerRight}>
-            {/* 복용 일정 관리 바로가기 */}
-            <TouchableOpacity
-              testID="btn-home-schedule-manage"
-              onPress={() => navigation.navigate('ScheduleManage')}
-              style={styles.scheduleChip}
-              accessibilityLabel="복용 일정 관리"
-              accessibilityRole="button"
-            >
-              <Text style={styles.scheduleChipText}>일정 관리</Text>
-            </TouchableOpacity>
-            {/* 영양제 가이드 바로가기 */}
-            <TouchableOpacity
-              testID="btn-home-guide"
-              onPress={() => navigation.navigate('GuideList')}
-              style={[styles.scheduleChip, styles.guideChip]}
-              accessibilityLabel="영양제 복용 가이드"
-              accessibilityRole="button"
-            >
-              <Text style={styles.scheduleChipText}>영양제 가이드 📖</Text>
-            </TouchableOpacity>
+          <View style={styles.dateGroup}>
+            <Text testID="header-date" style={styles.dateText}>{dateHeader}</Text>
+            <Text testID="header-remaining" style={styles.remainingText}>
+              {pendingCount > 0 ? '오늘 복용할 약이 아직 남아있어요' : '오늘 복용을 모두 완료했어요'}
+            </Text>
           </View>
+          <TouchableOpacity
+            testID="btn-home-profile"
+            onPress={handleProfilePress}
+            style={styles.profileBadge}
+            accessibilityLabel="내 계정"
+            accessibilityRole="button"
+          >
+            <Ionicons name="person" size={16} color="#8b95a1" />
+          </TouchableOpacity>
         </View>
-        {pendingCount > 0 && (
-          <Text testID="header-remaining" style={styles.remainingText}>
-            남은 복용 {pendingCount}건
-          </Text>
-        )}
+        <View style={styles.headerRight}>
+          {/* 복용 일정 관리 바로가기 */}
+          <TouchableOpacity
+            testID="btn-home-schedule-manage"
+            onPress={() => navigation.navigate('ScheduleManage')}
+            style={styles.scheduleChip}
+            accessibilityLabel="복용 일정 관리"
+            accessibilityRole="button"
+          >
+            <Ionicons name="calendar-outline" size={16} color="#3182f6" />
+            <Text style={styles.scheduleChipText}>일정 관리</Text>
+          </TouchableOpacity>
+          {/* 복용 가이드 바로가기 */}
+          <TouchableOpacity
+            testID="btn-home-guide"
+            onPress={() => navigation.navigate('GuideList')}
+            style={[styles.scheduleChip, styles.guideChip]}
+            accessibilityLabel="영양제 복용 가이드"
+            accessibilityRole="button"
+          >
+            <Ionicons name="book-outline" size={16} color="#4e5968" />
+            <Text style={[styles.scheduleChipText, styles.guideChipText]}>영양제 가이드</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* 배너: 다음 복용 or 모두 완료 */}
-      {hasEvents ? (
-        allDone ? (
-          <View testID="banner-all-done" style={[styles.banner, styles.doneBanner]}>
-            <Text testID="txt-all-done" style={styles.doneText}>
-              오늘 복용을 모두 완료했어요! 🎉
-            </Text>
-          </View>
-        ) : (
-          <NextDoseBanner events={sortedEvents} medicationNames={medicationNames} />
-        )
-      ) : null}
+      <View style={styles.bannerWrap}>
+        {hasEvents ? (
+          allDone ? (
+            <View testID="banner-all-done" style={[styles.banner, styles.doneBanner]}>
+              <Text testID="txt-all-done" style={styles.doneText}>
+                오늘 복용을 모두 완료했어요! 🎉
+              </Text>
+            </View>
+          ) : (
+            <NextDoseBanner events={sortedEvents} medicationNames={medicationNames} />
+          )
+        ) : null}
+      </View>
 
       {/* 이벤트 리스트 */}
       {isLoading ? (
@@ -298,7 +333,10 @@ export default function HomeScreen() {
           }
           contentContainerStyle={styles.listContent}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#3b82f6" />
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#3182f6" />
+          }
+          ListHeaderComponent={
+            hasEvents ? <Text style={styles.sectionTitle}>오늘의 복용 일정</Text> : null
           }
           renderItem={({ item }) => {
             if (item.kind === 'packet') {
@@ -307,6 +345,7 @@ export default function HomeScreen() {
                   events={item.events}
                   medicationNames={medicationNames}
                   medicationColors={medicationColors}
+                  withFood={withFoodBySchedule[item.events[0]?.scheduleId]}
                   onTakePacket={handleTakePacket}
                   onSkipPacket={handleSkipPacket}
                   now={now}
@@ -319,6 +358,7 @@ export default function HomeScreen() {
                 event={item.event}
                 medicationName={medicationNames[item.event.medicationId] ?? item.event.medicationId}
                 medicationColor={medicationColors[item.event.medicationId]}
+                withFood={withFoodBySchedule[item.event.scheduleId]}
                 onTake={handleTake}
                 onSnooze={handleSnooze}
                 onSkip={handleSkip}
@@ -382,46 +422,57 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#fff' },
-  container: { flex: 1, backgroundColor: '#f9fafb' },
+  container: { flex: 1, backgroundColor: '#f2f4f7' },
   header: {
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 8,
     paddingBottom: 12,
+    gap: 12,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomColor: '#e5e8eb',
   },
   headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  dateText: { fontSize: 18, fontWeight: '700', color: '#111827' },
-  remainingText: { fontSize: 13, color: '#6b7280', marginTop: 2 },
-
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  scheduleChip: {
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    backgroundColor: '#f3f4f6',
+  dateGroup: { gap: 6 },
+  dateText: { fontSize: 22, fontWeight: '800', color: '#191f28' },
+  remainingText: { fontSize: 12, color: '#8b95a1', fontWeight: '500' },
+  profileBadge: {
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: '#f2f4f7', alignItems: 'center', justifyContent: 'center',
   },
-  scheduleChipText: { fontSize: 12, fontWeight: '500', color: '#6b7280' },
-  guideChip: { borderColor: '#bfdbfe', backgroundColor: '#eff6ff' },
 
-  banner: {
-    marginHorizontal: 16,
-    marginTop: 12,
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  scheduleChip: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: 8,
+    paddingVertical: 12,
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#d2e4fc',
+    backgroundColor: '#e8f3ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scheduleChipText: { fontSize: 14, fontWeight: '700', color: '#3182f6' },
+  guideChip: { borderColor: '#e5e8eb', backgroundColor: '#fff' },
+  guideChipText: { color: '#4e5968' },
+
+  bannerWrap: { paddingHorizontal: 20, paddingTop: 16 },
+  banner: {
+    borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  doneBanner: { backgroundColor: '#f0fdf4' },
-  doneText: { fontSize: 15, fontWeight: '600', color: '#16a34a', textAlign: 'center' },
-  listContent: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 100 },
-  emptyText: { textAlign: 'center', color: '#9ca3af', marginTop: 40 },
+  doneBanner: { backgroundColor: '#00b894' },
+  doneText: { fontSize: 15, fontWeight: '700', color: '#fff', textAlign: 'center' },
+  sectionTitle: { fontSize: 16, fontWeight: '700', color: '#191f28', marginBottom: 12 },
+  listContent: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 100 },
+  emptyText: { textAlign: 'center', color: '#8b95a1', marginTop: 40 },
   fab: {
     position: 'absolute',
     right: 20,

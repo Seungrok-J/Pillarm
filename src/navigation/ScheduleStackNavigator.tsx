@@ -80,7 +80,7 @@ export default function ScheduleStackNavigator() {
       <Stack.Screen
         name="GuideList"
         component={GuideListScreen}
-        options={{ title: '영양제 복용 가이드', headerBackTitle: '뒤로' }}
+        options={{ title: '영양제 백과', headerBackTitle: '뒤로' }}
       />
       <Stack.Screen
         name="GuideDetail"

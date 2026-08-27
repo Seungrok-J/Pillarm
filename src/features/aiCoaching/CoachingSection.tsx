@@ -20,9 +20,9 @@ const TYPE_CONFIG: Record<
   CoachingMessage['type'],
   { icon: string; color: string; bg: string }
 > = {
-  suggest_time_change: { icon: '⏰', color: '#d97706', bg: '#fffbeb' },
-  suggest_delay:       { icon: '💤', color: '#7c3aed', bg: '#f5f3ff' },
-  praise:              { icon: '🏆', color: '#16a34a', bg: '#f0fdf4' },
+  suggest_time_change: { icon: '⏰', color: '#eca154', bg: '#fef5ec' },
+  suggest_delay:       { icon: '💤', color: '#3182f6', bg: '#e8f3ff' },
+  praise:              { icon: '🏆', color: '#00b894', bg: '#e6f7f4' },
 };
 
 type Nav = StackNavigationProp<RootStackParamList>;
@@ -80,7 +80,7 @@ export default function CoachingSection() {
   if (loading) {
     return (
       <View style={styles.loadingWrap}>
-        <ActivityIndicator size="small" color="#3b82f6" />
+        <ActivityIndicator size="small" color="#3182f6" />
       </View>
     );
   }
@@ -100,37 +100,39 @@ export default function CoachingSection() {
     <View testID="coaching-section" style={styles.container}>
       {/* 섹션 헤더 */}
       <View style={styles.header}>
-        <Text style={styles.title}>AI 코칭</Text>
+        <Text style={styles.title}>AI 코칭 🤖</Text>
         {lastRefreshLabel && (
           <Text style={styles.subtitle}>마지막 업데이트: {lastRefreshLabel}</Text>
         )}
       </View>
 
       {/* 메시지 카드 리스트 */}
-      {messages.map((msg) => {
-        const cfg = TYPE_CONFIG[msg.type];
-        return (
-          <View
-            key={msg.id}
-            testID={`coaching-card-${msg.type}`}
-            style={[styles.card, { backgroundColor: cfg.bg }]}
-          >
-            <Text style={styles.cardIcon}>{cfg.icon}</Text>
-            <Text style={[styles.cardText, { color: cfg.color }]}>{msg.message}</Text>
-            {msg.scheduleId && (
-              <TouchableOpacity
-                testID={`btn-quickfix-${msg.id}`}
-                style={styles.quickFixBtn}
-                onPress={() => handleQuickFix(msg)}
-                accessibilityRole="button"
-                accessibilityLabel="바로 수정"
-              >
-                <Text style={styles.quickFixText}>바로 수정 →</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        );
-      })}
+      <View style={styles.cardList}>
+        {messages.map((msg) => {
+          const cfg = TYPE_CONFIG[msg.type];
+          return (
+            <View
+              key={msg.id}
+              testID={`coaching-card-${msg.type}`}
+              style={[styles.card, { backgroundColor: cfg.bg }]}
+            >
+              <Text style={styles.cardIcon}>{cfg.icon}</Text>
+              <Text style={[styles.cardText, { color: cfg.color }]}>{msg.message}</Text>
+              {msg.scheduleId && (
+                <TouchableOpacity
+                  testID={`btn-quickfix-${msg.id}`}
+                  style={styles.quickFixBtn}
+                  onPress={() => handleQuickFix(msg)}
+                  accessibilityRole="button"
+                  accessibilityLabel="바로 수정"
+                >
+                  <Text style={styles.quickFixText}>바로 수정 →</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          );
+        })}
+      </View>
     </View>
   );
 }
@@ -142,36 +144,36 @@ const styles = StyleSheet.create({
 
   container: {
     backgroundColor: '#fff',
-    marginTop: 12,
-    marginHorizontal: 16,
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 18,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#e5e8eb',
+    gap: 16,
   },
 
   header: {
     flexDirection: 'row',
     alignItems: 'baseline',
     justifyContent: 'space-between',
-    marginBottom: 12,
   },
-  title:    { fontSize: 14, fontWeight: '600', color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5 },
-  subtitle: { fontSize: 11, color: '#9ca3af' },
+  title:    { fontSize: 14, fontWeight: '700', color: '#191f28' },
+  subtitle: { fontSize: 12, color: '#8b95a1' },
 
+  cardList: { gap: 12 },
   card: {
-    borderRadius: 10,
+    borderRadius: 14,
     padding: 14,
-    marginBottom: 8,
     gap: 8,
   },
   cardIcon: { fontSize: 20 },
-  cardText: { fontSize: 14, fontWeight: '500', lineHeight: 20 },
+  cardText: { fontSize: 14, fontWeight: '600', lineHeight: 20 },
 
   quickFixBtn: {
     alignSelf: 'flex-end',
     paddingVertical: 6,
     paddingHorizontal: 12,
-    backgroundColor: 'rgba(59,130,246,0.1)',
+    backgroundColor: 'rgba(49,130,246,0.1)',
     borderRadius: 8,
   },
-  quickFixText: { fontSize: 13, color: '#3b82f6', fontWeight: '600' },
+  quickFixText: { fontSize: 13, color: '#3182f6', fontWeight: '700' },
 });

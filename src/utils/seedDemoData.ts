@@ -25,6 +25,8 @@ interface EventSpec {
   // index 0 = D-6, ..., 5 = D-1
   pastStatuses: PastStatus[];
   todayMorning: boolean; // 오늘 이 시간이 아침(이미 지남)이면 taken, 아니면 scheduled
+  packetId?: string;
+  packetName?: string;
 }
 
 export async function seedDemoData(userId: string): Promise<void> {
@@ -49,6 +51,9 @@ export async function seedDemoData(userId: string): Promise<void> {
     vitd:         `demo-svd-${tag}`,
     omega3:       `demo-so3-${tag}`,
   };
+  // 저녁 약(메트포르민 저녁분 + 오메가-3)을 하나의 포로 묶어 포 UI도 시연되도록 한다
+  const EVENING_PACKET_ID   = `demo-pk-evening-${tag}`;
+  const EVENING_PACKET_NAME = '저녁 약';
 
   // ── 약 목록 ────────────────────────────────────────────────────────────────
   const medications: Medication[] = [
@@ -63,11 +68,11 @@ export async function seedDemoData(userId: string): Promise<void> {
   const schedules: Schedule[] = [
     { id: SCHED.aspirin,     medicationId: MED.aspirin,   scheduleType: 'fixed', startDate, times: ['08:00'], withFood: 'after',  graceMinutes: 120, isActive: true, createdAt: now, updatedAt: now },
     { id: SCHED.metforminAm, medicationId: MED.metformin, scheduleType: 'fixed', startDate, times: ['07:30'], withFood: 'after',  graceMinutes: 60,  isActive: true, createdAt: now, updatedAt: now },
-    { id: SCHED.metforminPm, medicationId: MED.metformin, scheduleType: 'fixed', startDate, times: ['18:30'], withFood: 'after',  graceMinutes: 60,  isActive: true, createdAt: now, updatedAt: now },
+    { id: SCHED.metforminPm, medicationId: MED.metformin, scheduleType: 'fixed', startDate, times: ['18:30'], withFood: 'after',  graceMinutes: 60,  isActive: true, packetId: EVENING_PACKET_ID, packetName: EVENING_PACKET_NAME, createdAt: now, updatedAt: now },
     { id: SCHED.tylenolAm,   medicationId: MED.tylenol,   scheduleType: 'fixed', startDate, times: ['09:00'], withFood: 'none',   graceMinutes: 120, isActive: true, createdAt: now, updatedAt: now },
     { id: SCHED.tylenolPm,   medicationId: MED.tylenol,   scheduleType: 'fixed', startDate, times: ['21:00'], withFood: 'none',   graceMinutes: 120, isActive: true, createdAt: now, updatedAt: now },
     { id: SCHED.vitd,        medicationId: MED.vitd,      scheduleType: 'fixed', startDate, times: ['12:00'], withFood: 'none',   graceMinutes: 180, isActive: true, createdAt: now, updatedAt: now },
-    { id: SCHED.omega3,      medicationId: MED.omega3,    scheduleType: 'fixed', startDate, times: ['18:30'], withFood: 'after',  graceMinutes: 120, isActive: true, createdAt: now, updatedAt: now },
+    { id: SCHED.omega3,      medicationId: MED.omega3,    scheduleType: 'fixed', startDate, times: ['18:30'], withFood: 'after',  graceMinutes: 120, isActive: true, packetId: EVENING_PACKET_ID, packetName: EVENING_PACKET_NAME, createdAt: now, updatedAt: now },
   ];
 
   // ── 이벤트 스펙 ────────────────────────────────────────────────────────────
@@ -75,11 +80,11 @@ export async function seedDemoData(userId: string): Promise<void> {
   const specs: EventSpec[] = [
     { schedId: SCHED.aspirin,     medId: MED.aspirin,   time: '08:00', pastStatuses: ['taken','taken','taken','missed','taken','taken'], todayMorning: true  },
     { schedId: SCHED.metforminAm, medId: MED.metformin, time: '07:30', pastStatuses: ['taken','taken','missed','taken','taken','taken'], todayMorning: true  },
-    { schedId: SCHED.metforminPm, medId: MED.metformin, time: '18:30', pastStatuses: ['taken','taken','taken','taken','skipped','taken'], todayMorning: false },
+    { schedId: SCHED.metforminPm, medId: MED.metformin, time: '18:30', pastStatuses: ['taken','taken','taken','taken','skipped','taken'], todayMorning: false, packetId: EVENING_PACKET_ID, packetName: EVENING_PACKET_NAME },
     { schedId: SCHED.tylenolAm,   medId: MED.tylenol,   time: '09:00', pastStatuses: ['taken','missed','taken','taken','taken','taken'], todayMorning: true  },
     { schedId: SCHED.tylenolPm,   medId: MED.tylenol,   time: '21:00', pastStatuses: ['taken','taken','taken','skipped','taken','taken'], todayMorning: false },
     { schedId: SCHED.vitd,        medId: MED.vitd,      time: '12:00', pastStatuses: ['taken','missed','taken','taken','taken','taken'], todayMorning: true  },
-    { schedId: SCHED.omega3,      medId: MED.omega3,    time: '18:30', pastStatuses: ['taken','taken','taken','taken','taken','skipped'], todayMorning: false },
+    { schedId: SCHED.omega3,      medId: MED.omega3,    time: '18:30', pastStatuses: ['taken','taken','taken','taken','taken','skipped'], todayMorning: false, packetId: EVENING_PACKET_ID, packetName: EVENING_PACKET_NAME },
   ];
 
   // ── DB 삽입 ────────────────────────────────────────────────────────────────
@@ -108,6 +113,8 @@ export async function seedDemoData(userId: string): Promise<void> {
           takenAt,
           snoozeCount: 0,
           source:      'manual',
+          packetId:    spec.packetId,
+          packetName:  spec.packetName,
           createdAt:   now,
           updatedAt:   now,
         },
@@ -131,6 +138,8 @@ export async function seedDemoData(userId: string): Promise<void> {
         takenAt,
         snoozeCount:  0,
         source:       'manual',
+        packetId:     spec.packetId,
+        packetName:   spec.packetName,
         createdAt:    now,
         updatedAt:    now,
       },

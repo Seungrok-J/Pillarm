@@ -6,6 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import type { RootStackParamList } from '../../navigation';
 import { useSupplementById, timingLabel } from '../../features/supplementGuide/useSupplementGuide';
 import AlertModal from '../../components/AlertModal';
@@ -74,8 +75,8 @@ export default function GuideDetailScreen() {
             <View style={[styles.listBox, styles.avoidBox]}>
               {item.avoidWith.map((t, i) => (
                 <View key={i} style={styles.listRow}>
-                  <Text style={[styles.bullet, { color: '#ef4444' }]}>·</Text>
-                  <Text style={[styles.listText, { color: '#7f1d1d' }]}>{t}</Text>
+                  <Text style={[styles.bullet, { color: '#ff7675' }]}>·</Text>
+                  <Text style={[styles.listText, { color: '#4e5968' }]}>{t}</Text>
                 </View>
               ))}
             </View>
@@ -102,7 +103,7 @@ export default function GuideDetailScreen() {
                 <Text style={styles.sourceName}>{s.name}</Text>
                 {s.note && <Text style={styles.sourceNote}>{s.note}</Text>}
               </View>
-              <Text style={styles.sourceLink}>↗</Text>
+              <Ionicons name="open-outline" size={16} color="#8b95a1" />
             </TouchableOpacity>
           ))}
         </View>
@@ -137,26 +138,26 @@ function SectionTitle({ title }: { title: string }) {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#f9fafb' },
+  safeArea: { flex: 1, backgroundColor: '#f2f4f7' },
   center:   { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  errorText:{ fontSize: 15, color: '#9ca3af' },
+  errorText:{ fontSize: 15, color: '#8b95a1' },
   content:  { padding: 20 },
 
   header: { alignItems: 'center', paddingVertical: 20 },
   emoji:  { fontSize: 52, marginBottom: 10 },
-  name:   { fontSize: 24, fontWeight: '800', color: '#111827', textAlign: 'center' },
-  nameEn: { fontSize: 14, color: '#9ca3af', marginTop: 4 },
+  name:   { fontSize: 22, fontWeight: '800', color: '#191f28', textAlign: 'center' },
+  nameEn: { fontSize: 14, color: '#8b95a1', marginTop: 4 },
 
   summaryBox: {
-    backgroundColor: '#eff6ff',
+    backgroundColor: '#e8f3ff',
     borderRadius: 14,
     padding: 14,
     marginBottom: 8,
   },
-  summaryText: { fontSize: 14, color: '#1e40af', lineHeight: 22, fontWeight: '500' },
+  summaryText: { fontSize: 14, color: '#3182f6', lineHeight: 22, fontWeight: '600' },
 
   sectionTitle: {
-    fontSize: 15, fontWeight: '700', color: '#374151',
+    fontSize: 14, fontWeight: '700', color: '#191f28',
     marginTop: 20, marginBottom: 10,
   },
 
@@ -167,49 +168,48 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
+    borderWidth: 1, borderColor: '#e5e8eb',
   },
-  timingMain: { fontSize: 17, fontWeight: '700', color: '#111827', flex: 1 },
+  timingMain: { fontSize: 16, fontWeight: '700', color: '#191f28', flex: 1 },
   timingType: {
-    fontSize: 12, color: '#3b82f6', fontWeight: '600',
-    backgroundColor: '#eff6ff', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4,
+    fontSize: 12, color: '#3182f6', fontWeight: '700',
+    backgroundColor: '#e8f3ff', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4,
   },
 
   listBox: {
     backgroundColor: '#fff',
     borderRadius: 14,
     padding: 14,
-    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
+    borderWidth: 1, borderColor: '#e5e8eb',
     gap: 8,
   },
-  avoidBox: { backgroundColor: '#fff5f5' },
+  avoidBox: { backgroundColor: '#ffebeb', borderColor: '#ffd2d2' },
   listRow:  { flexDirection: 'row', alignItems: 'flex-start' },
-  bullet:   { fontSize: 16, color: '#16a34a', marginRight: 6, lineHeight: 22 },
-  listText: { fontSize: 14, color: '#374151', lineHeight: 22, flex: 1 },
+  bullet:   { fontSize: 16, color: '#00b894', marginRight: 6, lineHeight: 22 },
+  listText: { fontSize: 14, color: '#4e5968', lineHeight: 22, flex: 1 },
 
   detailsBox: {
     backgroundColor: '#fff',
     borderRadius: 14,
     padding: 16,
-    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
+    borderWidth: 1, borderColor: '#e5e8eb',
   },
-  detailsText: { fontSize: 14, color: '#374151', lineHeight: 24 },
+  detailsText: { fontSize: 14, color: '#4e5968', lineHeight: 24 },
 
   sourcesBox: {
     backgroundColor: '#fff',
     borderRadius: 14,
     overflow: 'hidden',
-    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
+    borderWidth: 1, borderColor: '#e5e8eb',
   },
   sourceRow: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 16, paddingVertical: 14,
-    borderBottomWidth: 1, borderBottomColor: '#f3f4f6',
+    borderBottomWidth: 1, borderBottomColor: '#f2f3f4',
   },
   sourceTextBlock: { flex: 1 },
-  sourceName:      { fontSize: 14, fontWeight: '600', color: '#3b82f6' },
-  sourceNote:      { fontSize: 12, color: '#9ca3af', marginTop: 2 },
-  sourceLink:      { fontSize: 18, color: '#9ca3af' },
+  sourceName:      { fontSize: 14, fontWeight: '700', color: '#3182f6' },
+  sourceNote:      { fontSize: 12, color: '#8b95a1', marginTop: 2 },
 
   disclaimer: {
     backgroundColor: '#fffbeb',

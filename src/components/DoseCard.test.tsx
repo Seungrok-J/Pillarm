@@ -28,7 +28,7 @@ describe('DoseCard', () => {
       <DoseCard event={mockEvent} medicationName="혈압약" onTake={jest.fn()} />,
     );
     expect(getByText('혈압약')).toBeTruthy();
-    expect(getByText('복용')).toBeTruthy();
+    expect(getByText('복용 완료')).toBeTruthy();
   });
 
   it('calls onTake when button pressed for scheduled event', () => {
@@ -36,17 +36,17 @@ describe('DoseCard', () => {
     const { getByText } = render(
       <DoseCard event={mockEvent} medicationName="혈압약" onTake={onTake} />,
     );
-    fireEvent.press(getByText('복용'));
+    fireEvent.press(getByText('복용 완료'));
     expect(onTake).toHaveBeenCalledWith('evt-1');
   });
 
   it('does not call onTake for taken event', () => {
     const onTake = jest.fn();
     const takenEvent = { ...mockEvent, status: 'taken' as const };
-    const { getByText } = render(
+    const { getByTestId } = render(
       <DoseCard event={takenEvent} medicationName="혈압약" onTake={onTake} />,
     );
-    fireEvent.press(getByText('완료 ✓'));
+    fireEvent.press(getByTestId('btn-take-evt-1'));
     expect(onTake).not.toHaveBeenCalled();
   });
 });

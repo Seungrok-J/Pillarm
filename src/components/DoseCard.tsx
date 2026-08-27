@@ -16,7 +16,8 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { DoseEvent } from '../domain';
+import { Ionicons } from '@expo/vector-icons';
+import type { DoseEvent, WithFood } from '../domain';
 import { useThemeStore } from '../store/themeStore';
 import {
   DOSE_EARLY_WINDOW_MS,
@@ -31,13 +32,13 @@ const SWIPE_THRESHOLD = 72;
 /** 로컬 alias — 공유 유틸에서 import */
 type DisplayState = DoseDisplayState;
 
-const CARD_BG: Record<DisplayState, string> = {
-  waiting:  '#ffffff',
-  active:   '#ffffff',
-  late:     '#ffffff',
-  missed:   '#fef2f2',
-  taken:    '#f0fdf4',
-  skipped:  '#f3f4f6',
+const STATE_META: Record<DisplayState, { label: string; labelColor: string; timeColor: string; dotColor: string }> = {
+  waiting: { label: '복용 예정', labelColor: '#8b95a1', timeColor: '#8b95a1', dotColor: '#8b95a1' },
+  active:  { label: '복용 가능', labelColor: '#3182f6', timeColor: '#191f28', dotColor: '#3182f6' },
+  late:    { label: '복용 지연', labelColor: '#ff7675', timeColor: '#191f28', dotColor: '#ff7675' },
+  taken:   { label: '복용 완료', labelColor: '#00b894', timeColor: '#8b95a1', dotColor: '#00b894' },
+  missed:  { label: '복용 누락', labelColor: '#ff7675', timeColor: '#8b95a1', dotColor: '#ff7675' },
+  skipped: { label: '건너뜀',    labelColor: '#8b95a1', timeColor: '#8b95a1', dotColor: '#8b95a1' },
 };
 
 function fmtHHMM(ms: number): string {
@@ -60,6 +61,8 @@ export interface DoseCardProps {
   event: DoseEvent;
   medicationName: string;
   medicationColor?: string;
+  /** 이 일정의 식전/식후 여부 — 'none'이거나 없으면 표시하지 않는다. */
+  withFood?: WithFood;
   onTake: (id: string) => void;
   onSnooze?: (id: string) => void;
   onSkip?: (id: string) => void;
@@ -80,6 +83,7 @@ export default function DoseCard({
   event,
   medicationName,
   medicationColor,
+  withFood,
   onTake,
   onSnooze,
   onSkip,
@@ -191,105 +195,121 @@ export default function DoseCard({
     }
   }
 
-  return (
-    <View style={{ position: 'relative', marginBottom: 8 }}>
-      {/* 스와이프 뒤에 보이는 미루기 힌트 */}
-      {isSnoozeable && (
-        <View style={[styles.swipeHint, { backgroundColor: theme.primary }]}>
-          <Text style={{ color: '#fff', fontSize: 13 }}>미루기 →</Text>
-        </View>
-      )}
+  const meta = STATE_META[displayState];
+  const highlighted = isTakeable;
 
-      <Animated.View
-        style={[
-          styles.card,
-          { backgroundColor: CARD_BG[displayState], transform: [{ translateX }] },
-        ]}
-        {...panResponder.panHandlers}
-        accessibilityLabel={`${medicationName} ${time}`}
-        testID={`card-${event.id}`}
-      >
+  return (
+    <View style={[styles.row, displayState === 'waiting' && styles.dimmed]}>
+      {/* 왼쪽 시간 컬럼 */}
+      <View style={styles.leftTime}>
+        <Text testID={`card-time-${event.id}`} style={[styles.time, { color: meta.timeColor }]} numberOfLines={1}>{time}</Text>
+        <Text style={styles.stateLabel} numberOfLines={1}>
+          <Text style={{ color: meta.labelColor }}>{meta.label}</Text>
+        </Text>
+      </View>
+
+      <View style={styles.cardWrap}>
+        {/* 스와이프 뒤에 보이는 미루기 힌트 */}
+        {isSnoozeable && (
+          <View style={[styles.swipeHint, { backgroundColor: theme.primary }]}>
+            <Text style={{ color: '#fff', fontSize: 13 }}>미루기 →</Text>
+          </View>
+        )}
+
+        <Animated.View
+          style={[
+            styles.card,
+            highlighted ? styles.cardHighlighted : styles.cardPlain,
+            { transform: [{ translateX }] },
+          ]}
+          {...panResponder.panHandlers}
+          accessibilityLabel={`${medicationName} ${time}`}
+          testID={`card-${event.id}`}
+        >
         {/* 약 색상 바 */}
         {medicationColor && (
           <View style={[styles.colorBar, { backgroundColor: medicationColor }]} />
         )}
 
-        {/* 상단: 시간 + 약 이름 + 힌트 */}
-        <View style={styles.topRow}>
-          <Text testID={`card-time-${event.id}`} style={styles.time} numberOfLines={1}>{time}</Text>
-          <View style={styles.nameCol}>
-            <Text testID={`card-name-${event.id}`} style={styles.name} numberOfLines={1}>
-              {medicationName}
-            </Text>
-            {displayState === 'waiting' && (
-              <Text style={styles.hintGray}>{start}부터 복용 가능</Text>
-            )}
-            {(displayState === 'active' || displayState === 'late') && (
-              <Text style={styles.hintGray}>{end}까지 복용 가능</Text>
-            )}
+        <View style={styles.infoRow}>
+          <View style={styles.info}>
+            <View style={[styles.statusDot, { backgroundColor: meta.dotColor }]} />
+            <View style={styles.nameCol}>
+              <View style={styles.nameRow}>
+                <Text testID={`card-name-${event.id}`} style={styles.name} numberOfLines={1}>
+                  {medicationName}
+                </Text>
+                {withFood && withFood !== 'none' && (
+                  <Text style={styles.foodTag}>({withFood === 'before' ? '식전' : '식후'})</Text>
+                )}
+              </View>
+              {displayState === 'waiting' && (
+                <Text style={styles.hintGray}>{start}부터 복용 가능</Text>
+              )}
+              {displayState === 'active' && (
+                <Text style={styles.hintGray}>{end}까지 복용 가능</Text>
+              )}
+              {displayState === 'late' && (
+                <Text style={[styles.hintGray, { color: '#ff7675' }]}>예정 시각이 지났어요 · {end}까지 복용 가능</Text>
+              )}
+              {displayState === 'missed' && (
+                <Text style={styles.hintGray}>복용 시간이 지났어요</Text>
+              )}
+            </View>
           </View>
+
+          {/* 완료 — 체크 아이콘 (탭해도 동작 없음) */}
+          {(displayState === 'taken' || displayState === 'skipped') && (
+            <View testID={`btn-take-${event.id}`}>
+              <Ionicons
+                name={displayState === 'taken' ? 'checkmark-circle' : 'arrow-redo-circle-outline'}
+                size={20}
+                color={meta.dotColor}
+              />
+            </View>
+          )}
         </View>
 
-        {/* 하단: 액션 버튼 */}
-        <View style={styles.actionRow}>
-          {isSkippable && (
-            <TouchableOpacity
-              testID={`btn-skip-${event.id}`}
-              onPress={() => onSkip!(event.id)}
-              accessibilityLabel="건너뜀"
-              style={styles.skipActionBtn}
-            >
-              <Text style={styles.skipActionTxt}>건너뜀</Text>
-            </TouchableOpacity>
-          )}
-          {isSnoozeable && (
-            <TouchableOpacity
-              testID={`btn-snooze-${event.id}`}
-              onPress={() => onSnooze!(event.id)}
-              accessibilityLabel={`미루기 ${event.snoozeCount}/3`}
-              style={[styles.snoozeBtn, { borderColor: snoozeStyle(event.snoozeCount).borderColor }]}
-            >
-              <Text style={[styles.snoozeTxt, { color: snoozeStyle(event.snoozeCount).color }]}>
-                미루기 ({event.snoozeCount}/3)
-              </Text>
-            </TouchableOpacity>
-          )}
-
-          {isTakeable && (
+        {/* 하단: 액션 버튼 (건너뜀 / 미루기 / 복용 완료) */}
+        {isTakeable && (
+          <View style={styles.actionRow}>
+            {isSkippable && (
+              <TouchableOpacity
+                testID={`btn-skip-${event.id}`}
+                onPress={() => onSkip!(event.id)}
+                accessibilityLabel="건너뜀"
+                style={styles.skipActionBtn}
+              >
+                <Text style={styles.skipActionTxt}>건너뜀</Text>
+              </TouchableOpacity>
+            )}
+            {isSnoozeable && (
+              <TouchableOpacity
+                testID={`btn-snooze-${event.id}`}
+                onPress={() => onSnooze!(event.id)}
+                accessibilityLabel={`미루기 ${event.snoozeCount}/3`}
+                style={[styles.snoozeBtn, { borderColor: snoozeStyle(event.snoozeCount).borderColor }]}
+              >
+                <Text style={[styles.snoozeTxt, { color: snoozeStyle(event.snoozeCount).color }]}>
+                  미루기 ({event.snoozeCount}/3)
+                </Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
               testID={`btn-take-${event.id}`}
               onPress={handleTakePress}
               accessibilityRole="button"
               accessibilityLabel={`${medicationName} 복용`}
-              style={[styles.actionBtn, { backgroundColor: theme.primary }]}
+              style={styles.actionBtn}
             >
-              <Text style={[styles.actionTxt, { color: '#ffffff' }]}>복용</Text>
+              <Text style={styles.actionTxt}>복용 완료</Text>
             </TouchableOpacity>
-          )}
+          </View>
+        )}
 
-          {/* 완료 / 건너뜀 — 처리된 상태 표시 (비활성) */}
-          {(displayState === 'taken' || displayState === 'skipped') && (
-            <View
-              testID={`btn-take-${event.id}`}
-              style={[styles.actionBtn, { backgroundColor: '#e5e7eb' }]}
-            >
-              <Text style={[styles.actionTxt, { color: '#6b7280' }]}>
-                {displayState === 'taken' ? '완료 ✓' : '건너뜀'}
-              </Text>
-            </View>
-          )}
-
-          {/* 누락 — 창 지남 (버튼 없음, 텍스트만) */}
-          {displayState === 'missed' && (
-            <Text testID={`btn-take-${event.id}`} style={styles.missedText}>누락</Text>
-          )}
-
-          {/* 예정 — 아직 창 열리기 전 (버튼 없음, 텍스트만) */}
-          {displayState === 'waiting' && (
-            <Text style={styles.waitingText}>예정</Text>
-          )}
-        </View>
+        {/* 누락 — 별도 버튼 없이 왼쪽 라벨로 상태 표시 */}
       </Animated.View>
+      </View>
 
       {/* 메모/사진 바텀시트 */}
       {onAfterTake && (
@@ -408,28 +428,51 @@ export default function DoseCard({
 }
 
 const styles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    marginBottom: 12,
+  },
+  dimmed: { opacity: 0.7 },
+
+  leftTime: { width: 46, paddingTop: 12 },
+  time:        { fontSize: 14, fontWeight: '700' },
+  stateLabel:  { fontSize: 10, fontWeight: '600', marginTop: 2 },
+
+  cardWrap: { flex: 1, position: 'relative' },
+
   card: {
     paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    paddingVertical: 16,
+    borderRadius: 14,
+    backgroundColor: '#fff',
   },
-  topRow: {
+  cardPlain: {
+    borderWidth: 1,
+    borderColor: '#e5e8eb',
+  },
+  cardHighlighted: {
+    borderWidth: 1.5,
+    borderColor: '#d2e4fc',
+    shadowColor: '#000',
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
+  info: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  statusDot: { width: 10, height: 10, borderRadius: 5, marginRight: 12 },
   actionRow: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
     alignItems: 'center',
     gap: 8,
-    marginTop: 8,
+    marginTop: 14,
   },
   swipeHint: {
     position: 'absolute',
@@ -438,8 +481,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: 'center',
     paddingHorizontal: 12,
-    backgroundColor: '#3b82f6',
-    borderRadius: 12,
+    backgroundColor: '#3182f6',
+    borderRadius: 14,
   },
   colorBar: {
     position: 'absolute',
@@ -447,23 +490,24 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     width: 4,
-    borderTopLeftRadius: 12,
-    borderBottomLeftRadius: 12,
+    borderTopLeftRadius: 14,
+    borderBottomLeftRadius: 14,
   },
-  time:    { fontSize: 16, fontWeight: '600', color: '#374151', minWidth: 48, flexShrink: 0 },
-  nameCol: { flex: 1, marginLeft: 10, justifyContent: 'center' },
-  name:    { fontSize: 16, color: '#111827' },
-  hintGray: { fontSize: 11, color: '#9ca3af', marginTop: 2 },
+  nameCol: { flex: 1, justifyContent: 'center' },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 1 },
+  name:    { fontSize: 14, fontWeight: '700', color: '#191f28', flexShrink: 1 },
+  foodTag: { fontSize: 12, fontWeight: '600', color: '#8b95a1' },
+  hintGray: { fontSize: 12, color: '#8b95a1', marginTop: 2 },
   skipActionBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    flex: 1,
+    paddingVertical: 10,
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
+    backgroundColor: '#f2f3f4',
     minHeight: 44,
+    alignItems: 'center',
     justifyContent: 'center',
   },
-  skipActionTxt: { fontSize: 14, color: '#9ca3af' },
+  skipActionTxt: { fontSize: 12, fontWeight: '700', color: '#4e5968' },
   snoozeBtn: {
     paddingVertical: 8,
     paddingHorizontal: 12,
@@ -475,17 +519,15 @@ const styles = StyleSheet.create({
   },
   snoozeTxt: { fontSize: 14, color: '#6b7280' },
   actionBtn: {
+    flex: 1,
     paddingVertical: 10,
-    paddingHorizontal: 14,
     borderRadius: 8,
-    minWidth: 76,
+    backgroundColor: '#3182f6',
     minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  actionTxt:   { fontSize: 14, fontWeight: '600' },
-  missedText:  { fontSize: 14, fontWeight: '500', color: '#ef4444', paddingHorizontal: 4, paddingVertical: 10 },
-  waitingText: { fontSize: 14, fontWeight: '500', color: '#9ca3af', paddingHorizontal: 4, paddingVertical: 10 },
+  actionTxt: { fontSize: 12, fontWeight: '700', color: '#fff' },
 
   // ── 바텀시트 ─────────────────────────────────────────────────────────────
   backdrop: {

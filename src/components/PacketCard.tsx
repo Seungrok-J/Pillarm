@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import type { DoseEvent } from '../domain';
+import { Ionicons } from '@expo/vector-icons';
+import type { DoseEvent, WithFood } from '../domain';
 import { useThemeStore } from '../store/themeStore';
 import {
   DOSE_EARLY_WINDOW_MS,
@@ -26,6 +27,8 @@ interface PacketCardProps {
   events: DoseEvent[];
   medicationNames: Record<string, string>;
   medicationColors?: Record<string, string | undefined>;
+  /** 이 포의 식전/식후 여부 — 'none'이거나 없으면 표시하지 않는다. */
+  withFood?: WithFood;
   onTakePacket: (ids: string[]) => void;
   onSkipPacket: (ids: string[]) => void;
   /** 현재 시각 — HomeScreen 에서 1분마다 갱신해 전달. 없으면 렌더 시점 기준. */
@@ -38,6 +41,7 @@ export default function PacketCard({
   events,
   medicationNames,
   medicationColors = {},
+  withFood,
   onTakePacket,
   onSkipPacket,
   now,
@@ -54,6 +58,7 @@ export default function PacketCard({
   const allDone    = events.every(
     (e) => e.status === 'taken' || e.status === 'skipped' || e.status === 'missed',
   );
+  const anyMissed  = events.some((e) => e.status === 'missed');
 
   const pendingIds = events
     .filter((e) => e.status === 'scheduled' || e.status === 'late')
@@ -73,218 +78,178 @@ export default function PacketCard({
     ? windowHint(representative.plannedAt, graceMinutes)
     : { start: '', end: '' };
 
-  function statusColor(): string {
-    if (allTaken)  return '#10b981';
-    if (allDone)   return '#9ca3af';
-    return hasLate ? '#f59e0b' : theme.primary;
-  }
-
-  const cardBg = allTaken ? '#f0fdf4' : '#ffffff';
-
-  // 가장 많이 쓰인 색상을 색상 바에 사용 (없으면 파란색)
+  // 가장 많이 쓰인 색상을 색상 바에 사용 (없으면 테마 기본색)
   const primaryColor = events
     .map((e) => medicationColors[e.medicationId])
     .find(Boolean) ?? theme.primary;
 
+  const medListText = events
+    .map((e) => medicationNames[e.medicationId] ?? e.medicationId)
+    .join(', ');
+
+  // ── 상태별 라벨/색상 ──────────────────────────────────────────────────────
+  let label = '복용 예정';
+  let labelColor = '#8b95a1';
+  let timeColor = '#8b95a1';
+  if (allTaken) {
+    label = '복용 완료'; labelColor = '#00b894'; timeColor = '#8b95a1';
+  } else if (anyMissed && allDone) {
+    label = '복용 누락'; labelColor = '#ff7675'; timeColor = '#8b95a1';
+  } else if (isTakeable) {
+    label = hasLate ? '복용 지연' : '복용 가능';
+    labelColor = hasLate ? '#ff7675' : '#3182f6';
+    timeColor = '#191f28';
+  } else if (allDone) {
+    label = '건너뜀'; labelColor = '#8b95a1'; timeColor = '#8b95a1';
+  }
+
   return (
-    <TouchableOpacity
-      style={[styles.card, { backgroundColor: cardBg }]}
-      activeOpacity={0.85}
-      onPress={() => setExpanded((v) => !v)}
-      accessibilityLabel={`${packetName || `약 ${total}개`} 포, 눌러서 ${expanded ? '접기' : '포함된 약 보기'}`}
-    >
-      {/* 색상 바 — DoseCard 스타일 */}
-      <View style={[styles.colorBar, { backgroundColor: primaryColor }]} />
-
-      {/* 상단: 시간 + 제목 + 복용 가능 시간 힌트 — 일반 일정 카드(DoseCard)와 동일한 정보 구조 */}
-      <View style={styles.topRow}>
-        <Text style={styles.time} numberOfLines={1}>{time}</Text>
-        <View style={styles.nameCol}>
-          <View style={styles.packetLabelRow}>
-            <View style={[styles.packetBadge, { backgroundColor: statusColor() }]}>
-              <Text style={styles.packetBadgeText}>포</Text>
-            </View>
-            <Text style={[styles.packetTitle, allTaken && styles.textDone]} numberOfLines={1}>
-              {packetName || `약 ${total}개`}
-            </Text>
-            <Text style={styles.expandIcon}>{expanded ? '▲' : '▼'}</Text>
-          </View>
-
-          {allTaken && <Text style={styles.hintGreen}>{total}개 모두 복용 완료</Text>}
-          {!allTaken && displayState === 'waiting' && (
-            <Text style={styles.hintGray}>{start}부터 복용 가능</Text>
-          )}
-          {!allTaken && (displayState === 'active' || displayState === 'late') && (
-            <Text style={styles.hintGray}>{end}까지 복용 가능</Text>
-          )}
-          {!allTaken && displayState === 'missed' && (
-            <Text style={styles.missedHint}>누락</Text>
-          )}
-
-          {/* 포함된 약 리스트 — 카드를 눌러야 펼쳐지는 상세보기 형태 */}
-          {expanded && (
-            <View style={styles.medList}>
-              {events.map((e) => {
-                const name  = medicationNames[e.medicationId] ?? e.medicationId;
-                const done  = e.status === 'taken' || e.status === 'skipped';
-                const color = medicationColors[e.medicationId] ?? '#9ca3af';
-                return (
-                  <View key={e.id} style={styles.medRow}>
-                    <View style={[styles.dot, { backgroundColor: done ? '#d1d5db' : color }]} />
-                    <Text
-                      style={[styles.medName, done && styles.medNameDone]}
-                      numberOfLines={1}
-                    >
-                      {name}
-                    </Text>
-                    {e.status === 'taken'   && <Text style={styles.takenMark}>✓</Text>}
-                    {e.status === 'skipped' && <Text style={styles.skippedMark}>건너뜀</Text>}
-                  </View>
-                );
-              })}
-            </View>
-          )}
-        </View>
-        {allTaken && <Text style={styles.doneCheck}>✓</Text>}
+    <View style={[styles.row, displayState === 'waiting' && !allDone && styles.dimmed]}>
+      <View style={styles.leftTime}>
+        <Text style={[styles.time, { color: timeColor }]}>{time}</Text>
+        <Text style={[styles.stateLabel, { color: labelColor }]} numberOfLines={1}>{label}</Text>
       </View>
 
-      {/* 하단: 액션 버튼 — DoseCard와 동일하게 시간창 안에서만 노출 */}
-      {!allDone && (
-        <View style={styles.actionRow}>
-          {isTakeable ? (
-            <>
-              <TouchableOpacity
-                style={styles.skipActionBtn}
-                onPress={() => onSkipPacket(pendingIds)}
-              >
-                <Text style={styles.skipActionTxt}>건너뜀</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.takeBtn, { backgroundColor: theme.primary }]}
-                onPress={() => onTakePacket(pendingIds)}
-              >
-                <Text style={styles.takeTxt}>복용</Text>
-              </TouchableOpacity>
-            </>
-          ) : displayState === 'missed' ? (
-            <Text style={styles.missedText}>누락</Text>
-          ) : (
-            <Text style={styles.waitingText}>예정</Text>
-          )}
+      <TouchableOpacity
+        style={[styles.card, isTakeable ? styles.cardHighlighted : styles.cardPlain]}
+        activeOpacity={0.85}
+        onPress={() => setExpanded((v) => !v)}
+        accessibilityLabel={`${packetName || `약 ${total}개`} 포, 눌러서 ${expanded ? '접기' : '포함된 약 보기'}`}
+      >
+        <View style={[styles.colorBar, { backgroundColor: primaryColor }]} />
+
+        <View style={styles.infoRow}>
+          <View style={styles.info}>
+            <View style={[styles.statusDot, { backgroundColor: labelColor }]} />
+            <View style={styles.nameCol}>
+              <View style={styles.titleRow}>
+                <View style={[styles.packetBadge, { backgroundColor: labelColor }]}>
+                  <Text style={styles.packetBadgeText}>포</Text>
+                </View>
+                <Text style={styles.name} numberOfLines={1}>{packetName || `약 ${total}개`}</Text>
+                {withFood && withFood !== 'none' && (
+                  <Text style={styles.foodTag}>({withFood === 'before' ? '식전' : '식후'})</Text>
+                )}
+              </View>
+              <Text style={styles.hintGray} numberOfLines={expanded ? undefined : 1}>{medListText}</Text>
+              {!allTaken && displayState === 'waiting' && (
+                <Text style={styles.hintGray}>{start}부터 복용 가능</Text>
+              )}
+              {!allTaken && displayState === 'active' && (
+                <Text style={styles.hintGray}>{end}까지 복용 가능</Text>
+              )}
+              {!allTaken && displayState === 'late' && (
+                <Text style={[styles.hintGray, { color: '#ff7675' }]}>예정 시각이 지났어요 · {end}까지 복용 가능</Text>
+              )}
+              {!allTaken && displayState === 'missed' && (
+                <Text style={styles.hintGray}>복용 시간이 지났어요</Text>
+              )}
+            </View>
+          </View>
+          {allTaken && <Ionicons name="checkmark-circle" size={20} color="#00b894" />}
+          <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color="#8b95a1" />
         </View>
-      )}
-    </TouchableOpacity>
+
+        {/* 포함된 약 리스트 — 펼치면 개별 복용 상태를 보여준다 */}
+        {expanded && (
+          <View style={styles.medList}>
+            {events.map((e) => {
+              const name  = medicationNames[e.medicationId] ?? e.medicationId;
+              const done  = e.status === 'taken' || e.status === 'skipped';
+              const color = medicationColors[e.medicationId] ?? '#8b95a1';
+              return (
+                <View key={e.id} style={styles.medRow}>
+                  <View style={[styles.dot, { backgroundColor: done ? '#d2e4fc' : color }]} />
+                  <Text style={[styles.medName, done && styles.medNameDone]} numberOfLines={1}>
+                    {name}
+                  </Text>
+                  {e.status === 'taken'   && <Text style={styles.takenMark}>✓</Text>}
+                  {e.status === 'skipped' && <Text style={styles.skippedMark}>건너뜀</Text>}
+                </View>
+              );
+            })}
+          </View>
+        )}
+
+        {/* 하단: 액션 버튼 — DoseCard와 동일하게 시간창 안에서만 노출 */}
+        {isTakeable && (
+          <View style={styles.actionRow}>
+            <TouchableOpacity style={styles.skipActionBtn} onPress={() => onSkipPacket(pendingIds)}>
+              <Text style={styles.skipActionTxt}>건너뜀</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.takeBtn} onPress={() => onTakePacket(pendingIds)}>
+              <Text style={styles.takeTxt}>복용 완료</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </TouchableOpacity>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 12 },
+  dimmed: { opacity: 0.7 },
+
+  leftTime: { width: 46, paddingTop: 12 },
+  time:       { fontSize: 14, fontWeight: '700' },
+  stateLabel: { fontSize: 10, fontWeight: '600', marginTop: 2 },
+
   card: {
-    borderRadius: 12,
-    paddingLeft: 20,  // colorBar 공간 확보
+    flex: 1,
+    borderRadius: 14,
+    paddingLeft: 20,
     paddingRight: 16,
-    paddingTop: 12,
-    paddingBottom: 10,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    paddingVertical: 16,
+    backgroundColor: '#fff',
     position: 'relative',
+  },
+  cardPlain: { borderWidth: 1, borderColor: '#e5e8eb' },
+  cardHighlighted: {
+    borderWidth: 1.5, borderColor: '#d2e4fc',
+    shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 2,
   },
 
   colorBar: {
     position: 'absolute',
     left: 0, top: 0, bottom: 0,
     width: 4,
-    borderTopLeftRadius: 12,
-    borderBottomLeftRadius: 12,
+    borderTopLeftRadius: 14,
+    borderBottomLeftRadius: 14,
   },
 
-  topRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  time: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
-    minWidth: 48,
-    flexShrink: 0,
-    marginTop: 2,
-  },
-  nameCol: {
-    flex: 1,
-    marginLeft: 10,
-  },
-  packetLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 4,
-  },
+  infoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  info: { flexDirection: 'row', alignItems: 'flex-start', flex: 1 },
+  statusDot: { width: 10, height: 10, borderRadius: 5, marginRight: 12, marginTop: 4 },
+  nameCol: { flex: 1 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
   packetBadge: {
-    width: 22, height: 22, borderRadius: 6,
+    width: 20, height: 20, borderRadius: 6,
     alignItems: 'center', justifyContent: 'center',
   },
-  packetBadgeText: {
-    fontSize: 11, fontWeight: '800', color: '#fff', letterSpacing: -0.5,
-  },
-  packetTitle: {
-    flex: 1, fontSize: 16, color: '#111827',
-  },
-  textDone: { color: '#10b981' },
-  expandIcon: { fontSize: 11, color: '#9ca3af', marginLeft: 4 },
+  packetBadgeText: { fontSize: 10, fontWeight: '800', color: '#fff', letterSpacing: -0.5 },
+  foodTag: { fontSize: 12, fontWeight: '600', color: '#8b95a1' },
+  name: { flex: 1, fontSize: 14, fontWeight: '700', color: '#191f28' },
 
-  hintGray:   { fontSize: 11, color: '#9ca3af', marginTop: 2 },
-  hintGreen:  { fontSize: 11, color: '#10b981', marginTop: 2 },
-  missedHint: { fontSize: 11, color: '#ef4444', marginTop: 2 },
+  hintGray: { fontSize: 12, color: '#8b95a1', marginTop: 2 },
 
-  medList: { gap: 4, marginTop: 10 },
-  medRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-  },
-  dot: {
-    width: 7, height: 7, borderRadius: 4, backgroundColor: '#3b82f6',
-  },
-  medName: {
-    flex: 1, fontSize: 13, color: '#374151', fontWeight: '500',
-  },
-  medNameDone: {
-    color: '#9ca3af', textDecorationLine: 'line-through',
-  },
-  takenMark:   { fontSize: 12, color: '#10b981', fontWeight: '700' },
-  skippedMark: { fontSize: 11, color: '#9ca3af' },
-  doneCheck:   { fontSize: 18, color: '#10b981', fontWeight: '700', marginLeft: 4 },
+  medList: { gap: 6, marginTop: 12, paddingLeft: 4 },
+  medRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#3182f6' },
+  medName: { flex: 1, fontSize: 13, color: '#4e5968', fontWeight: '500' },
+  medNameDone: { color: '#8b95a1', textDecorationLine: 'line-through' },
+  takenMark:   { fontSize: 12, color: '#00b894', fontWeight: '700' },
+  skippedMark: { fontSize: 11, color: '#8b95a1' },
 
-  actionRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 8,
-  },
+  actionRow: { flexDirection: 'row', gap: 8, marginTop: 14 },
   skipActionBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    minHeight: 44,
-    justifyContent: 'center',
+    flex: 1, paddingVertical: 10, borderRadius: 8,
+    backgroundColor: '#f2f3f4', minHeight: 44, alignItems: 'center', justifyContent: 'center',
   },
-  skipActionTxt: { fontSize: 14, color: '#9ca3af' },
+  skipActionTxt: { fontSize: 12, fontWeight: '700', color: '#4e5968' },
   takeBtn: {
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-    minWidth: 76,
-    minHeight: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
+    flex: 1, paddingVertical: 10, borderRadius: 8,
+    backgroundColor: '#3182f6', minHeight: 44, alignItems: 'center', justifyContent: 'center',
   },
-  takeTxt: { fontSize: 14, color: '#fff', fontWeight: '700' },
-  missedText:  { fontSize: 14, fontWeight: '500', color: '#ef4444', paddingHorizontal: 4, paddingVertical: 10 },
-  waitingText: { fontSize: 14, fontWeight: '500', color: '#9ca3af', paddingHorizontal: 4, paddingVertical: 10 },
+  takeTxt: { fontSize: 12, fontWeight: '700', color: '#fff' },
 });

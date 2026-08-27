@@ -4,7 +4,7 @@
     "name": "종합비타민",
     "nameEn": "Multivitamin",
     "category": "vitamin_fat",
-    "emoji": "💊",
+    "emoji": "🥗",
     "timing": {
       "type": "after_meal",
       "minutesAfter": 30,
@@ -24,7 +24,7 @@
     "name": "비타민 A",
     "nameEn": "Vitamin A",
     "category": "vitamin_fat",
-    "emoji": "🟠",
+    "emoji": "🥕",
     "timing": {
       "type": "after_meal",
       "detail": "식후 (지방이 포함된 식사 후)"
@@ -62,7 +62,7 @@
     "name": "비타민 E",
     "nameEn": "Vitamin E",
     "category": "vitamin_fat",
-    "emoji": "🌿",
+    "emoji": "🌰",
     "timing": {
       "type": "after_meal",
       "detail": "식후 (지방과 함께)"
@@ -136,7 +136,7 @@
     "name": "비타민 B12",
     "nameEn": "Vitamin B12",
     "category": "vitamin_water",
-    "emoji": "🔴",
+    "emoji": "🥩",
     "timing": {
       "type": "anytime",
       "detail": "공복 또는 식후 모두 가능 (위산이 있을 때 흡수 도움)"
@@ -155,7 +155,7 @@
     "name": "엽산 (비타민 B9)",
     "nameEn": "Folate / Folic Acid",
     "category": "vitamin_water",
-    "emoji": "🌱",
+    "emoji": "🥦",
     "timing": {
       "type": "after_meal",
       "detail": "식후 (공복 복용 시 메스꺼움 가능)"
@@ -174,7 +174,7 @@
     "name": "나이아신 (비타민 B3)",
     "nameEn": "Niacin (Vitamin B3)",
     "category": "vitamin_water",
-    "emoji": "🟡",
+    "emoji": "🍄",
     "timing": {
       "type": "with_meal",
       "detail": "식사 중 복용 (공복 복용 시 홍조·따끔거림 강해짐)"
@@ -192,7 +192,7 @@
     "name": "칼슘",
     "nameEn": "Calcium",
     "category": "mineral",
-    "emoji": "🦴",
+    "emoji": "🥛",
     "timing": {
       "type": "after_meal",
       "minutesAfter": 30,
@@ -212,7 +212,7 @@
     "name": "철분",
     "nameEn": "Iron",
     "category": "mineral",
-    "emoji": "🩸",
+    "emoji": "🫘",
     "timing": {
       "type": "empty_stomach",
       "minutesBefore": 30,
@@ -232,7 +232,7 @@
     "name": "마그네슘",
     "nameEn": "Magnesium",
     "category": "mineral",
-    "emoji": "💜",
+    "emoji": "🍫",
     "timing": {
       "type": "bedtime",
       "detail": "저녁 식후 또는 취침 1시간 전 (수면의 질 개선 목적)"
@@ -251,7 +251,7 @@
     "name": "아연",
     "nameEn": "Zinc",
     "category": "mineral",
-    "emoji": "⚡",
+    "emoji": "🦪",
     "timing": {
       "type": "after_meal",
       "detail": "식후 1~2시간 (공복 복용 시 메스꺼움)"
@@ -288,7 +288,7 @@
     "name": "프로바이오틱스",
     "nameEn": "Probiotics",
     "category": "probiotic",
-    "emoji": "🦠",
+    "emoji": "🥣",
     "timing": {
       "type": "empty_stomach",
       "minutesBefore": 30,
@@ -308,7 +308,7 @@
     "name": "루테인",
     "nameEn": "Lutein",
     "category": "other",
-    "emoji": "👁️",
+    "emoji": "🌽",
     "timing": {
       "type": "after_meal",
       "detail": "식후 (지용성이므로 지방과 함께 흡수율 향상)"
@@ -327,7 +327,7 @@
     "name": "콜라겐",
     "nameEn": "Collagen",
     "category": "other",
-    "emoji": "✨",
+    "emoji": "🍲",
     "timing": {
       "type": "empty_stomach",
       "minutesBefore": 30,
@@ -347,7 +347,7 @@
     "name": "코엔자임 Q10",
     "nameEn": "Coenzyme Q10 (CoQ10)",
     "category": "other",
-    "emoji": "⚡",
+    "emoji": "🥑",
     "timing": {
       "type": "after_meal",
       "detail": "식후 (지용성이므로 지방과 함께)"
