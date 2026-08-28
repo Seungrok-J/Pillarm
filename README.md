@@ -8,8 +8,15 @@
 |-------|------|------|
 | 1 — MVP | 약 등록·알림·복용 체크·통계 | ✅ 완료 |
 | 2 — 확장 | 보호자 공유·포인트·AI 코칭·약 DB | ✅ 완료 |
-| 3 — 배포 | 소셜 로그인·EAS 빌드·스토어 배포 | 🔧 진행 중 (iOS build 15 TestFlight) |
-| 4 — 스캔 | 약봉투 촬영 → AI 자동 일정 생성 | 🔧 진행 중 |
+| 3 — 배포 | 소셜 로그인·EAS 빌드·스토어 배포 | 🔧 진행 중 (iOS 배포 ✅ · Android 비공개 테스트 중) |
+| 4 — 스캔 | 약봉투 촬영 → AI 자동 일정 생성 | ✅ 완료 (2026-06 배포, 지속 개선 중) |
+
+### 배포 현황 (2026-08-28)
+
+| 플랫폼 | 버전 | 상태 |
+|--------|------|------|
+| iOS | 1.0.1 (buildNumber 34) | App Store 배포 완료 |
+| Android | 1.0.1 (versionCode 23) | Play Console 비공개 테스트 중 (2026-08-28 시작) |
 
 ---
 
@@ -28,6 +35,7 @@
 | 스타일 | NativeWind (Tailwind for RN) |
 | 테스트 | Jest + React Native Testing Library |
 | 소셜 로그인 | expo-apple-authentication · @react-native-google-signin · @react-native-kakao |
+| 크래시 리포팅 | @sentry/react-native |
 
 ### 서버
 
@@ -74,7 +82,13 @@ EXPO_PUBLIC_SERVER_IP=192.168.0.x   # 로컬 실기기 테스트용
 # Google 로그인
 EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=<iOS OAuth 클라이언트 ID>
 EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=<Web OAuth 클라이언트 ID>
+
+# Sentry 크래시 리포팅 (없으면 리포팅 비활성화 — 앱은 정상 동작)
+EXPO_PUBLIC_SENTRY_DSN=<Sentry 프로젝트 DSN>
+EXPO_PUBLIC_SENTRY_DEV=1        # 개발 빌드에서도 전송하고 싶을 때만
 ```
+
+> EAS 클라우드 빌드에는 `.env` 가 올라가지 않는다. `eas env:create` 로 EAS 환경 변수에도 등록해야 한다.
 
 ---
 
@@ -127,9 +141,11 @@ npm run dev     # 포트 3000
 - **알림 로그인 연동** — 로그아웃 시 알림 전체 취소, 로그인 시 재스케줄, 계정별 알림 분리
 - **EAS Build** — iOS/Android 프로덕션 빌드 자동화
 - **Railway 서버 배포** — `https://pillarm-production.up.railway.app`
-- **iOS TestFlight** — build 15 (v1.0.0) 제출 완료
+- **iOS App Store** — v1.0.1 (build 34) 정식 배포 완료
+- **Android 비공개 테스트** — v1.0.1 (versionCode 23), 2026-08-28 시작
+- **크래시 리포팅** — Sentry 연동 (개인정보 차단 설정 적용)
 
-### Phase 4 — 약봉투 스캔 🔧 진행 중
+### Phase 4 — 약봉투 스캔 ✅ 완료
 - **약봉투 촬영 → 자동 일정 생성** — 카메라로 조제약 봉투 촬영 시 Claude Vision AI가 약 이름·용량·복용 횟수·기간·식전후를 인식하여 일정 초안 자동 생성
 - 식사 시간 설정 기반 복용 시간 자동 계산, 용량 단위(정/mg/ml) 버튼 선택
 - 자세한 내용: `PRD_PHASE4.md` 참조
@@ -145,6 +161,9 @@ npm run dev     # 포트 3000
 | v3 | `dose_events.photo_path` 추가 (사진 첨부) |
 | v4 | `medications`, `schedules`, `dose_events`에 `user_id` 추가 (멀티 계정) |
 | v5 | `user_settings`에 식사 시간 컬럼 추가 (`breakfast_time`, `lunch_time`, `dinner_time`) |
+| v6 | `schedules`, `dose_events`에 `packet_id` 추가 (포 그룹화) |
+| v7 | `user_settings`에 `font_scale` 추가 |
+| v8 | `schedules`, `dose_events`에 `packet_name` 추가 |
 
 마이그레이션은 `src/db/migrations.ts`의 `runMigrations()`가 멱등적으로 실행합니다.
 
@@ -155,7 +174,7 @@ npm run dev     # 포트 3000
 ```
 pillarm/
 ├── src/
-│   ├── app/              # 화면 컴포넌트 (home, schedule, history, stats, settings, auth, scan)
+│   ├── app/              # 화면 (home, schedule, history, stats, settings, auth, onboarding, scan, supplementGuide)
 │   ├── components/       # 공통 UI 컴포넌트
 │   ├── db/               # SQLite 마이그레이션 & 쿼리
 │   ├── domain/           # 엔터티 타입
@@ -167,6 +186,7 @@ pillarm/
 │   │   ├── points/       # 포인트·리워드
 │   │   ├── aiCoaching/   # AI 코칭
 │   │   └── socialAuth/   # 소셜 로그인 (Apple·Google·Kakao)
+│   ├── monitoring/       # Sentry 초기화·리포트
 │   ├── navigation/       # React Navigation 설정
 │   ├── notifications/    # 알림 스케줄링
 │   ├── store/            # Zustand 스토어
@@ -174,18 +194,32 @@ pillarm/
 │   └── utils/
 ├── server/               # 백엔드 (Express + Prisma, Railway 배포)
 │   ├── src/
-│   │   ├── routes/       # auth, socialAuth, careCircle, doseSync, sync, aiScan
+│   │   ├── routes/       # auth, socialAuth, careCircle, doseSync, sync, aiScan, admin
 │   │   ├── services/     # fcmService, missedDoseNotifier
 │   │   ├── middleware/   # requireAuth, errorHandler
 │   │   └── lib/          # prisma, jwt
 │   └── prisma/
 │       └── schema.prisma
-├── docs/                 # 개인정보 처리방침, OAuth 콜백 페이지
+├── docs/                 # 개인정보 처리방침, 디자인 시스템, 도메인 모델, OAuth 콜백
 ├── eas.json              # EAS Build 프로파일
 ├── PRD_PHASE1.md
 ├── PRD_PHASE2.md
 ├── PRD_PHASE3.md
 └── PRD_PHASE4.md
+```
+
+---
+
+## 테스트
+
+| 대상 | 개수 |
+|------|------|
+| 클라이언트 (Jest + RNTL) | 445 |
+| 서버 (Jest) | 70 |
+
+```bash
+npm test              # 클라이언트
+cd server && npm test # 서버
 ```
 
 ---
@@ -204,9 +238,13 @@ eas build --platform ios --profile development
 # 프로덕션 빌드 + TestFlight 자동 제출
 eas build --platform ios --profile production --auto-submit
 
-# Android 프로덕션 빌드
+# Android 프로덕션 빌드 (.aab)
 eas build --platform android --profile production
 ```
+
+> **Android 제출 주의** — `eas submit --platform android` 는 현재 Google Play 서비스 계정
+> 권한 부족으로 실패한다. 권한을 정리하기 전까지는 빌드된 `.aab` 를 Play Console 에
+> 수동 업로드해야 한다.
 
 ### 주요 빌드 정보
 
@@ -215,8 +253,8 @@ eas build --platform android --profile production
 | Bundle ID | `com.seungrokj.pillarm` |
 | Apple Team ID | `9AU7GMJTRW` |
 | App Store Connect ID | `6770390217` |
-| 현재 iOS buildNumber | `15` |
-| Android versionCode | `10` (예정) |
+| 현재 iOS buildNumber | `34` (v1.0.1) |
+| 현재 Android versionCode | `23` (v1.0.1) |
 
 ---
 

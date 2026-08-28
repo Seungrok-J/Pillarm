@@ -12,10 +12,11 @@
 | 상태관리 | Zustand |
 | 로컬 DB | expo-sqlite (SQLite) |
 | 알림 | expo-notifications |
-| 내비게이션 | React Navigation v6 (Bottom Tabs + Stack) |
+| 내비게이션 | React Navigation v7 (Bottom Tabs + Stack) |
 | 스타일 | NativeWind (Tailwind for RN) |
 | 테스트 | Jest + React Native Testing Library |
 | 네트워크 감지 | @react-native-community/netinfo |
+| 크래시 리포팅 | @sentry/react-native (DSN 은 `EXPO_PUBLIC_SENTRY_DSN`) |
 
 ## 디렉터리 구조
 
@@ -25,24 +26,38 @@ pillarm/
 ├── PRD_PHASE1.md              ← MVP 상세 요구사항
 ├── PRD_PHASE2.md              ← 확장 기능 요구사항
 ├── PRD_PHASE3.md              ← 간편 로그인 & 스토어 배포 (오프라인·관리자 포함)
+├── PRD_PHASE4.md              ← 약봉투 스캔 (Claude Vision AI) & 영양제 가이드
+├── PROJECT_SUMMARY.md         ← 프로젝트 진행 이력 요약 (포트폴리오·이력서용)
 ├── docs/
 │   ├── domain-model.md        ← 엔터티 정의
-│   └── erd.md                 ← ERD 다이어그램
+│   ├── erd.md                 ← ERD 다이어그램
+│   ├── design-system.md       ← 색상·타이포·간격 토큰
+│   └── scan-pack-ux-requirements.md  ← 포 빌더 UI/UX 요구사항
 ├── src/
 │   ├── app/                   ← 화면 컴포넌트
 │   │   ├── home/
 │   │   ├── schedule/
 │   │   ├── history/
 │   │   ├── stats/
-│   │   └── settings/
+│   │   ├── settings/
+│   │   ├── auth/              ← 로그인·계정
+│   │   ├── onboarding/
+│   │   ├── scan/              ← 약봉투 스캔 결과 확인
+│   │   └── supplementGuide/   ← 영양제 백과
 │   ├── components/            ← 공통 UI 컴포넌트 (OfflineBanner 포함)
 │   ├── domain/                ← 엔터티 타입 정의
 │   ├── features/
 │   │   ├── admin/             ← 관리자 패널 (AdminScreen, adminApi)
 │   │   ├── careCircle/        ← 보호자 그룹
-│   │   └── socialAuth/        ← 소셜 로그인
+│   │   ├── socialAuth/        ← 소셜 로그인
+│   │   ├── medicationScan/    ← 스캔 API·파싱 유틸
+│   │   ├── medicationDB/      ← 식약처 API 자동완성
+│   │   ├── supplementGuide/   ← 영양제 가이드 데이터
+│   │   ├── points/            ← 포인트·리워드
+│   │   └── aiCoaching/        ← AI 코칭
 │   ├── store/                 ← Zustand 스토어 (networkStore 포함)
 │   ├── db/                    ← SQLite 마이그레이션 & 쿼리
+│   ├── monitoring/            ← Sentry 초기화·리포트 (DSN 없으면 무동작)
 │   ├── notifications/         ← 알림 스케줄링 로직
 │   ├── sync/                  ← 서버 동기화 (pending 큐 포함)
 │   └── utils/
@@ -62,8 +77,18 @@ pillarm/
 |-------|------|------|------|
 | 1 — MVP | `PRD_PHASE1.md` | 핵심 4기능: 등록·알림·체크·통계(기본) | ✅ 완료 |
 | 2 — 확장 | `PRD_PHASE2.md` | 보호자 공유·약 DB 연동·포인트·AI 코칭 | ✅ 완료 |
-| 3 — 배포 | `PRD_PHASE3.md` | 간편 로그인(Apple·Google·카카오) & App Store / Google Play 배포 + 오프라인 처리 + 관리자 패널 | 🔧 진행 중 |
-| 4 — 스캔 | `PRD_PHASE4.md` | 약봉투 촬영 → Codex Vision AI 자동 일정 생성 | 📋 계획 중 |
+| 3 — 배포 | `PRD_PHASE3.md` | 간편 로그인(Apple·Google·카카오) & App Store / Google Play 배포 + 오프라인 처리 + 관리자 패널 | 🔧 진행 중 (iOS 배포 ✅ · Android 비공개 테스트 중) |
+| 4 — 스캔 | `PRD_PHASE4.md` | 약봉투 촬영 → Claude Vision AI 자동 일정 생성 | ✅ 완료 (2026-06 배포, 지속 개선 중) |
+
+## 배포 현황 (2026-08-28)
+
+| 플랫폼 | 버전 | 상태 |
+|--------|------|------|
+| iOS | 1.0.1 (buildNumber 34) | App Store 배포 완료 |
+| Android | 1.0.1 (versionCode 23) | Play Console 비공개 테스트 진행 중 (2026-08-28 시작, 테스터 12명+) |
+
+- Android 프로덕션 승격은 테스터 12명이 14일 연속 유지되어야 신청 가능 — 빠르면 **2026-09-11**.
+- `eas submit --platform android` 는 서비스 계정 권한 부족으로 실패한다. 해결 전까지는 `.aab` 를 Play Console 에 수동 업로드한다.
 
 ## 작업 시작 전 체크리스트
 

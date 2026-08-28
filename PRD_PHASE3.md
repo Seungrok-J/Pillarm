@@ -3,7 +3,10 @@
 > **전제 조건:** Phase 2가 완료되어 보호자 공유·포인트·AI 코칭이 실기기에서 정상 동작해야 한다.  
 > **목표:** 소셜 간편 로그인 추가, Railway 서버 배포, App Store 우선 배포 후 Google Play 배포
 >
-> **진행 상태 (2026-08-21):** iOS build 27 App Store 심사 승인 완료 — 정식 배포됨. 소셜 로그인(Apple/Google/Kakao) 전체 정상. pillarm.app 도메인 연결 완료. 오프라인 처리 및 관리자 패널 구현 완료. Android는 EAS 빌드까지 완료(versionCode 17), Google Play 정식 제출은 다음 단계(Phase 3 잔여 작업).
+> **진행 상태 (2026-08-28):** iOS 는 v1.0.1(build 34)까지 App Store 정식 배포 완료. 소셜 로그인(Apple/Google/Kakao) 전체 정상, pillarm.app 도메인 연결, 오프라인 처리, 관리자 패널 모두 구현 완료. Sentry 크래시 리포팅 도입.
+> Android 는 v1.0.1(versionCode 23)을 Play Console **비공개 테스트 트랙에 배포하여 2026-08-28부터 테스터 12명 이상으로 테스트 진행 중**. 개인 개발자 계정 정책상 12명이 14일 연속 유지되어야 프로덕션 승격을 신청할 수 있어, 빠르면 2026-09-11 신청 가능. 이것이 Phase 3 의 마지막 잔여 작업이다.
+>
+> **알려진 제약:** `eas submit --platform android` 는 Google Play 서비스 계정에 "프로덕션 이외 트랙에 배포" 권한이 없어 실패한다. 해결 전까지 `.aab` 수동 업로드로 진행한다.
 
 ---
 
@@ -22,9 +25,9 @@
 
 | 항목 | 상태 |
 |------|------|
-| iOS build 27 (v1.0.0) | ✅ App Store 심사 승인·배포 완료 (2026-08-21) |
-| Android build | ✅ EAS 빌드 완료 (versionCode 17) — Play Console 제출 전 |
-| Google Play Console | 📋 미등록 — **다음 작업** |
+| iOS v1.0.1 (build 34) | ✅ App Store 정식 배포 완료 (2026-08-27) |
+| Android v1.0.1 (versionCode 23) | ✅ Play Console 비공개 테스트 배포 (2026-08-28) |
+| Google Play 프로덕션 | 🔧 비공개 테스트 14일 요건 진행 중 — 빠르면 2026-09-11 신청 |
 | App Store 정식 심사 | ✅ 승인 완료 (심사 중 Guideline 2.1 정보 요청 대응 경험) |
 
 ### 서버 (Railway)
@@ -49,7 +52,7 @@
 | 날짜 일관성 수정 | 한국 자정~오전9시 날짜 불일치 (UTC vs 로컬) 해소 |
 | 소유권 검증 추가 | PUT /sync 엔드포인트에서 userId 소유권 검증 → 타인 레코드 403 |
 
-### 주요 개선 사항 (2026-06-02 기준, build 15)
+### 주요 개선 사항 (2026-06-02 기준, 초기 TestFlight 빌드)
 
 | 항목 | 내용 |
 |------|------|
@@ -258,9 +261,9 @@ restartPolicyMaxRetries = 10
 | Apple Developer 계정 승인 | ✅ (2026-05-18) |
 | App Store Connect 앱 등록 | ✅ 앱 이름: 필람 - 약 복용 알림 |
 | 개인정보 처리방침 | ✅ `https://pillarm.app/privacy-policy.html` |
-| TestFlight 내부 테스트 | 🔧 진행 중 (build 15) |
-| 스크린샷 준비 | 📋 미완료 |
-| App Store 정식 심사 제출 | 📋 미완료 |
+| TestFlight 내부 테스트 | ✅ 완료 |
+| 스크린샷 준비 | ✅ 완료 (6.9″ / 6.5″ 2종, 상태바 제거) |
+| App Store 정식 심사 제출 | ✅ 승인·배포 완료 |
 
 ### 완료 기준 (AC)
 
@@ -297,11 +300,12 @@ restartPolicyMaxRetries = 10
 - [x] 소셜 로그인 구현 (Apple / Google / Kakao)
 - [x] EAS Build 설정 완료
 - [x] Railway 서버 배포
-- [x] iOS TestFlight build 15 제출
+- [x] iOS TestFlight 제출
 - [x] 개인정보 처리방침 공개
-- [ ] Google 로그인 실기기 테스트 통과
-- [ ] App Store 정식 출시
-- [ ] Google Play 정식 출시
+- [x] Google 로그인 실기기 테스트 통과
+- [x] App Store 정식 출시 (v1.0.1 / build 34)
+- [x] Google Play 비공개 테스트 배포 (v1.0.1 / versionCode 23)
+- [ ] Google Play 정식 출시 — 테스터 12명 14일 요건 충족 후 신청 (2026-09-11 예정)
 
 ---
 
