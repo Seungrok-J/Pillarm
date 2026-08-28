@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { getAccessToken, getRefreshToken, setTokens, clearTokens } from './tokenStorage';
+import { setSentryUser } from '../monitoring';
 
 // 토큰은 tokenStorage(SecureStore)에 저장하고, 민감하지 않은 프로필 정보만 AsyncStorage 에 둔다.
 const K = {
@@ -53,6 +54,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         isLoggedIn: !!access, isLoading: false,
         isAdmin: adminStr === '1',
       });
+      setSentryUser(access ? userId : null);
     } catch {
       set({ isLoading: false });
     }
@@ -77,6 +79,8 @@ export const useAuthStore = create<AuthState>((set) => ({
         : AsyncStorage.removeItem(K.IS_ADMIN),
     ]);
     set({ accessToken, refreshToken, userId, userEmail, userName: userName ?? null, isLoggedIn: true, isAdmin: !!isAdmin });
+    // 크래시 리포트 귀속용 — 익명 userId 만 넘긴다(이메일·이름 제외)
+    setSentryUser(userId);
   },
 
   clearSession: async () => {
@@ -91,5 +95,6 @@ export const useAuthStore = create<AuthState>((set) => ({
       AsyncStorage.removeItem(K.IS_ADMIN),
     ]);
     set({ accessToken: null, refreshToken: null, userId: null, userEmail: null, userName: null, isLoggedIn: false, isAdmin: false });
+    setSentryUser(null);
   },
 }));

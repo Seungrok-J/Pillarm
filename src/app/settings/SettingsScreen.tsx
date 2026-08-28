@@ -22,6 +22,7 @@ import { useSettingsStore } from '../../store';
 import { useAuthStore } from '../../store/authStore';
 import { rescheduleAllSchedules } from '../../notifications';
 import { seedDemoData } from '../../utils/seedDemoData';
+import { reportError, isSentryEnabled, hasSentryDsn } from '../../monitoring';
 import AlertModal, { type AlertModalTone } from '../../components/AlertModal';
 import type { UserSettings } from '../../domain';
 
@@ -216,6 +217,23 @@ export default function SettingsScreen() {
     } catch {
       setSimpleAlert({ title: '오류', message: '데이터 추가에 실패했습니다.', tone: 'danger' });
     }
+  }
+
+  function sendSentryTestEvent() {
+    reportError(new Error('[Pillarm] Sentry 연동 확인용 테스트 이벤트'), {
+      source: 'settings-devtools',
+      sentAt: new Date().toISOString(),
+    });
+    setSimpleAlert(
+      isSentryEnabled
+        ? { title: 'Sentry 전송됨', message: 'Sentry 대시보드 Issues 에서 확인해 주세요.\n반영까지 몇 초 걸릴 수 있습니다.', tone: 'success' }
+        : {
+            title: '전송되지 않음',
+            message: hasSentryDsn
+              ? '개발 빌드에서는 기본적으로 전송하지 않습니다.\n.env 에 EXPO_PUBLIC_SENTRY_DEV=1 을 추가하고 다시 시작해 주세요.'
+              : 'EXPO_PUBLIC_SENTRY_DSN 이 설정되지 않았습니다.',
+          },
+    );
   }
 
   function performAdminToggle() {
@@ -549,6 +567,20 @@ export default function SettingsScreen() {
                 })}
               >
                 <Text style={styles.label}>스캔 결과 화면 미리보기</Text>
+                <Text style={styles.chevron}>›</Text>
+              </TouchableOpacity>
+              <View style={styles.divider} />
+              <TouchableOpacity style={styles.row} onPress={sendSentryTestEvent}>
+                <View style={styles.labelBlock}>
+                  <Text style={styles.label}>Sentry 테스트 이벤트 전송</Text>
+                  <Text style={styles.hint}>
+                    {!hasSentryDsn
+                      ? 'DSN 미설정 — 전송되지 않습니다'
+                      : isSentryEnabled
+                        ? '전송 활성화됨'
+                        : '개발 빌드라 전송 안 함 (.env 에 EXPO_PUBLIC_SENTRY_DEV=1)'}
+                  </Text>
+                </View>
                 <Text style={styles.chevron}>›</Text>
               </TouchableOpacity>
               {/* 관리자 UI 로컬 토글 — 개발 빌드에서만 노출한다.

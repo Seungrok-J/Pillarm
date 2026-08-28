@@ -111,7 +111,8 @@
           }
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "@sentry/react-native"
     ],
     "extra": {
       "eas": {
