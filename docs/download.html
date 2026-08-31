@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>필람 — 약 복용 시간 알림</title>
+
+  <!--
+    이 페이지의 목적은 두 가지다.
+    1) 기기에 맞는 스토어로 보내준다.
+    2) 링크 미리보기(카카오톡·iMessage·슬랙 등)를 우리가 통제한다.
+       App Store 링크를 직접 공유하면 Apple 페이지의 og:image 가 쓰이는데
+       그건 우리가 바꿀 수 없다. 이 페이지를 대신 공유하면 아래 태그가 쓰인다.
+  -->
+  <meta name="description" content="약 복용 시간을 등록하면 알림으로 챙겨드려요. 복용 기록과 통계, 보호자 공유까지.">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="필람">
+  <meta property="og:title" content="필람 — 약 복용 시간 알림">
+  <meta property="og:description" content="약 복용 시간을 등록하면 알림으로 챙겨드려요. 복용 기록과 통계, 보호자 공유까지.">
+  <meta property="og:url" content="https://pillarm.app/download">
+  <meta property="og:image" content="https://pillarm.app/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:locale" content="ko_KR">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="필람 — 약 복용 시간 알림">
+  <meta name="twitter:description" content="약 복용 시간을 등록하면 알림으로 챙겨드려요.">
+  <meta name="twitter:image" content="https://pillarm.app/og-image.png">
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+      background: linear-gradient(160deg, #64adff 0%, #185acf 100%);
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      background: #fff; border-radius: 24px; padding: 40px 32px;
+      max-width: 400px; width: 100%; text-align: center;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.16);
+    }
+    .app-name { font-size: 30px; font-weight: 800; color: #191f28; margin-bottom: 6px; }
+    .subtitle { font-size: 15px; color: #4e5968; margin-bottom: 28px; line-height: 1.6; }
+    .btn {
+      display: block; width: 100%; padding: 16px;
+      border-radius: 14px; font-size: 16px; font-weight: 700;
+      text-decoration: none; margin-bottom: 12px;
+    }
+    .btn-ios { background: #3182f6; color: #fff; }
+    .btn-and { background: #f2f4f7; color: #4e5968; border: 1px solid #e5e8eb; }
+    .note { font-size: 13px; color: #8b95a1; margin-top: 16px; line-height: 1.6; }
+    .links { margin-top: 24px; font-size: 13px; }
+    .links a { color: #8b95a1; text-decoration: none; margin: 0 8px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="app-name">필람</div>
+    <div class="subtitle">약 복용 시간을 등록하면<br>알림으로 챙겨드려요</div>
+
+    <a class="btn btn-ios" id="ios" href="https://apps.apple.com/kr/app/id6770390217">App Store에서 받기</a>
+    <a class="btn btn-and" id="and" href="https://play.google.com/store/apps/details?id=com.seungrokj.pillarm">Google Play에서 받기</a>
+
+    <div class="note" id="note">기기에 맞는 스토어로 이동합니다</div>
+
+    <div class="links">
+      <a href="/privacy-policy.html">개인정보 처리방침</a>·<a href="/support.html">고객지원</a>
+    </div>
+  </div>
+
+  <script>
+    // Google Play 정식 출시 후 true 로 바꾼다.
+    // 비공개 테스트 중에는 공개 스토어 링크가 404 이므로 안내로 대체한다.
+    var PLAY_LIVE = false;
+
+    (function () {
+      var ua = navigator.userAgent || '';
+      var isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+      var isAndroid = /Android/i.test(ua);
+      var note = document.getElementById('note');
+      var and = document.getElementById('and');
+
+      if (!PLAY_LIVE) {
+        and.removeAttribute('href');
+        and.style.opacity = '0.55';
+        and.style.cursor = 'default';
+        and.textContent = 'Google Play 출시 준비 중';
+      }
+
+      if (isIOS) {
+        note.textContent = 'App Store로 이동 중…';
+        location.replace(document.getElementById('ios').href);
+      } else if (isAndroid && PLAY_LIVE) {
+        note.textContent = 'Google Play로 이동 중…';
+        location.replace(and.href);
+      } else if (isAndroid) {
+        note.textContent = '안드로이드 버전은 곧 출시됩니다';
+      } else {
+        note.textContent = '모바일 기기에서 열면 스토어로 바로 이동합니다';
+      }
+    })();
+  </script>
+</body>
+</html>

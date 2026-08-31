@@ -86,6 +86,9 @@ EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=<Web OAuth 클라이언트 ID>
 # Sentry 크래시 리포팅 (없으면 리포팅 비활성화 — 앱은 정상 동작)
 EXPO_PUBLIC_SENTRY_DSN=<Sentry 프로젝트 DSN>
 EXPO_PUBLIC_SENTRY_DEV=1        # 개발 빌드에서도 전송하고 싶을 때만
+
+# EAS Submit (iOS) — eas.json 에 개인 이메일을 두지 않기 위해 분리
+EXPO_APPLE_ID=<Apple ID 이메일>
 ```
 
 > EAS 클라우드 빌드에는 `.env` 가 올라가지 않는다. `eas env:create` 로 EAS 환경 변수에도 등록해야 한다.
