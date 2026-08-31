@@ -3,13 +3,13 @@
     "name": "필람",
     "slug": "pillarm",
     "scheme": "pillarm",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
       "bundleIdentifier": "com.seungrokj.pillarm",
-      "buildNumber": "34",
+      "buildNumber": "36",
       "supportsTablet": false,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
@@ -112,7 +112,14 @@
         }
       ],
       "expo-secure-store",
-      "@sentry/react-native"
+      [
+        "@sentry/react-native",
+        {
+          "organization": "pillarm",
+          "project": "react-native",
+          "url": "https://de.sentry.io/"
+        }
+      ]
     ],
     "extra": {
       "eas": {
