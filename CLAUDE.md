@@ -80,15 +80,30 @@ pillarm/
 | 3 — 배포 | `PRD_PHASE3.md` | 간편 로그인(Apple·Google·카카오) & App Store / Google Play 배포 + 오프라인 처리 + 관리자 패널 | 🔧 진행 중 (iOS 배포 ✅ · Android 비공개 테스트 중) |
 | 4 — 스캔 | `PRD_PHASE4.md` | 약봉투 촬영 → Claude Vision AI 자동 일정 생성 | ✅ 완료 (2026-06 배포, 지속 개선 중) |
 
-## 배포 현황 (2026-08-28)
+## 배포 현황 (2026-08-31)
 
 | 플랫폼 | 버전 | 상태 |
 |--------|------|------|
+| iOS | 1.0.2 (buildNumber 36) | TestFlight 업로드 완료 (2026-08-31) |
 | iOS | 1.0.1 (buildNumber 34) | App Store 배포 완료 |
 | Android | 1.0.1 (versionCode 23) | Play Console 비공개 테스트 진행 중 (2026-08-28 시작, 테스터 12명+) |
 
+- 1.0.2 변경 내용: 앱 아이콘 교체, Sentry 소스맵 업로드 활성화.
+- `app.json` 의 `version` 은 1.0.2 인데 `android.versionCode` 는 아직 23 이다.
+  **다음 Android 빌드 전에 24 이상으로 올려야** Play Console 업로드가 통과한다.
 - Android 프로덕션 승격은 테스터 12명이 14일 연속 유지되어야 신청 가능 — 빠르면 **2026-09-11**.
 - `eas submit --platform android` 는 서비스 계정 권한 부족으로 실패한다. 해결 전까지는 `.aab` 를 Play Console 에 수동 업로드한다.
+
+### Sentry (EU 리전 주의)
+
+Sentry 조직은 **EU 데이터 리전**(`de.sentry.io`)에 있다. org slug `pillarm`, project slug `react-native`.
+
+- Organization 토큰(`sntrys_`)은 내부에 US 호스트가 박혀 발급되고 sentry-cli 가 그걸 우선하므로
+  **EU 조직에서는 401 로 실패한다. Personal auth token(`sntryu_`)을 써야 한다.**
+  필요 스코프: Project=Read, Release=Admin(`project:releases`), Organization=Read.
+- `app.json` 의 `@sentry/react-native` 플러그인에 `organization`·`project` 와 함께
+  **`"url": "https://de.sentry.io/"` 가 반드시 있어야 한다.** 없으면 빌드가 Xcode 단계에서 실패한다.
+- 토큰은 EAS production 환경변수 `SENTRY_AUTH_TOKEN` 에 **Secret** 으로 둔다. 저장소에 넣지 않는다.
 
 ## 작업 시작 전 체크리스트
 
