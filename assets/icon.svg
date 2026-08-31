@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-16 -16 1056 1056" width="1056" height="1056">
+  <defs>
+    <linearGradient id="g" gradientUnits="userSpaceOnUse" x1="714" y1="80" x2="389" y2="927">
+      <stop offset="0" stop-color="#7EE0C4"/>
+      <stop offset="1" stop-color="#44A1E5"/>
+    </linearGradient>
+    <!-- everything on the lower-right side of the capsule's mid perpendicular (x + y = 1015) -->
+    <clipPath id="solidHalf"><polygon points="3015,-2000 -985,2000 3015,6000 7015,2000"/></clipPath>
+  </defs>
+
+  <!-- ringing arcs, concentric with the clock -->
+  <g fill="none" stroke="url(#g)" stroke-linecap="round">
+    <path d="M261.2 199.0 A425.0 425.0 0 0 1 443.6 19.8" stroke-width="38"/>
+    <path d="M335.5 235.1 A342.5 342.5 0 0 1 478.4 94.7" stroke-width="37"/>
+    <path d="M1011.8 199.0 A425.0 425.0 0 0 0 829.4 19.8" stroke-width="38"/>
+    <path d="M937.5 235.1 A342.5 342.5 0 0 0 794.6 94.7" stroke-width="37"/>
+  </g>
+
+  <!-- capsule: outlined upper-left half, solid lower-right half -->
+  <g fill="none" stroke-linecap="round">
+    <path d="M193 460 L554 821" stroke="url(#g)" stroke-width="386"/>
+    <path d="M193 460 L554 821" stroke="#ffffff" stroke-width="302"/>
+    <g clip-path="url(#solidHalf)">
+      <path d="M193 460 L554 821" stroke="url(#g)" stroke-width="386"/>
+    </g>
+  </g>
+
+  <!-- white separation so the clock reads in front of the capsule -->
+  <circle cx="636.5" cy="398.5" r="305" fill="#ffffff"/>
+
+  <!-- clock -->
+  <circle cx="636.5" cy="398.5" r="241.25" fill="#ffffff" stroke="url(#g)" stroke-width="56.5"/>
+  <g fill="none" stroke="url(#g)" stroke-linecap="round">
+    <g stroke-width="36">
+    <path d="M636.5 212.5 L636.5 194.5"/>
+    <path d="M822.5 398.5 L840.5 398.5"/>
+    <path d="M636.5 584.5 L636.5 602.5"/>
+    <path d="M450.5 398.5 L432.5 398.5"/>
+    </g>
+    <path d="M636 279.5 V398.5 L709.5 461.5" stroke-width="39" stroke-linejoin="round"/>
+  </g>
+</svg>
