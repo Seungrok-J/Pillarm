@@ -80,19 +80,31 @@ pillarm/
 | 3 — 배포 | `PRD_PHASE3.md` | 간편 로그인(Apple·Google·카카오) & App Store / Google Play 배포 + 오프라인 처리 + 관리자 패널 | 🔧 진행 중 (iOS 배포 ✅ · Android 비공개 테스트 중) |
 | 4 — 스캔 | `PRD_PHASE4.md` | 약봉투 촬영 → Claude Vision AI 자동 일정 생성 | ✅ 완료 (2026-06 배포, 지속 개선 중) |
 
-## 배포 현황 (2026-08-31)
+## 배포 현황 (2026-09-01)
 
 | 플랫폼 | 버전 | 상태 |
 |--------|------|------|
-| iOS | 1.0.2 (buildNumber 36) | TestFlight 업로드 완료 (2026-08-31) |
+| iOS | 1.0.2 (buildNumber 37) | TestFlight 업로드 완료 (2026-09-01) |
 | iOS | 1.0.1 (buildNumber 34) | App Store 배포 완료 |
-| Android | 1.0.1 (versionCode 23) | Play Console 비공개 테스트 진행 중 (2026-08-28 시작, 테스터 12명+) |
+| Android | 1.0.2 (versionCode 24) | 비공개 테스트 `ver.23` 트랙 출시 완료 (2026-09-01) |
 
-- 1.0.2 변경 내용: 앱 아이콘 교체, Sentry 소스맵 업로드 활성화.
-- `app.json` 의 `version` 은 1.0.2 인데 `android.versionCode` 는 아직 23 이다.
-  **다음 Android 빌드 전에 24 이상으로 올려야** Play Console 업로드가 통과한다.
+- 1.0.2 변경 내용: 앱 아이콘을 벡터(SVG)로 교체, Sentry 소스맵 업로드 활성화.
+- 빌드 36 은 업스케일된 래스터 아이콘이 들어가 폐기했다. 선명한 벡터 아이콘은 **37 부터**다.
 - Android 프로덕션 승격은 테스터 12명이 14일 연속 유지되어야 신청 가능 — 빠르면 **2026-09-11**.
-- `eas submit --platform android` 는 서비스 계정 권한 부족으로 실패한다. 해결 전까지는 `.aab` 를 Play Console 에 수동 업로드한다.
+
+### Play Console 트랙 (중요)
+
+비공개 테스트 트랙 ID 는 **`ver.23`** 이다. 테스터 12명이 이 트랙에 붙어 있고,
+`eas.json` 의 `submit.production.android.track` 도 여기를 가리킨다.
+
+- **versionCode 를 올려도 새 트랙을 만들지 말고 `ver.23` 에 계속 올린다.**
+  Google Play 의 "테스터 12명 14일 연속" 요건은 트랙 단위로 계산되므로 새 트랙을 만들면
+  카운트가 리셋된다. 트랙 이름이 versionCode 와 안 맞는 건 표시 이름만 바꾸면 된다.
+- `alpha`(versionCode 21) · `internal`(18) 트랙은 방치된 상태다. 혼동하지 않도록 주의.
+- 트랙 상태는 서비스 계정으로 Play Developer API 를 조회하면 아무것도 바꾸지 않고 확인된다
+  (`edits.insert` → `edits.tracks.list` → `edits.delete`).
+- `eas submit --platform android` 는 과거 서비스 계정 권한 문제로 실패했다. 2026-09-01 기준
+  인증·트랙 조회는 통과하지만 번들 업로드까지는 미검증이라, 현재는 `.aab` 를 수동 업로드한다.
 
 ### Sentry (EU 리전 주의)
 
