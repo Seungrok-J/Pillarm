@@ -4,6 +4,7 @@ import { z } from 'zod';
 import prisma from '../lib/prisma';
 import { requireAuth } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
+import { DAILY_SCAN_LIMIT } from '../config/limits';
 
 const router = Router();
 router.use(requireAuth);
@@ -12,8 +13,6 @@ router.use(requireAuth);
 const bodySchema = z.object({
   image: z.string().min(100).max(10_000_000),
 });
-
-const DAILY_SCAN_LIMIT = 5;
 
 function todayKST(): string {
   const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);

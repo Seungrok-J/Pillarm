@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/authStore';
 import {
   getAdminStats, broadcastPush, getFeatureFlags, setFeatureFlag,
-  type AdminStats, type FeatureFlag,
+  type AdminStats, type FeatureFlag, type RetentionPoint,
 } from './adminApi';
 import AlertModal, { type AlertModalTone } from '../../components/AlertModal';
 
@@ -108,11 +108,19 @@ export default function AdminScreen() {
           {loadingStats ? (
             <ActivityIndicator color="#3b82f6" />
           ) : stats ? (
-            <View style={styles.statsGrid}>
-              <StatBox label="전체 유저" value={stats.totalUsers} />
-              <StatBox label="오늘 활성" value={stats.activeToday} />
-              <StatBox label="이번 주 신규" value={stats.newThisWeek} />
-            </View>
+            <>
+              <View style={styles.statsGrid}>
+                <StatBox label="전체 유저" value={stats.totalUsers} />
+                <StatBox label="오늘 활성" value={stats.activeToday} />
+                <StatBox label="이번 주 신규" value={stats.newThisWeek} />
+              </View>
+              <View style={styles.divider} />
+              <MetricRow
+                label="일정 등록"
+                value={`${stats.activation.usersWithSchedule}명`}
+                sub={pct(stats.activation.rate)}
+              />
+            </>
           ) : (
             <Text style={styles.errorText}>통계를 불러오지 못했습니다</Text>
           )}
@@ -120,6 +128,80 @@ export default function AdminScreen() {
             <Text style={styles.refreshBtnTxt}>새로고침</Text>
           </TouchableOpacity>
         </View>
+
+        {/* ── 보호자 그룹 ───────────────────────────────────────── */}
+        {stats && (
+          <>
+            <Text style={styles.sectionTitle}>보호자 그룹</Text>
+            <View style={styles.card}>
+              <View style={styles.headlineRow}>
+                <Text
+                  style={[
+                    styles.headlineValue,
+                    stats.careCircle.adoptionRate < 0.1 && styles.headlineWarn,
+                  ]}
+                >
+                  {pct(stats.careCircle.adoptionRate)}
+                </Text>
+                <Text style={styles.headlineLabel}>사용률</Text>
+              </View>
+              {stats.careCircle.adoptionRate < 0.1 && (
+                <Text style={styles.warnText}>
+                  10% 미만 — 보호자 결제 모델(PRD Phase 5)의 전제를 재검토해야 합니다
+                </Text>
+              )}
+              <View style={styles.divider} />
+              <MetricRow label="그룹 수" value={`${stats.careCircle.circleCount}개`} />
+              <MetricRow label="관여 유저" value={`${stats.careCircle.usersInAnyCircle}명`} />
+              <MetricRow label="보호자 수" value={`${stats.careCircle.caregiverCount}명`} />
+              <MetricRow
+                label="보호자당 환자"
+                value={`${stats.careCircle.avgPatientsPerCaregiver}명`}
+              />
+            </View>
+          </>
+        )}
+
+        {/* ── 스캔 사용량 ───────────────────────────────────────── */}
+        {stats && (
+          <>
+            <Text style={styles.sectionTitle}>
+              스캔 사용량 (최근 {stats.scan.windowDays}일)
+            </Text>
+            <View style={styles.card}>
+              <MetricRow label="총 스캔" value={`${stats.scan.totalScans.toLocaleString()}회`} />
+              <MetricRow label="사용 유저" value={`${stats.scan.uniqueUsers}명`} />
+              <MetricRow label="1인당 평균" value={`${stats.scan.avgScansPerUser}회`} />
+              <MetricRow
+                label={`일 ${stats.scan.dailyLimit}회 한도 도달`}
+                value={`${stats.scan.dailyLimitHits}건`}
+                sub={stats.scan.dailyLimitHits === 0 ? '한도 압력 없음' : undefined}
+              />
+            </View>
+          </>
+        )}
+
+        {/* ── 리텐션 ────────────────────────────────────────────── */}
+        {stats && (
+          <>
+            <Text style={styles.sectionTitle}>리텐션</Text>
+            <View style={styles.card}>
+              <View style={styles.statsGrid}>
+                <RetentionBox label="D1" point={stats.retention.d1} />
+                <RetentionBox label="D7" point={stats.retention.d7} />
+                <RetentionBox label="D30" point={stats.retention.d30} />
+              </View>
+              <View style={styles.divider} />
+              <MetricRow label="최근 7일 활동" value={`${stats.retention.activeLast7d}명`} />
+              <MetricRow label="최근 30일 활동" value={`${stats.retention.activeLast30d}명`} />
+              <Text style={styles.noteText}>
+                가입 후 N일이 지난 유저 중 가입일+N일 이후에도 복용 체크 기록이 있는 비율.
+                서버가 복용 기록을 {stats.retention.cohortWindowDays}일만 보관하므로
+                그 안에 가입한 유저만 집계합니다.
+              </Text>
+            </View>
+          </>
+        )}
 
         {/* ── 전체 푸시 발송 ────────────────────────────────────── */}
         <Text style={styles.sectionTitle}>전체 푸시 알림 발송</Text>
@@ -225,6 +307,39 @@ function StatBox({ label, value }: { label: string; value: number }) {
   );
 }
 
+/** 0~1 비율을 퍼센트 문자열로. 소수 첫째 자리까지. */
+function pct(rate: number): string {
+  return `${(rate * 100).toFixed(1)}%`;
+}
+
+function MetricRow({ label, value, sub }: { label: string; value: string; sub?: string }) {
+  return (
+    <View style={styles.metricRow}>
+      <Text style={styles.metricLabel}>{label}</Text>
+      <View style={styles.metricRight}>
+        <Text style={styles.metricValue}>{value}</Text>
+        {sub ? <Text style={styles.metricSub}>{sub}</Text> : null}
+      </View>
+    </View>
+  );
+}
+
+function RetentionBox({ label, point }: { label: string; point: RetentionPoint }) {
+  // 대상 코호트가 없으면 비율이 의미 없다 — 0.0% 대신 '–' 로 구분해서 보여준다
+  const empty = point.eligible === 0;
+  return (
+    <View style={styles.statBox}>
+      <Text style={[styles.statValue, empty && styles.statValueMuted]}>
+        {empty ? '–' : pct(point.rate)}
+      </Text>
+      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={styles.statSubLabel}>
+        {empty ? '대상 없음' : `${point.retained}/${point.eligible}`}
+      </Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   safeArea:   { flex: 1, backgroundColor: '#f9fafb' },
   content:    { padding: 16 },
@@ -249,7 +364,22 @@ const styles = StyleSheet.create({
   statsGrid: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 12 },
   statBox:   { alignItems: 'center' },
   statValue: { fontSize: 26, fontWeight: '800', color: '#111827' },
+  statValueMuted: { color: '#d1d5db' },
   statLabel: { fontSize: 12, color: '#6b7280', marginTop: 2 },
+  statSubLabel: { fontSize: 11, color: '#9ca3af', marginTop: 1 },
+
+  metricRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 9 },
+  metricLabel: { fontSize: 14, color: '#374151', flex: 1 },
+  metricRight: { alignItems: 'flex-end' },
+  metricValue: { fontSize: 15, fontWeight: '700', color: '#111827' },
+  metricSub:   { fontSize: 11, color: '#9ca3af', marginTop: 1 },
+
+  headlineRow:   { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
+  headlineValue: { fontSize: 34, fontWeight: '800', color: '#111827' },
+  headlineWarn:  { color: '#ef4444' },
+  headlineLabel: { fontSize: 13, color: '#6b7280' },
+  warnText:      { fontSize: 12, color: '#ef4444', marginTop: 6, lineHeight: 17 },
+  noteText:      { fontSize: 11, color: '#9ca3af', marginTop: 10, lineHeight: 16 },
 
   refreshBtn:    { alignSelf: 'flex-end', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: '#e5e7eb' },
   refreshBtnTxt: { fontSize: 13, color: '#6b7280' },
