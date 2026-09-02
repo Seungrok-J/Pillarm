@@ -27,6 +27,7 @@ pillarm/
 ├── PRD_PHASE2.md              ← 확장 기능 요구사항
 ├── PRD_PHASE3.md              ← 간편 로그인 & 스토어 배포 (오프라인·관리자 포함)
 ├── PRD_PHASE4.md              ← 약봉투 스캔 (Claude Vision AI) & 영양제 가이드
+├── PRD_PHASE5.md              ← 수익 모델 (프리미엄 구독) — 기획 단계
 ├── PROJECT_SUMMARY.md         ← 프로젝트 진행 이력 요약 (포트폴리오·이력서용)
 ├── docs/
 │   ├── domain-model.md        ← 엔터티 정의
@@ -79,6 +80,7 @@ pillarm/
 | 2 — 확장 | `PRD_PHASE2.md` | 보호자 공유·약 DB 연동·포인트·AI 코칭 | ✅ 완료 |
 | 3 — 배포 | `PRD_PHASE3.md` | 간편 로그인(Apple·Google·카카오) & App Store / Google Play 배포 + 오프라인 처리 + 관리자 패널 | 🔧 진행 중 (iOS 배포 ✅ · Android 비공개 테스트 중) |
 | 4 — 스캔 | `PRD_PHASE4.md` | 약봉투 촬영 → Claude Vision AI 자동 일정 생성 | ✅ 완료 (2026-06 배포, 지속 개선 중) |
+| 5 — 수익화 | `PRD_PHASE5.md` | 보호자 결제 기반 프리미엄 구독 | 📋 기획 (Android 프로덕션 액세스 확보 후 착수) |
 
 ## 배포 현황 (2026-09-01)
 
