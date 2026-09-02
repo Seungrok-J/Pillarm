@@ -138,14 +138,47 @@ npm run test:coverage # 커버리지 포함
 
 ---
 
-## 프로덕션 배포 (Railway 기준)
+## 배포 구성
 
-1. [Railway](https://railway.app) 프로젝트 생성
-2. PostgreSQL 플러그인 추가 → `DATABASE_URL` 자동 주입
-3. `DIRECT_URL`을 `DATABASE_URL`과 동일하게 설정
-4. `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` 환경 변수 추가
-5. `npm run build && npm start` 빌드 커맨드 설정
-6. 배포 후 앱의 `EXPO_PUBLIC_SERVER_IP`를 Railway 도메인으로 변경
+Railway 프로젝트 `incredible-intuition` 안에 환경이 둘 있고, **각각 별도의 Supabase DB** 를 쓴다.
+
+| 환경 | 도메인 | DB (Supabase) |
+|------|--------|---------------|
+| `production` | `pillarm-production.up.railway.app` | `pillarm-seoul` |
+| `staging` | `pillarm-staging.up.railway.app` | `pillarm-staging` |
+
+접속 문자열은 두 환경 모두 **세션 풀러**를 쓴다.
+
+```
+DATABASE_URL = postgresql://postgres.<ref>:<pw>@aws-0-ap-northeast-2.pooler.supabase.com:5432/postgres?connection_limit=5
+DIRECT_URL   = 위와 동일 (쿼리스트링 없음)
+```
+
+배포는 `railway.toml` 의 `startCommand` 가 `npx prisma migrate deploy` 를 먼저 돌리므로
+스키마가 자동 반영된다.
+
+### 어떤 빌드가 어디에 붙는가
+
+| 빌드 | 서버 |
+|------|------|
+| 로컬 개발 (`npx expo start`) | staging — 루트 `.env` 의 `EXPO_PUBLIC_SERVER_URL` |
+| EAS `preview` (실기기·내부 테스트) | **staging** |
+| EAS `production` (스토어) | production |
+
+실기기 테스트를 staging 으로 보내는 이유는 프로덕션 DB 를 테스트 데이터로 오염시키지
+않기 위해서다. 이 값이 production 을 가리키면 `/admin/stats` 의 지표(리텐션·보호자 그룹
+사용률 등)가 개발용 계정 때문에 왜곡된다.
+
+> **주의 — Supabase 무료 프로젝트는 7일간 사용이 없으면 자동으로 일시정지된다.**
+> staging 이 502 를 내면 먼저 Supabase 대시보드에서 `pillarm-staging` 이 멈췄는지 확인하고
+> 재개한 뒤 Railway staging 을 재배포한다.
+> (2026-09-02: 예전 Railway Postgres 를 가리킨 채 남아 있어 `P1001` 로 크래시했던 이력 있음)
+
+### 로컬에서 서버까지 직접 띄우기
+
+클라우드 없이 전부 로컬에서 돌리려면 위 "설치" 절의 로컬 Postgres 설정을 쓰고,
+루트 `.env` 의 `EXPO_PUBLIC_SERVER_URL` 을 로컬 주소로 바꾼다.
+실기기에서 붙일 때는 `EXPO_PUBLIC_SERVER_IP` 에 PC 의 LAN IP 를 넣는다.
 
 ---
 

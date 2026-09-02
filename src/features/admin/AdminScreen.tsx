@@ -120,6 +120,9 @@ export default function AdminScreen() {
                 value={`${stats.activation.usersWithSchedule}명`}
                 sub={pct(stats.activation.rate)}
               />
+              <Text style={styles.noteText}>
+                모든 수치는 관리자 계정 {stats.excludedAdmins}개를 제외한 값입니다.
+              </Text>
             </>
           ) : (
             <Text style={styles.errorText}>통계를 불러오지 못했습니다</Text>

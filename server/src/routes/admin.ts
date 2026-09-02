@@ -29,6 +29,15 @@ const RETENTION_DAYS = [1, 7, 30] as const;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/**
+ * 지표에서 제외할 사용자 조건 — 관리자(개발자 본인) 계정.
+ *
+ * 기기 테스트가 오랫동안 프로덕션 DB 에 기록돼 왔기 때문에 개발용 계정이 섞여 있다.
+ * 그대로 두면 전체 사용자를 부풀리고, 복용 체크를 하지 않으니 리텐션을 깎고,
+ * 보호자 그룹 사용률의 분모만 키운다.
+ */
+const EXCLUDE_ADMINS = { isAdmin: false } as const;
+
 function ymdKST(ms: number): string {
   return new Date(ms + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
@@ -48,6 +57,7 @@ router.get('/stats', async (_req, res, next) => {
 
     const [
       totalUsers,
+      adminUsers,
       activeToday,
       newThisWeek,
       usersWithSchedule,
@@ -58,43 +68,60 @@ router.get('/stats', async (_req, res, next) => {
       cohortUsers,
       lastTakenRows,
     ] = await Promise.all([
-      prisma.user.count(),
+      prisma.user.count({ where: EXCLUDE_ADMINS }),
+
+      // 제외한 관리자 수 — 응답에 함께 실어 지표를 해석할 때 참고하도록 한다
+      prisma.user.count({ where: { isAdmin: true } }),
 
       // 오늘 RefreshToken을 새로 발급(= 로그인)한 고유 유저 수
       prisma.refreshToken
-        .findMany({ where: { createdAt: { gte: todayStart } }, select: { userId: true }, distinct: ['userId'] })
+        .findMany({
+          where:    { createdAt: { gte: todayStart }, user: EXCLUDE_ADMINS },
+          select:   { userId: true },
+          distinct: ['userId'],
+        })
         .then((rows) => rows.length),
 
-      prisma.user.count({ where: { createdAt: { gte: weekStart } } }),
+      prisma.user.count({ where: { ...EXCLUDE_ADMINS, createdAt: { gte: weekStart } } }),
 
       // 일정을 하나라도 만든 사용자 — 가입만 하고 이탈한 사용자와 구분한다
-      prisma.user.count({ where: { schedules: { some: {} } } }),
+      prisma.user.count({ where: { ...EXCLUDE_ADMINS, schedules: { some: {} } } }),
 
-      prisma.careCircle.count(),
+      prisma.careCircle.count({ where: { owner: EXCLUDE_ADMINS } }),
 
-      prisma.careCircle.findMany({ select: { ownerUserId: true } }),
+      prisma.careCircle.findMany({
+        where:  { owner: EXCLUDE_ADMINS },
+        select: { ownerUserId: true },
+      }),
 
-      prisma.careMember.findMany({ select: { memberUserId: true, careCircleId: true } }),
+      prisma.careMember.findMany({
+        where:  { member: EXCLUDE_ADMINS },
+        select: { memberUserId: true, careCircleId: true },
+      }),
 
       // ScanUsage.date 는 "YYYY-MM-DD" 문자열 — 이 형식은 사전순 = 시간순이라
       // 문자열 비교로 구간을 자를 수 있다.
       prisma.scanUsage.findMany({
-        where:  { date: { gte: ymdKST(nowMs - SCAN_WINDOW_DAYS * DAY_MS) } },
+        where: {
+          date: { gte: ymdKST(nowMs - SCAN_WINDOW_DAYS * DAY_MS) },
+          user: EXCLUDE_ADMINS,
+        },
         select: { userId: true, count: true },
       }),
 
       // 리텐션 코호트는 DoseEvent 보관 구간 안쪽으로 제한한다.
       // 그보다 오래된 사용자는 활동 기록이 이미 지워져 "이탈" 로 잘못 잡힌다.
       prisma.user.findMany({
-        where:  { createdAt: { gte: mirrorStart } },
+        where:  { ...EXCLUDE_ADMINS, createdAt: { gte: mirrorStart } },
         select: { id: true, createdAt: true },
       }),
 
       // 사용자별 마지막 복용 체크 시각.
       // takenAt 은 ISO 8601 문자열이라 사전순 최대 = 최근 시각이다.
       prisma.doseEvent.groupBy({
-        by:   ['userId'],
-        _max: { takenAt: true },
+        by:    ['userId'],
+        where: { user: EXCLUDE_ADMINS },
+        _max:  { takenAt: true },
       }),
     ]);
 
@@ -149,10 +176,13 @@ router.get('/stats', async (_req, res, next) => {
       [...lastTakenByUser.values()].filter((ms) => ms >= nowMs - days * DAY_MS).length;
 
     res.json({
-      // 기존 필드 — 클라이언트 하위 호환을 위해 이름을 유지한다
+      // 기존 필드 — 클라이언트 하위 호환을 위해 이름을 유지한다.
+      // 값은 이제 관리자 계정을 제외한 수치다.
       totalUsers,
       activeToday,
       newThisWeek,
+      /** 지표에서 제외된 관리자 계정 수 */
+      excludedAdmins: adminUsers,
 
       activation: {
         usersWithSchedule,

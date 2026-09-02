@@ -10,9 +10,12 @@ export interface RetentionPoint {
 }
 
 export interface AdminStats {
+  /** 아래 수치는 모두 관리자 계정을 제외한 값이다 */
   totalUsers:  number;
   activeToday: number;
   newThisWeek: number;
+  /** 지표에서 제외된 관리자 계정 수 */
+  excludedAdmins: number;
 
   /** 가입만 하고 이탈한 사용자와 실제로 쓰기 시작한 사용자를 구분 */
   activation: {

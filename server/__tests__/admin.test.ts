@@ -30,9 +30,30 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const daysAgo = (n: number) => new Date(Date.now() - n * DAY_MS);
 const iso     = (n: number) => daysAgo(n).toISOString();
 
+/**
+ * user.count 는 한 요청 안에서 네 번 불린다(전체·관리자·주간신규·일정보유).
+ * 호출 순서로 목을 잡으면 라우트에 카운트가 하나 늘 때마다 테스트가 깨지므로,
+ * where 조건을 보고 분기한다.
+ */
+interface UserCounts {
+  total?: number;
+  admins?: number;
+  newThisWeek?: number;
+  withSchedule?: number;
+}
+
+function mockUserCount(counts: UserCounts) {
+  m.user.count.mockImplementation(({ where = {} }: { where?: Record<string, unknown> } = {}) => {
+    if (where['isAdmin'] === true)   return Promise.resolve(counts.admins ?? 0);
+    if (where['schedules'])          return Promise.resolve(counts.withSchedule ?? 0);
+    if (where['createdAt'])          return Promise.resolve(counts.newThisWeek ?? 0);
+    return Promise.resolve(counts.total ?? 0);
+  });
+}
+
 /** 기본값 — 각 테스트에서 필요한 부분만 덮어쓴다 */
-function stubStats(overrides: Partial<Record<string, unknown>> = {}) {
-  m.user.count.mockResolvedValue(0);
+function stubStats() {
+  mockUserCount({});
   m.refreshToken.findMany.mockResolvedValue([]);
   m.careCircle.count.mockResolvedValue(0);
   m.careCircle.findMany.mockResolvedValue([]);
@@ -40,7 +61,6 @@ function stubStats(overrides: Partial<Record<string, unknown>> = {}) {
   m.scanUsage.findMany.mockResolvedValue([]);
   m.user.findMany.mockResolvedValue([]);
   m.doseEvent.groupBy.mockResolvedValue([]);
-  Object.assign(m, overrides);
 }
 
 beforeEach(() => {
@@ -66,12 +86,7 @@ describe('GET /admin/stats — 접근 제어', () => {
 
 describe('GET /admin/stats — 기존 필드', () => {
   it('totalUsers·activeToday·newThisWeek 를 그대로 유지한다', async () => {
-    // user.count 는 totalUsers → usersWithSchedule → newThisWeek 순으로 쓰이지 않고
-    // Promise.all 안에서 호출 순서대로 소비된다: totalUsers, newThisWeek, usersWithSchedule
-    m.user.count
-      .mockResolvedValueOnce(100)  // totalUsers
-      .mockResolvedValueOnce(7)    // newThisWeek
-      .mockResolvedValueOnce(60);  // usersWithSchedule
+    mockUserCount({ total: 100, newThisWeek: 7, withSchedule: 60 });
     m.refreshToken.findMany.mockResolvedValue([{ userId: 'a' }, { userId: 'b' }]);
 
     const res = await request(app).get('/admin/stats').set('Authorization', bearer());
@@ -81,11 +96,45 @@ describe('GET /admin/stats — 기존 필드', () => {
   });
 });
 
+// ── 관리자 계정 제외 ──────────────────────────────────────────────────────────
+
+describe('GET /admin/stats — 관리자 계정 제외', () => {
+  it('제외한 관리자 수를 함께 돌려준다', async () => {
+    mockUserCount({ total: 40, admins: 2 });
+
+    const res = await request(app).get('/admin/stats').set('Authorization', bearer());
+
+    expect(res.body).toMatchObject({ totalUsers: 40, excludedAdmins: 2 });
+  });
+
+  it('모든 집계 쿼리가 관리자를 걸러낸다', async () => {
+    await request(app).get('/admin/stats').set('Authorization', bearer());
+
+    const notAdmin = { isAdmin: false };
+    expect(m.user.count).toHaveBeenCalledWith(expect.objectContaining({ where: notAdmin }));
+    expect(m.careCircle.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { owner: notAdmin } }),
+    );
+    expect(m.careMember.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { member: notAdmin } }),
+    );
+    expect(m.doseEvent.groupBy).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { user: notAdmin } }),
+    );
+    expect(m.scanUsage.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ user: notAdmin }) }),
+    );
+    expect(m.refreshToken.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ user: notAdmin }) }),
+    );
+  });
+});
+
 // ── 보호자 그룹 ───────────────────────────────────────────────────────────────
 
 describe('GET /admin/stats — 보호자 그룹', () => {
   it('소유자와 구성원을 합쳐 중복 없이 사용률을 낸다', async () => {
-    m.user.count.mockResolvedValue(10);
+    mockUserCount({ total: 10 });
     m.careCircle.count.mockResolvedValue(2);
     m.careCircle.findMany.mockResolvedValue([
       { ownerUserId: 'patient-1' },
@@ -111,7 +160,7 @@ describe('GET /admin/stats — 보호자 그룹', () => {
   });
 
   it('같은 사용자가 소유자이자 다른 그룹의 구성원이어도 한 번만 센다', async () => {
-    m.user.count.mockResolvedValue(4);
+    mockUserCount({ total: 4 });
     m.careCircle.findMany.mockResolvedValue([{ ownerUserId: 'u1' }]);
     m.careMember.findMany.mockResolvedValue([{ memberUserId: 'u1', careCircleId: 'c9' }]);
 
@@ -122,7 +171,7 @@ describe('GET /admin/stats — 보호자 그룹', () => {
   });
 
   it('그룹이 없으면 0으로 나누지 않는다', async () => {
-    m.user.count.mockResolvedValue(0);
+    mockUserCount({ total: 0 });
 
     const res = await request(app).get('/admin/stats').set('Authorization', bearer());
 
@@ -225,10 +274,7 @@ describe('GET /admin/stats — 리텐션', () => {
 
 describe('GET /admin/stats — 활성화', () => {
   it('일정을 만든 사용자 비율을 낸다', async () => {
-    m.user.count
-      .mockResolvedValueOnce(50) // totalUsers
-      .mockResolvedValueOnce(0)  // newThisWeek
-      .mockResolvedValueOnce(20); // usersWithSchedule
+    mockUserCount({ total: 50, withSchedule: 20 });
 
     const res = await request(app).get('/admin/stats').set('Authorization', bearer());
 
