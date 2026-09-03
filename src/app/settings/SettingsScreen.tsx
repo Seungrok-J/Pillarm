@@ -321,10 +321,7 @@ export default function SettingsScreen() {
                 );
               })}
             </View>
-            {/* 선택 즉시 앱 전체에 반영되므로 이 문장 자체가 미리보기 역할을 한다 */}
-            <Text style={styles.fontScalePreview}>
-              가나다 · 아침 약 드실 시간이에요
-            </Text>
+            {/* 선택 즉시 앱 전체(이 화면 포함)가 커지므로 별도 미리보기 문구를 두지 않는다 */}
           </View>
         </View>
 
@@ -806,7 +803,6 @@ const styles = StyleSheet.create({
   segmentBtnActive: { backgroundColor: '#3b82f6', borderColor: '#3b82f6' },
   segmentTxt:       { fontSize: 15, fontWeight: '600', color: '#6b7280' },
   segmentTxtActive: { color: '#fff' },
-  fontScalePreview: { fontSize: 15, color: '#6b7280', marginTop: 12 },
   labelBlock: { flex: 1, marginRight: 12 },
   label:      { fontSize: 15, color: '#111827' },
   hint:       { fontSize: 12, color: '#9ca3af', marginTop: 2 },
