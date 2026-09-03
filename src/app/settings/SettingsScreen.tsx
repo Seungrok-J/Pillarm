@@ -1,18 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  Switch,
-  TouchableOpacity,
-  ScrollView,
-  ActivityIndicator,
-  StyleSheet,
-  RefreshControl,
-  Modal,
-  Linking,
-  Platform,
-} from 'react-native';
+import { View, Switch, TouchableOpacity, ScrollView, ActivityIndicator, StyleSheet, RefreshControl, Modal, Linking, Platform } from 'react-native';
+import { AppText as Text, AppTextInput as TextInput } from '../../components/AppText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
@@ -25,6 +13,7 @@ import { seedDemoData } from '../../utils/seedDemoData';
 import { reportError, isSentryEnabled, hasSentryDsn } from '../../monitoring';
 import AlertModal, { type AlertModalTone } from '../../components/AlertModal';
 import type { UserSettings } from '../../domain';
+import { FONT_SCALE_OPTIONS, normalizeFontScale } from '../../utils/fontScale';
 
 type Nav = StackNavigationProp<RootStackParamList>;
 
@@ -198,6 +187,9 @@ export default function SettingsScreen() {
     setLoginPromptVisible(true);
   }
 
+  // 저장된 값이 예전 단계일 수 있어 정규화해서 비교한다
+  const currentFontScale = normalizeFontScale(settings?.fontScale);
+
   async function saveSetting(patch: Partial<UserSettings>) {
     const updated = { ...settings!, ...patch };
     await updateSettings(updated);
@@ -302,6 +294,38 @@ export default function SettingsScreen() {
               <Text style={styles.chevron}>›</Text>
             </TouchableOpacity>
           )}
+        </View>
+
+        {/* ── 화면 ─────────────────────────────────────────────────── */}
+        <Text style={styles.sectionTitle}>화면</Text>
+        <View style={styles.section}>
+          <View style={styles.fontScaleBlock}>
+            <Text style={styles.label}>글씨 크기</Text>
+            <View style={styles.segmentRow}>
+              {FONT_SCALE_OPTIONS.map((opt) => {
+                const active = Math.abs(currentFontScale - opt.value) < 0.001;
+                return (
+                  <TouchableOpacity
+                    key={opt.value}
+                    testID={`btn-font-scale-${opt.value}`}
+                    style={[styles.segmentBtn, active && styles.segmentBtnActive]}
+                    onPress={() => saveSetting({ fontScale: opt.value })}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: active }}
+                    accessibilityLabel={`글씨 크기 ${opt.label}`}
+                  >
+                    <Text style={[styles.segmentTxt, active && styles.segmentTxtActive]}>
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            {/* 선택 즉시 앱 전체에 반영되므로 이 문장 자체가 미리보기 역할을 한다 */}
+            <Text style={styles.fontScalePreview}>
+              가나다 · 아침 약 드실 시간이에요
+            </Text>
+          </View>
         </View>
 
         {/* ── 알림 설정 ────────────────────────────────────────────── */}
@@ -770,6 +794,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 14, minHeight: 56,
   },
   divider:    { height: 1, backgroundColor: '#f3f4f6', marginLeft: 16 },
+
+  // 글씨 크기 — 세그먼트 버튼은 44pt 이상(접근성 원칙)
+  fontScaleBlock: { paddingHorizontal: 16, paddingVertical: 14 },
+  segmentRow:     { flexDirection: 'row', gap: 8, marginTop: 10 },
+  segmentBtn: {
+    flex: 1, minHeight: 48, borderRadius: 10,
+    borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#fff',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  segmentBtnActive: { backgroundColor: '#3b82f6', borderColor: '#3b82f6' },
+  segmentTxt:       { fontSize: 15, fontWeight: '600', color: '#6b7280' },
+  segmentTxtActive: { color: '#fff' },
+  fontScalePreview: { fontSize: 15, color: '#6b7280', marginTop: 12 },
   labelBlock: { flex: 1, marginRight: 12 },
   label:      { fontSize: 15, color: '#111827' },
   hint:       { fontSize: 12, color: '#9ca3af', marginTop: 2 },

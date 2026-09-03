@@ -83,7 +83,19 @@
 ## 5. 접근성 (CLAUDE.md 핵심 원칙과 연결)
 
 - 글씨 크기 최소 16sp, 터치 영역 최소 44×44pt — 2026-08-26에 스캔 화면 "전체 선택/전체 해제" 버튼이 이 기준 미달이라 지적받아 44pt 이상으로 수정한 사례 있음(`docs/scan-pack-ux-requirements.md` 참고). 새 터치 요소를 만들 때 처음부터 이 기준으로 만들 것.
-- `App.tsx`가 전역으로 `allowFontScaling = false`를 강제하고 있음 — OS 글씨 크기 설정을 무시한다는 뜻이라, 접근성 원칙(최소 16sp)과는 별도로 사용자의 시스템 폰트 확대 설정을 못 따라간다는 트레이드오프가 있다는 걸 인지하고 있을 것. (의도적 선택으로 보이며 여기서 바꾸라는 얘기는 아님 — 그냥 알아둘 것.)
+- `App.tsx`가 전역으로 `allowFontScaling = false`를 강제하고 있음 — OS 글씨 크기 설정을 무시한다는 뜻이다. 레이아웃 보호를 위한 의도적 선택이고, **그 대체 수단으로 앱이 자체 글씨 크기 배율을 제공한다**(2026-09-03 완성).
+
+### 글씨 크기 배율 (앱 자체)
+
+- 설정 → **화면 → 글씨 크기**에서 `보통(1.0)` / `크게(1.15)` / `아주 크게(1.3)` 세 단계. 값은 `user_settings.font_scale`에 저장된다.
+- 적용은 **`src/components/AppText.tsx`의 `AppText`·`AppTextInput` 래퍼가 전담**한다. 화면마다 fontSize를 곱하지 않는다.
+- **새 화면을 만들 때 `react-native`의 `Text`/`TextInput`을 직접 import 하지 말 것.** 대신:
+  ```tsx
+  import { AppText as Text, AppTextInput as TextInput } from '../../components/AppText';
+  ```
+  이렇게 alias로 가져오면 JSX는 그대로 쓰면서 배율이 자동 적용된다. 앱 전체가 이 방식으로 통일돼 있다.
+- 래퍼는 `fontSize`와 함께 **`lineHeight`도 같은 비율로 키운다** — fontSize만 키우면 줄이 겹쳐 오히려 읽기 어려워진다.
+- **고정 폭(width) 컨테이너 안에 텍스트를 넣을 때 주의.** 배율이 커지면 글자가 잘린다. 폭도 배율을 따라가게 하거나(`DoseCard`의 `LEFT_TIME_WIDTH` 참고) 고정 폭을 쓰지 말 것. 실제로 `DoseCard` 왼쪽 시간 컬럼이 `width: 46` 고정이라 배율 1.0에서도 "09:00"이 "09:…"로 잘리고 있었다(2026-09-03 수정).
 
 ## 6. 아이콘 — 아직 통일 안 됨 (진행 중, 2026-08-26)
 

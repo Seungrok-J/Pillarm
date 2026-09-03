@@ -1,16 +1,6 @@
 import React, { useEffect, useCallback, useMemo, useRef, useState } from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  AppState,
-  AppStateStatus,
-  ActivityIndicator,
-  StyleSheet,
-  Modal,
-  RefreshControl,
-} from 'react-native';
+import { View, FlatList, TouchableOpacity, AppState, AppStateStatus, ActivityIndicator, StyleSheet, Modal, RefreshControl } from 'react-native';
+import { AppText as Text } from '../../components/AppText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';

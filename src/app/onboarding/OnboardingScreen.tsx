@@ -1,12 +1,6 @@
 import React, { useRef, useState } from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  Dimensions,
-  StyleSheet,
-} from 'react-native';
+import { View, FlatList, TouchableOpacity, Dimensions, StyleSheet } from 'react-native';
+import { AppText as Text } from '../../components/AppText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { requestNotificationPermission } from '../../notifications';

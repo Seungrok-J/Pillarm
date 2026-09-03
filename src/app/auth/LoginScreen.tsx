@@ -3,11 +3,8 @@
  */
 
 import React, { useState } from 'react';
-import {
-  View, Text, TouchableOpacity,
-  ActivityIndicator, StyleSheet,
-  ScrollView, Image,
-} from 'react-native';
+import { View, TouchableOpacity, ActivityIndicator, StyleSheet, ScrollView, Image } from 'react-native';
+import { AppText as Text } from '../../components/AppText';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import type { StackNavigationProp } from '@react-navigation/stack';

@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
-import {
-  View, Text, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Image,
-} from 'react-native';
+import { View, TouchableOpacity, StyleSheet, ActivityIndicator, Image } from 'react-native';
+import { AppText as Text } from '../../components/AppText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';

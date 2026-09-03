@@ -7,10 +7,8 @@
  * 멤버 약을 추가/제거할 수 있다.
  */
 import React, { useCallback, useState } from 'react';
-import {
-  View, Text, TextInput, TouchableOpacity, ScrollView,
-  ActivityIndicator, Modal, Platform, StyleSheet,
-} from 'react-native';
+import { View, TouchableOpacity, ScrollView, ActivityIndicator, Modal, Platform, StyleSheet } from 'react-native';
+import { AppText as Text, AppTextInput as TextInput } from '../../components/AppText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';

@@ -1,8 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  View, Text, TextInput, FlatList, TouchableOpacity,
-  ActivityIndicator, StyleSheet, Animated,
-} from 'react-native';
+import { View, FlatList, TouchableOpacity, ActivityIndicator, StyleSheet, Animated } from 'react-native';
+import { AppText as Text, AppTextInput as TextInput } from '../../components/AppText';
 import debounce from 'lodash.debounce';
 import NetInfo from '@react-native-community/netinfo';
 import { searchMedications, type MedicationSearchResult } from './medicationSearchApi';

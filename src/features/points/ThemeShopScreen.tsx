@@ -1,12 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  Modal,
-  StyleSheet,
-} from 'react-native';
+import { View, FlatList, TouchableOpacity, Modal, StyleSheet } from 'react-native';
+import { AppText as Text } from '../../components/AppText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { THEMES, type Theme } from '../../utils/themeManager';
 import { useThemeStore } from '../../store';

@@ -1,8 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  View, Text, ScrollView, RefreshControl,
-  StyleSheet, ActivityIndicator, TouchableOpacity, AppState,
-} from 'react-native';
+import { View, ScrollView, RefreshControl, StyleSheet, ActivityIndicator, TouchableOpacity, AppState } from 'react-native';
+import { AppText as Text } from '../../components/AppText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRoute } from '@react-navigation/native';

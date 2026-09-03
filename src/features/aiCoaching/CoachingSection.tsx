@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import {
-  View, Text, TouchableOpacity, ActivityIndicator, StyleSheet,
-} from 'react-native';
+import { View, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
+import { AppText as Text } from '../../components/AppText';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';

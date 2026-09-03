@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import {
-  View, Text, TextInput, TouchableOpacity,
-  ScrollView, StyleSheet, ActivityIndicator, Switch,
-} from 'react-native';
+import { View, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, Switch } from 'react-native';
+import { AppText as Text, AppTextInput as TextInput } from '../../components/AppText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/authStore';
 import {

@@ -172,3 +172,52 @@ describe('AC5 — TimeInput 잘못된 형식', () => {
   });
 });
 
+
+// ── 글씨 크기 조절 ───────────────────────────────────────────────────────────
+
+describe('글씨 크기 조절', () => {
+  it('세 단계 버튼이 모두 렌더된다', () => {
+    const { getByTestId } = render(<SettingsScreen />);
+
+    expect(getByTestId('btn-font-scale-1')).toBeTruthy();
+    expect(getByTestId('btn-font-scale-1.15')).toBeTruthy();
+    expect(getByTestId('btn-font-scale-1.3')).toBeTruthy();
+  });
+
+  it('단계를 누르면 해당 배율로 저장된다', async () => {
+    const { getByTestId } = render(<SettingsScreen />);
+
+    fireEvent.press(getByTestId('btn-font-scale-1.3'));
+
+    await waitFor(() => expect(mockSave).toHaveBeenCalledTimes(1));
+    expect(mockSave).toHaveBeenCalledWith(expect.objectContaining({ fontScale: 1.3 }));
+  });
+
+  it('글씨 크기 변경은 알림을 재등록하지 않는다', async () => {
+    const { getByTestId } = render(<SettingsScreen />);
+
+    fireEvent.press(getByTestId('btn-font-scale-1.15'));
+
+    await waitFor(() => expect(mockSave).toHaveBeenCalledTimes(1));
+    expect(mockReschedule).not.toHaveBeenCalled();
+  });
+
+  it('현재 선택된 단계가 selected 로 표시된다', () => {
+    useSettingsStore.setState({ settings: { ...SETTINGS, fontScale: 1.15 } });
+    const { getByTestId } = render(<SettingsScreen />);
+
+    expect(getByTestId('btn-font-scale-1.15').props.accessibilityState)
+      .toMatchObject({ selected: true });
+    expect(getByTestId('btn-font-scale-1').props.accessibilityState)
+      .toMatchObject({ selected: false });
+  });
+
+  it('저장된 배율이 알 수 없는 값이면 보통(1.0)으로 표시한다', () => {
+    // 예전 빌드나 손상된 값이 들어와도 UI 가 아무것도 선택하지 않은 상태가 되지 않아야 한다
+    useSettingsStore.setState({ settings: { ...SETTINGS, fontScale: 2.5 } });
+    const { getByTestId } = render(<SettingsScreen />);
+
+    expect(getByTestId('btn-font-scale-1').props.accessibilityState)
+      .toMatchObject({ selected: true });
+  });
+});

@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import {
-  View, Text, TextInput, TouchableOpacity,
-  ActivityIndicator, StyleSheet, Platform,
-} from 'react-native';
+import { View, TouchableOpacity, ActivityIndicator, StyleSheet, Platform } from 'react-native';
+// ref 타입은 RN 원본을 쓴다 — 아래 TextInput 은 글씨 배율을 적용하는 래퍼다
+import type { TextInput as RNTextInput } from 'react-native';
+import { AppText as Text, AppTextInput as TextInput } from '../../components/AppText';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RouteProp } from '@react-navigation/native';
@@ -54,7 +54,7 @@ interface CodeInputProps {
 
 function CodeInputTab({ onSubmit, loading }: CodeInputProps) {
   const [chars, setChars] = useState<string[]>(Array(CODE_LEN).fill(''));
-  const refs = useRef<Array<TextInput | null>>([]);
+  const refs = useRef<Array<RNTextInput | null>>([]);
 
   function handleChange(text: string, idx: number) {
     const char = text.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(-1);

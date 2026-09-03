@@ -1,9 +1,6 @@
 import React, { useCallback, useState, Fragment } from 'react';
-import {
-  View, Text, TouchableOpacity, Modal,
-  ActivityIndicator, StyleSheet,
-  ScrollView, TextInput, Share, RefreshControl,
-} from 'react-native';
+import { View, TouchableOpacity, Modal, ActivityIndicator, StyleSheet, ScrollView, Share, RefreshControl } from 'react-native';
+import { AppText as Text, AppTextInput as TextInput } from '../../components/AppText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';

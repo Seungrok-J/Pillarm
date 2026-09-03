@@ -1,24 +1,13 @@
 import React, { useRef, useState } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  Animated,
-  PanResponder,
-  StyleSheet,
-  Modal,
-  TextInput,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  Linking,
-} from 'react-native';
+import { View, TouchableOpacity, Animated, PanResponder, StyleSheet, Modal, Image, KeyboardAvoidingView, Platform, Linking } from 'react-native';
+import { AppText as Text, AppTextInput as TextInput } from './AppText';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { DoseEvent, WithFood } from '../domain';
 import { useThemeStore } from '../store/themeStore';
+import { useFontScale } from '../utils/fontScale';
 import {
   DOSE_EARLY_WINDOW_MS,
   DoseDisplayState,
@@ -31,6 +20,12 @@ import AlertModal from './AlertModal';
 const SWIPE_THRESHOLD = 72;
 /** 로컬 alias — 공유 유틸에서 import */
 type DisplayState = DoseDisplayState;
+
+/**
+ * 왼쪽 시간 컬럼의 기준 폭(배율 1.0).
+ * "09:00"(14pt bold)과 "복용 예정"(10pt)이 들어가야 한다 — 예전 값 46 은 둘 다 잘렸다.
+ */
+const LEFT_TIME_WIDTH = 56;
 
 const STATE_META: Record<DisplayState, { label: string; labelColor: string; timeColor: string; dotColor: string }> = {
   waiting: { label: '복용 예정', labelColor: '#8b95a1', timeColor: '#8b95a1', dotColor: '#8b95a1' },
@@ -93,6 +88,7 @@ export default function DoseCard({
 }: DoseCardProps) {
   const theme = useThemeStore((s) => s.activeTheme);
   const insets = useSafeAreaInsets();
+  const fontScale = useFontScale();
   const nowMs = (now ?? new Date()).getTime();
   const graceMs = graceMinutes * 60_000;
   const displayState = computeDisplayState(event, nowMs, graceMs);
@@ -200,8 +196,8 @@ export default function DoseCard({
 
   return (
     <View style={[styles.row, displayState === 'waiting' && styles.dimmed]}>
-      {/* 왼쪽 시간 컬럼 */}
-      <View style={styles.leftTime}>
+      {/* 왼쪽 시간 컬럼 — 폭이 글씨 배율을 따라가야 "09:00"·"복용 예정" 이 잘리지 않는다 */}
+      <View style={[styles.leftTime, { width: Math.round(LEFT_TIME_WIDTH * fontScale) }]}>
         <Text testID={`card-time-${event.id}`} style={[styles.time, { color: meta.timeColor }]} numberOfLines={1}>{time}</Text>
         <Text style={styles.stateLabel} numberOfLines={1}>
           <Text style={{ color: meta.labelColor }}>{meta.label}</Text>
@@ -436,7 +432,8 @@ const styles = StyleSheet.create({
   },
   dimmed: { opacity: 0.7 },
 
-  leftTime: { width: 46, paddingTop: 12 },
+  // width 는 글씨 배율에 따라 런타임에 계산한다(LEFT_TIME_WIDTH 참고)
+  leftTime: { paddingTop: 12 },
   time:        { fontSize: 14, fontWeight: '700' },
   stateLabel:  { fontSize: 10, fontWeight: '600', marginTop: 2 },
 

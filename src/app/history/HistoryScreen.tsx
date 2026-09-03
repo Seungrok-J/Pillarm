@@ -1,19 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  ActivityIndicator,
-  StyleSheet,
-  Modal,
-  Image,
-  ScrollView,
-  PanResponder,
-  Animated,
-  Dimensions,
-  RefreshControl,
-} from 'react-native';
+import { View, FlatList, TouchableOpacity, ActivityIndicator, StyleSheet, Modal, Image, ScrollView, PanResponder, Animated, Dimensions, RefreshControl } from 'react-native';
+import { AppText as Text } from '../../components/AppText';
 
 const SW = Dimensions.get('window').width;
 import { SafeAreaView } from 'react-native-safe-area-context';

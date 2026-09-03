@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  View, Text, TouchableOpacity, Modal, ScrollView, StyleSheet, TextInput,
-} from 'react-native';
+import { View, TouchableOpacity, Modal, ScrollView, StyleSheet } from 'react-native';
+import { AppText as Text, AppTextInput as TextInput } from './AppText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // ── 상수 ─────────────────────────────────────────────────────────────────────
