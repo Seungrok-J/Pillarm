@@ -3,13 +3,13 @@
     "name": "필람",
     "slug": "pillarm",
     "scheme": "pillarm",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
       "bundleIdentifier": "com.seungrokj.pillarm",
-      "buildNumber": "37",
+      "buildNumber": "38",
       "supportsTablet": false,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
@@ -20,7 +20,7 @@
     },
     "android": {
       "package": "com.seungrokj.pillarm",
-      "versionCode": 24,
+      "versionCode": 25,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundImage": "./assets/adaptive-icon-background.png"
