@@ -114,19 +114,60 @@ describe('AC2 — Stepper 증감', () => {
   });
 });
 
-// ── AC3 — TimeInput 유효 ──────────────────────────────────────────────────────
+// ── AC3 — 시간 선택(드럼롤 시트) ────────────────────────────────────────────
 
-describe('AC3 — TimeInput 유효한 값', () => {
-  it('유효한 시간 입력 blur → updateSettings 호출', async () => {
+describe('AC3 — 시간 선택', () => {
+  it('시간 버튼에 현재 값이 읽기 쉬운 형태로 표시된다', () => {
     const { getByTestId } = render(<SettingsScreen />);
-    const input = getByTestId('input-quiet-start');
+    // 23:00 을 24시간제 그대로 보여주지 않는다
+    expect(getByTestId('input-quiet-start')).toHaveTextContent('오후 11:00');
+  });
 
-    fireEvent.changeText(input, '22:00');
-    fireEvent(input, 'blur');
+  it('버튼을 누르면 시트가 열리고, 확인하면 저장된다', async () => {
+    const { getByTestId } = render(<SettingsScreen />);
+
+    fireEvent.press(getByTestId('input-quiet-start'));
+    fireEvent.changeText(getByTestId('input-time-value'), '22:00');
+    fireEvent.press(getByTestId('btn-confirm-time'));
 
     await waitFor(() =>
       expect(mockSave).toHaveBeenCalledWith(
         expect.objectContaining({ quietHoursStart: '22:00' }),
+      ),
+    );
+  });
+
+  it('취소하면 저장하지 않는다', async () => {
+    const { getByTestId } = render(<SettingsScreen />);
+
+    fireEvent.press(getByTestId('input-quiet-start'));
+    fireEvent.changeText(getByTestId('input-time-value'), '22:00');
+    fireEvent.press(getByTestId('btn-cancel-time'));
+
+    await waitFor(() => expect(getByTestId('input-quiet-start')).toBeTruthy());
+    expect(mockSave).not.toHaveBeenCalled();
+  });
+
+  it('같은 시간을 다시 고르면 저장하지 않는다', async () => {
+    const { getByTestId } = render(<SettingsScreen />);
+
+    fireEvent.press(getByTestId('input-quiet-start'));
+    fireEvent.press(getByTestId('btn-confirm-time'));   // 23:00 그대로
+
+    await waitFor(() => expect(getByTestId('input-quiet-start')).toBeTruthy());
+    expect(mockSave).not.toHaveBeenCalled();
+  });
+
+  it('식사 시간도 같은 방식으로 저장된다', async () => {
+    const { getByTestId } = render(<SettingsScreen />);
+
+    fireEvent.press(getByTestId('input-meal-breakfast'));
+    fireEvent.changeText(getByTestId('input-time-value'), '07:30');
+    fireEvent.press(getByTestId('btn-confirm-time'));
+
+    await waitFor(() =>
+      expect(mockSave).toHaveBeenCalledWith(
+        expect.objectContaining({ mealTimeBreakfast: '07:30' }),
       ),
     );
   });
@@ -137,12 +178,23 @@ describe('AC3 — TimeInput 유효한 값', () => {
 describe('AC4 — 조용한 시간 변경 → rescheduleAllSchedules', () => {
   it('quietHoursStart 변경 시 rescheduleAllSchedules 를 호출한다', async () => {
     const { getByTestId } = render(<SettingsScreen />);
-    const input = getByTestId('input-quiet-start');
 
-    fireEvent.changeText(input, '22:00');
-    fireEvent(input, 'blur');
+    fireEvent.press(getByTestId('input-quiet-start'));
+    fireEvent.changeText(getByTestId('input-time-value'), '22:00');
+    fireEvent.press(getByTestId('btn-confirm-time'));
 
     await waitFor(() => expect(mockReschedule).toHaveBeenCalledTimes(1));
+  });
+
+  it('식사 시간 변경은 rescheduleAllSchedules 를 호출하지 않는다', async () => {
+    const { getByTestId } = render(<SettingsScreen />);
+
+    fireEvent.press(getByTestId('input-meal-lunch'));
+    fireEvent.changeText(getByTestId('input-time-value'), '12:30');
+    fireEvent.press(getByTestId('btn-confirm-time'));
+
+    await waitFor(() => expect(mockSave).toHaveBeenCalledTimes(1));
+    expect(mockReschedule).not.toHaveBeenCalled();
   });
 
   it('snooze 시간 변경 시 rescheduleAllSchedules 를 호출하지 않는다', async () => {
@@ -154,24 +206,6 @@ describe('AC4 — 조용한 시간 변경 → rescheduleAllSchedules', () => {
     expect(mockReschedule).not.toHaveBeenCalled();
   });
 });
-
-// ── AC5 — TimeInput 잘못된 형식 ──────────────────────────────────────────────
-
-describe('AC5 — TimeInput 잘못된 형식', () => {
-  it('잘못된 시간 blur → 원래 값으로 복원, updateSettings 호출 안 함', async () => {
-    const { getByTestId } = render(<SettingsScreen />);
-    const input = getByTestId('input-quiet-start');
-
-    fireEvent.changeText(input, 'ab:cd');
-    fireEvent(input, 'blur');
-
-    await waitFor(() =>
-      expect(input.props.value).toBe('23:00'),
-    );
-    expect(mockSave).not.toHaveBeenCalled();
-  });
-});
-
 
 // ── 글씨 크기 조절 ───────────────────────────────────────────────────────────
 

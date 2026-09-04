@@ -12,6 +12,7 @@ import { rescheduleAllSchedules } from '../../notifications';
 import { seedDemoData } from '../../utils/seedDemoData';
 import { reportError, isSentryEnabled, hasSentryDsn } from '../../monitoring';
 import AlertModal, { type AlertModalTone } from '../../components/AlertModal';
+import TimeWheelSheet, { formatTimeKo } from '../../components/TimeWheelSheet';
 import type { UserSettings } from '../../domain';
 import { FONT_SCALE_OPTIONS, normalizeFontScale } from '../../utils/fontScale';
 
@@ -111,42 +112,47 @@ function Stepper({ value, step, min, max, format, onChange, testID }: StepperPro
   );
 }
 
-// ── 인라인 TimeInput ──────────────────────────────────────────────────────────
+// ── 시간 선택 버튼 ────────────────────────────────────────────────────────────
+//
+// 예전에는 "23:00" 을 직접 타이핑하는 TextInput 이었다. 주 사용자가 고령층이라
+// 콜론이 들어간 24시간제 문자열을 모바일 키보드로 입력하는 것은 부담이 크고,
+// 형식이 틀리면 조용히 원래 값으로 되돌아가 버렸다.
+// 이제 일정 화면과 같은 드럼롤 시트를 열고, 값은 "오후 11:00" 형태로 보여준다.
 
-interface TimeInputProps {
+interface TimeButtonProps {
   value: string;
   onSave: (v: string) => void;
+  /** 시트 제목 — 어떤 항목을 고르는 중인지 알려준다 */
+  label: string;
   testID?: string;
 }
 
-function TimeInput({ value, onSave, testID }: TimeInputProps) {
-  const [text, setText] = useState(value);
-  const [hasError, setHasError] = useState(false);
-
-  useEffect(() => { setText(value); }, [value]);
-
-  function handleBlur() {
-    const valid = /^([01]\d|2[0-3]):([0-5]\d)$/.test(text);
-    if (valid) {
-      setHasError(false);
-      if (text !== value) onSave(text);
-    } else {
-      setHasError(true);
-      setText(value);
-    }
-  }
+function TimeButton({ value, onSave, label, testID }: TimeButtonProps) {
+  const [open, setOpen] = useState(false);
 
   return (
-    <TextInput
-      testID={testID}
-      value={text}
-      onChangeText={(t) => { setText(t); setHasError(false); }}
-      onBlur={handleBlur}
-      keyboardType="numbers-and-punctuation"
-      maxLength={5}
-      placeholder="HH:mm"
-      style={[styles.timeInput, hasError && styles.timeInputError]}
-    />
+    <>
+      <TouchableOpacity
+        testID={testID}
+        style={styles.timeBtn}
+        onPress={() => setOpen(true)}
+        accessibilityRole="button"
+        accessibilityLabel={`${label} ${formatTimeKo(value)}, 변경하려면 두 번 탭하세요`}
+      >
+        <Text style={styles.timeBtnTxt}>{formatTimeKo(value)}</Text>
+      </TouchableOpacity>
+
+      <TimeWheelSheet
+        visible={open}
+        initialTime={value}
+        title={label}
+        onConfirm={(time) => {
+          setOpen(false);
+          if (time !== value) onSave(time);
+        }}
+        onCancel={() => setOpen(false)}
+      />
+    </>
   );
 }
 
@@ -339,8 +345,9 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <View style={styles.row}>
             <Text style={styles.label}>조용한 시간 시작</Text>
-            <TimeInput
+            <TimeButton
               testID="input-quiet-start"
+              label="조용한 시간 시작"
               value={settings.quietHoursStart ?? '23:00'}
               onSave={(v) => saveSetting({ quietHoursStart: v })}
             />
@@ -348,8 +355,9 @@ export default function SettingsScreen() {
           <View style={styles.divider} />
           <View style={styles.row}>
             <Text style={styles.label}>조용한 시간 종료</Text>
-            <TimeInput
+            <TimeButton
               testID="input-quiet-end"
+              label="조용한 시간 종료"
               value={settings.quietHoursEnd ?? '07:00'}
               onSave={(v) => saveSetting({ quietHoursEnd: v })}
             />
@@ -387,8 +395,9 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <View style={styles.row}>
             <Text style={styles.label}>아침</Text>
-            <TimeInput
+            <TimeButton
               testID="input-meal-breakfast"
+              label="아침 식사 시간"
               value={settings.mealTimeBreakfast}
               onSave={(v) => saveSetting({ mealTimeBreakfast: v })}
             />
@@ -396,8 +405,9 @@ export default function SettingsScreen() {
           <View style={styles.divider} />
           <View style={styles.row}>
             <Text style={styles.label}>점심</Text>
-            <TimeInput
+            <TimeButton
               testID="input-meal-lunch"
+              label="점심 식사 시간"
               value={settings.mealTimeLunch}
               onSave={(v) => saveSetting({ mealTimeLunch: v })}
             />
@@ -405,8 +415,9 @@ export default function SettingsScreen() {
           <View style={styles.divider} />
           <View style={styles.row}>
             <Text style={styles.label}>저녁</Text>
-            <TimeInput
+            <TimeButton
               testID="input-meal-dinner"
+              label="저녁 식사 시간"
               value={settings.mealTimeDinner}
               onSave={(v) => saveSetting({ mealTimeDinner: v })}
             />
@@ -811,13 +822,14 @@ const styles = StyleSheet.create({
   accountRow: { paddingVertical: 10 },
   logoutText: { color: '#ef4444' },
 
-  // TimeInput
-  timeInput: {
-    borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8,
-    paddingHorizontal: 12, paddingVertical: 6,
-    fontSize: 15, color: '#111827', minWidth: 72, textAlign: 'center',
+  // TimeButton — 터치 영역 44pt 이상(접근성 원칙)
+  timeBtn: {
+    borderWidth: 1, borderColor: '#d1d5db', borderRadius: 10,
+    paddingHorizontal: 14, minHeight: 44,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#f9fafb',
   },
-  timeInputError: { borderColor: '#ef4444' },
+  timeBtnTxt: { fontSize: 15, fontWeight: '600', color: '#111827' },
 
   // 조용한 시간 모달 (소형)
   modalOverlay: {
