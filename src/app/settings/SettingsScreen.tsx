@@ -161,7 +161,7 @@ function TimeButton({ value, onSave, label, testID }: TimeButtonProps) {
 export default function SettingsScreen() {
   const navigation = useNavigation<Nav>();
   const { settings, loadSettings, updateSettings } = useSettingsStore();
-  const { isLoggedIn, userEmail, userName, clearSession, isAdmin, saveSession, accessToken, refreshToken, userId } = useAuthStore();
+  const { isLoggedIn, userEmail, userName, clearSession, isAdmin, saveSession, accessToken, refreshToken, userId, isDevBypass, enableDevBypass } = useAuthStore();
   const [refreshing, setRefreshing]     = useState(false);
   const [showQuietInfo, setShowQuietInfo] = useState(false);
   const [showFAQ, setShowFAQ]           = useState(false);
@@ -616,6 +616,42 @@ export default function SettingsScreen() {
                 </View>
                 <Text style={styles.chevron}>›</Text>
               </TouchableOpacity>
+              {/* 로그인 뒤 화면(보호자·계정·관리자)을 로그인 없이 열어보기 위한 우회.
+                  __DEV__ 가드는 authStore 쪽에도 있다. */}
+              {!isLoggedIn && __DEV__ && (
+                <>
+                  <View style={styles.divider} />
+                  <TouchableOpacity
+                    testID="btn-dev-bypass-login"
+                    style={styles.row}
+                    onPress={enableDevBypass}
+                  >
+                    <View style={styles.labelBlock}>
+                      <Text style={styles.label}>로그인 없이 화면 열기</Text>
+                      <Text style={styles.hint}>
+                        토큰 없는 가짜 세션 — 서버 동기화는 건너뜁니다. 앱을 다시 켜면 풀립니다.
+                      </Text>
+                    </View>
+                    <Text style={styles.chevron}>›</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+              {isDevBypass && (
+                <>
+                  <View style={styles.divider} />
+                  <TouchableOpacity
+                    testID="btn-dev-bypass-exit"
+                    style={styles.row}
+                    onPress={() => { clearSession(); }}
+                  >
+                    <View style={styles.labelBlock}>
+                      <Text style={[styles.label, styles.logoutText]}>로그인 우회 해제</Text>
+                      <Text style={styles.hint}>가짜 세션을 끄고 비로그인 상태로 돌아갑니다.</Text>
+                    </View>
+                    <Text style={styles.chevron}>›</Text>
+                  </TouchableOpacity>
+                </>
+              )}
               {/* 관리자 UI 로컬 토글 — 개발 빌드에서만 노출한다.
                   릴리스 빌드에서는 서버가 내려준 isAdmin 만이 관리자 권한의 기준이다. */}
               {isLoggedIn && __DEV__ && (

@@ -40,6 +40,10 @@ api.interceptors.response.use(
   async (error: AxiosError) => {
     const original = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
+    // 개발 우회 세션은 토큰이 없어 401 이 정상이다. 갱신을 시도하면 refreshToken 도
+    // 없으니 아래 catch 에서 clearSession 이 돌아 우회가 즉시 풀린다.
+    if (useAuthStore.getState().isDevBypass) return Promise.reject(error);
+
     // Auth endpoints return 401 for wrong credentials/account conflicts — pass through as-is
     const url = original?.url ?? '';
     if (/\/auth\/(social)/.test(url)) {
