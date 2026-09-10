@@ -107,8 +107,9 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <View style={{ flex: 1 }}>
-          {dbReady && <RootNavigator onReady={() => setNavReady(true)} />}
+          {/* 배너를 화면 위에 겹치면 각 화면의 헤더를 가린다 — 흐름 안에 두고 아래를 민다 */}
           <OfflineBanner />
+          {dbReady && <RootNavigator onReady={() => setNavReady(true)} />}
         </View>
         <StatusBar style="dark" />
         {splashMounted && (

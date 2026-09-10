@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, Switch } from 'react-native';
 import { AppText as Text, AppTextInput as TextInput } from '../../components/AppText';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,9 +8,12 @@ import {
   type AdminStats, type FeatureFlag, type RetentionPoint,
 } from './adminApi';
 import AlertModal, { type AlertModalTone } from '../../components/AlertModal';
+import OfflineBanner from '../../components/OfflineBanner';
+import { useNetworkStore } from '../../store/networkStore';
 
 export default function AdminScreen() {
   const { userName, userEmail } = useAuthStore();
+  const isOnline = useNetworkStore((s) => s.isOnline);
 
   const [stats,         setStats]         = useState<AdminStats | null>(null);
   const [flags,         setFlags]         = useState<FeatureFlag[]>([]);
@@ -28,12 +31,25 @@ export default function AdminScreen() {
     loadFlags();
   }, []);
 
+  // 재연결되면 자동으로 다시 불러온다 — 화면을 나갔다 들어올 필요가 없다
+  const wasOnlineRef = useRef(isOnline);
+  useEffect(() => {
+    if (isOnline && !wasOnlineRef.current) {
+      loadStats();
+      loadFlags();
+    }
+    wasOnlineRef.current = isOnline;
+  }, [isOnline]);
+
   async function loadStats() {
     setLoadingStats(true);
     try {
       setStats(await getAdminStats());
     } catch {
-      setSimpleAlert({ title: '오류', message: '통계를 불러오지 못했습니다.', tone: 'danger' });
+      // 오프라인이면 배너가 이미 알리고 있다 — 모달로 화면을 막지 않는다
+      if (useNetworkStore.getState().isOnline) {
+        setSimpleAlert({ title: '오류', message: '통계를 불러오지 못했습니다.', tone: 'danger' });
+      }
     } finally {
       setLoadingStats(false);
     }
@@ -91,6 +107,8 @@ export default function AdminScreen() {
     <SafeAreaView style={styles.safeArea} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.content}>
 
+        <OfflineBanner inline message="오프라인 상태입니다 — 관리자 기능은 인터넷 연결이 필요합니다. 연결되면 자동으로 다시 불러옵니다." />
+
         {/* 관리자 정보 */}
         <View style={styles.adminBadge}>
           <Text style={styles.adminBadgeIcon}>🔐</Text>
@@ -123,7 +141,9 @@ export default function AdminScreen() {
               </Text>
             </>
           ) : (
-            <Text style={styles.errorText}>통계를 불러오지 못했습니다</Text>
+            <Text style={styles.errorText}>
+              {isOnline ? '통계를 불러오지 못했습니다' : '오프라인 상태에서는 통계를 볼 수 없습니다'}
+            </Text>
           )}
           <TouchableOpacity style={styles.refreshBtn} onPress={loadStats}>
             <Text style={styles.refreshBtnTxt}>새로고침</Text>
