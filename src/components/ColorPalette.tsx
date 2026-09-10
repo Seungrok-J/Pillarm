@@ -17,7 +17,9 @@ interface Props {
 
 export default function ColorPalette({ selected, onSelect }: Props) {
   return (
-    <View style={{ flexDirection: 'row', gap: 10 }}>
+    // 6칸 × 44 + 간격 50 = 314dp 라 320dp 기기(폴더폰)에서는 마지막 색이 화면 밖으로
+    // 밀려 탭이 안 된다. 배율과 무관한 단순 넘침이라 줄바꿈으로 받는다.
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
       {PALETTE_COLORS.map((color) => {
         const isSelected = selected === color;
         return (

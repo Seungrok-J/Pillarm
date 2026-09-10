@@ -26,6 +26,7 @@ import TimePickerList from '../../components/TimePickerList';
 import AlertModal from '../../components/AlertModal';
 import MedicationSearchInput from '../../features/medicationDB/MedicationSearchInput';
 import type { MedicationSearchResult } from '../../features/medicationDB/MedicationSearchInput';
+import { useCompactLayout } from '../../utils/compactLayout';
 
 type Nav = StackNavigationProp<RootStackParamList>;
 
@@ -206,6 +207,7 @@ interface FormErrors {
 
 export default function ScheduleFormScreen() {
   const navigation = useNavigation<Nav>();
+  const compact = useCompactLayout();
   const route = useRoute();
   const params = route.params as RouteParams;
   const isEdit = !!(params && 'scheduleId' in params && params.scheduleId);
@@ -600,9 +602,11 @@ export default function ScheduleFormScreen() {
             </View>
           )}
 
-          {/* ── 시작일 / 종료일 ── */}
-          <View style={{ flexDirection: 'row', gap: 12 }}>
-            <View style={{ flex: 1 }}>
+          {/* ── 시작일 / 종료일 ──
+              나란히 두면 각 칸이 "2026년 9..." 로 잘린다. 320dp 기기는 보통 배율에서도
+              모자라므로 가로가 빠듯하면 위아래로 쌓는다. */}
+          <View style={{ flexDirection: compact ? 'column' : 'row', gap: 12 }}>
+            <View style={{ flex: compact ? undefined : 1 }}>
               <Text style={styles.label}>시작일<Text style={styles.required}> *</Text></Text>
               <DatePickerField
                 testID="input-start-date"
@@ -614,7 +618,7 @@ export default function ScheduleFormScreen() {
                 placeholder="시작일 선택"
               />
             </View>
-            <View style={{ flex: 1 }}>
+            <View style={{ flex: compact ? undefined : 1 }}>
               <Text style={styles.label}>종료일</Text>
               <DatePickerField
                 testID="input-end-date"
