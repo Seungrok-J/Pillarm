@@ -4,12 +4,13 @@ import { AppText as Text } from '../../components/AppText';
 
 const SW = Dimensions.get('window').width;
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Calendar } from 'react-native-calendars';
+import { Calendar, LocaleConfig } from 'react-native-calendars';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useDoseEventStore, useMedicationStore, useSettingsStore } from '../../store';
 import { useAuthStore } from '../../store/authStore';
 import { getDotColor } from '../../components/DayDot';
-import { todayString } from '../../utils';
+import { todayString, addDaysToDateString } from '../../utils';
 import {
   computeDisplayState,
   DOSE_DISPLAY_LABEL,
@@ -17,6 +18,8 @@ import {
   type DoseDisplayState,
 } from '../../utils/doseDisplay';
 import { useFontScale, scaledFont } from '../../utils/fontScale';
+import { useCompactLayout } from '../../utils/compactLayout';
+import WeekStrip from '../../components/WeekStrip';
 import type { DoseEvent } from '../../domain';
 
 // ── 상수 ─────────────────────────────────────────────────────────────────────
@@ -27,6 +30,15 @@ import type { DoseEvent } from '../../domain';
 const TIME_COL_WIDTH = 44;
 
 const MONTHS_KO = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+
+// 월간 달력 요일 헤더가 기본 영어라 주간 스트립(일·월·화…)과 어긋난다
+LocaleConfig.locales['ko'] = {
+  monthNames: MONTHS_KO,
+  monthNamesShort: MONTHS_KO,
+  dayNames: ['일요일','월요일','화요일','수요일','목요일','금요일','토요일'],
+  dayNamesShort: ['일','월','화','수','목','금','토'],
+};
+LocaleConfig.defaultLocale = 'ko';
 
 // ── 헬퍼 ──────────────────────────────────────────────────────────────────────
 
@@ -173,6 +185,10 @@ export default function HistoryScreen() {
   const [isLoading,      setIsLoading]      = useState(false);
   const [modalEvent,     setModalEvent]     = useState<DoseEvent | null>(null);
   const [showMonthPicker, setShowMonthPicker] = useState(false);
+  // 월간 달력은 세로를 6줄까지 먹어 좁은 화면·큰 글씨에서는 복용 목록이 다 가려진다.
+  // 그럴 때는 주간 스트립으로 시작하고, 헤더 버튼으로 월간을 펼칠 수 있게 한다.
+  const compact = useCompactLayout();
+  const [monthExpanded, setMonthExpanded] = useState(!compact);
   const [refreshing,      setRefreshing]      = useState(false);
 
   const { userId } = useAuthStore();
@@ -240,6 +256,20 @@ export default function HistoryScreen() {
     return result;
   }, [monthEvents, selectedDate]);
 
+  /** 주간 스트립은 selected 표시를 스스로 하므로 점 색만 넘긴다 */
+  const dotColors = useMemo<Record<string, string | undefined>>(() => {
+    const out: Record<string, string | undefined> = {};
+    for (const [date, mark] of Object.entries(markedDates)) out[date] = mark.dotColor;
+    return out;
+  }, [markedDates]);
+
+  /** 스트립에서 다른 달의 날짜를 고르면 그 달을 다시 불러와야 점·목록이 맞는다 */
+  function handleSelectDate(date: string) {
+    setSelectedDate(date);
+    const ym = date.slice(0, 7);
+    if (ym !== currentMonth) setCurrentMonth(ym);
+  }
+
   // ── 선택 날짜 이벤트 ────────────────────────────────────────────────────────
   const selectedEvents = useMemo(
     () => [...monthEvents]
@@ -282,10 +312,21 @@ export default function HistoryScreen() {
   // PanResponder는 첫 렌더의 클로저를 캡처하므로 ref로 최신 값을 공유
   const currentMonthRef = useRef(currentMonth);
   currentMonthRef.current = currentMonth;
+  // panResponder 는 한 번만 만들어지므로 최신 값을 ref 로 읽는다
+  const monthExpandedRef = useRef(monthExpanded);
+  monthExpandedRef.current = monthExpanded;
+  const selectedDateRef = useRef(selectedDate);
+  selectedDateRef.current = selectedDate;
 
   function runSlide(dir: 'prev' | 'next') {
     if (isAnimRef.current) return;
     isAnimRef.current = true;
+
+    // 접혀 있으면 한 주씩, 펼쳐져 있으면 한 달씩 움직인다
+    const weekMode = !monthExpandedRef.current;
+    const nextDate = weekMode
+      ? addDaysToDateString(selectedDateRef.current, dir === 'next' ? 7 : -7)
+      : null;
 
     const [y, m] = currentMonthRef.current.split('-').map(Number);
     const newMonth = dir === 'prev'
@@ -300,8 +341,15 @@ export default function HistoryScreen() {
       duration: 220,
       useNativeDriver: true,
     }).start(() => {
-      setCurrentMonth(newMonth);
-      setSelectedDate(`${newMonth}-01`);
+      if (nextDate) {
+        setSelectedDate(nextDate);
+        // 주가 달을 넘어가면 그 달을 다시 불러와야 점·목록이 맞는다
+        const ym = nextDate.slice(0, 7);
+        if (ym !== currentMonthRef.current) setCurrentMonth(ym);
+      } else {
+        setCurrentMonth(newMonth);
+        setSelectedDate(`${newMonth}-01`);
+      }
       slideX.setValue(inFrom);
       Animated.spring(slideX, {
         toValue: 0,
@@ -412,18 +460,35 @@ export default function HistoryScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
     <View style={styles.container} testID="screen-history">
-      {/* 월 네비게이션 */}
+      {/* 월 네비게이션 — 라벨은 왼쪽, 컨트롤은 오른쪽에 모은다 */}
       <View style={styles.monthNav}>
-        <TouchableOpacity testID="btn-prev-month" onPress={() => runSlide('prev')} style={styles.navBtn}>
-          <Text style={styles.navArrow}>‹</Text>
-        </TouchableOpacity>
         <TouchableOpacity onPress={() => setShowMonthPicker(true)} style={styles.monthLabelBtn}>
-          <Text testID="label-month" style={styles.monthLabel}>{monthLabel}</Text>
+          <Text testID="label-month" style={styles.monthLabel} numberOfLines={1}>{monthLabel}</Text>
           <Text style={styles.monthLabelCaret}> ▾</Text>
         </TouchableOpacity>
-        <TouchableOpacity testID="btn-next-month" onPress={() => runSlide('next')} style={styles.navBtn}>
-          <Text style={styles.navArrow}>›</Text>
-        </TouchableOpacity>
+
+        <View style={styles.navGroup}>
+          <TouchableOpacity testID="btn-prev-month" onPress={() => runSlide('prev')} style={styles.navBtn}>
+            <Text style={styles.navArrow}>‹</Text>
+          </TouchableOpacity>
+          <TouchableOpacity testID="btn-next-month" onPress={() => runSlide('next')} style={styles.navBtn}>
+            <Text style={styles.navArrow}>›</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            testID="btn-toggle-month"
+            onPress={() => setMonthExpanded((v) => !v)}
+            style={styles.navBtn}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: monthExpanded }}
+            accessibilityLabel={monthExpanded ? '달력 접기' : '달력 펼치기'}
+          >
+            <Ionicons
+              name={monthExpanded ? 'chevron-up' : 'chevron-down'}
+              size={18}
+              color="#8b95a1"
+            />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* 달력 — 슬라이드 래퍼 */}
@@ -431,25 +496,33 @@ export default function HistoryScreen() {
         style={{ transform: [{ translateX: slideX }], overflow: 'hidden' }}
         {...panResponder.panHandlers}
       >
-        <Calendar
-          key={currentMonth}
-          current={`${currentMonth}-01`}
-          markedDates={markedDates}
-          onDayPress={(day: { dateString: string }) => setSelectedDate(day.dateString)}
-          onMonthChange={(month: { dateString: string }) => {
-            const ym = month.dateString.slice(0, 7);
-            setCurrentMonth(ym);
-            setSelectedDate(`${ym}-01`);
-          }}
-          hideExtraDays
-          hideArrows
-          renderHeader={() => null}
-          theme={{
-            selectedDayBackgroundColor: '#3b82f6',
-            todayTextColor: '#3b82f6',
-            calendarBackground: '#fff',
-          }}
-        />
+        {monthExpanded ? (
+          <Calendar
+            key={currentMonth}
+            current={`${currentMonth}-01`}
+            markedDates={markedDates}
+            onDayPress={(day: { dateString: string }) => setSelectedDate(day.dateString)}
+            onMonthChange={(month: { dateString: string }) => {
+              const ym = month.dateString.slice(0, 7);
+              setCurrentMonth(ym);
+              setSelectedDate(`${ym}-01`);
+            }}
+            hideExtraDays
+            hideArrows
+            renderHeader={() => null}
+            theme={{
+              selectedDayBackgroundColor: '#3b82f6',
+              todayTextColor: '#3b82f6',
+              calendarBackground: '#fff',
+            }}
+          />
+        ) : (
+          <WeekStrip
+            selectedDate={selectedDate}
+            dotColors={dotColors}
+            onSelectDate={handleSelectDate}
+          />
+        )}
       </Animated.View>
 
       {/* 선택된 날짜 헤더 */}
@@ -604,7 +677,8 @@ const styles = StyleSheet.create({
   },
   navBtn:          { padding: 8 },
   navArrow:        { fontSize: 22, color: '#374151' },
-  monthLabelBtn:   { flexDirection: 'row', alignItems: 'center' },
+  monthLabelBtn:   { flexDirection: 'row', alignItems: 'center', flexShrink: 1 },
+  navGroup:        { flexDirection: 'row', alignItems: 'center' },
   monthLabel:      { fontSize: 17, fontWeight: '700', color: '#111827' },
   monthLabelCaret: { fontSize: 13, color: '#6b7280' },
 
