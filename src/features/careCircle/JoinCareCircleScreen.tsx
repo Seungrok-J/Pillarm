@@ -304,12 +304,14 @@ const styles = StyleSheet.create({
   tabText:       { fontSize: 15, color: '#9ca3af', fontWeight: '500' },
   tabTextActive: { color: '#3b82f6', fontWeight: '700' },
 
-  tabContent: { flex: 1, padding: 24, alignItems: 'center', justifyContent: 'center' },
+  tabContent: { flex: 1, paddingVertical: 24, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' },
   inputLabel: { fontSize: 16, color: '#374151', marginBottom: 24, textAlign: 'center' },
 
-  codeRow:      { flexDirection: 'row', gap: 8, marginBottom: 32 },
+  // 고정 44 × 6 + 간격이면 320dp 기기에서 폭을 넘겨 양끝 칸이 잘린다.
+  // 남는 폭을 6칸이 나눠 갖되 넓은 기기에서는 56 을 넘지 않게 한다.
+  codeRow:      { flexDirection: 'row', gap: 6, marginBottom: 32, alignSelf: 'stretch', justifyContent: 'center' },
   codeBox:      {
-    width: 44, height: 56, borderRadius: 10,
+    flex: 1, minWidth: 0, maxWidth: 56, height: 56, borderRadius: 10,
     borderWidth: 2, borderColor: '#d1d5db', backgroundColor: '#fff',
     fontSize: 24, fontWeight: '700', color: '#111827',
     textAlign: 'center',

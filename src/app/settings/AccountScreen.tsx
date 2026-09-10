@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, TouchableOpacity, ActivityIndicator, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { AppText as Text, AppTextInput as TextInput } from '../../components/AppText';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,15 +8,26 @@ import type { RootStackParamList } from '../../navigation';
 import { useAuthStore } from '../../store/authStore';
 import { getMyProfile, updateMyName, deleteMyAccount, type UserProfile } from '../../features/careCircle/careCircleApi';
 import AlertModal, { type AlertModalTone } from '../../components/AlertModal';
+import { useFontScale, scaledFont } from '../../utils/fontScale';
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
   return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일`;
 }
 
+/** '이메일'·'가입일' 이 들어가는 기준 폭(배율 1.0) */
+const FIELD_LABEL_WIDTH = 60;
+
 export default function AccountScreen() {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const { userEmail, userName, saveSession, clearSession, accessToken, refreshToken, userId } = useAuthStore();
+
+  // 라벨 폭이 고정이면 배율을 키웠을 때 '이메일'·'가입일' 이 값 쪽을 밀어낸다
+  const fontScale = useFontScale();
+  const fieldLabelStyle = useMemo(
+    () => [styles.fieldLabel, { width: scaledFont(FIELD_LABEL_WIDTH, fontScale) }],
+    [fontScale],
+  );
 
   const [profile,         setProfile]         = useState<UserProfile | null>(null);
   const [loadingProfile,  setLoadingProfile]   = useState(true);
@@ -110,7 +121,7 @@ export default function AccountScreen() {
                 <Text style={styles.sectionTitle}>기본 정보</Text>
 
                 <View style={styles.fieldRow}>
-                  <Text style={styles.fieldLabel}>이름</Text>
+                  <Text style={fieldLabelStyle}>이름</Text>
                   {editingName ? (
                     <View style={styles.editRow}>
                       <TextInput
@@ -144,7 +155,7 @@ export default function AccountScreen() {
                 <View style={styles.divider} />
 
                 <View style={styles.fieldRow}>
-                  <Text style={styles.fieldLabel}>이메일</Text>
+                  <Text style={fieldLabelStyle}>이메일</Text>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.fieldValue}>{displayEmail || '(미제공)'}</Text>
                     {displayEmail.includes('privaterelay.appleid.com') && (
@@ -156,7 +167,7 @@ export default function AccountScreen() {
                 <View style={styles.divider} />
 
                 <View style={styles.fieldRow}>
-                  <Text style={styles.fieldLabel}>가입일</Text>
+                  <Text style={fieldLabelStyle}>가입일</Text>
                   <Text style={styles.fieldValue}>{joinedAt}</Text>
                 </View>
               </View>
@@ -246,7 +257,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 16, paddingVertical: 14, minHeight: 52,
   },
-  fieldLabel:    { fontSize: 14, color: '#6b7280', width: 60 },
+  fieldLabel:    { fontSize: 14, color: '#6b7280', width: FIELD_LABEL_WIDTH },
   fieldValueRow: { flex: 1, flexDirection: 'row', alignItems: 'center' },
   fieldValue:    { flex: 1, fontSize: 15, color: '#111827', fontWeight: '500' },
 

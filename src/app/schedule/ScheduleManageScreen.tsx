@@ -16,6 +16,7 @@ import { useAuthStore } from '../../store/authStore';
 import { todayString } from '../../utils';
 import type { Schedule, Medication } from '../../domain';
 import AlertModal from '../../components/AlertModal';
+import { useCompactLayout } from '../../utils/compactLayout';
 
 type Nav = StackNavigationProp<RootStackParamList>;
 
@@ -50,6 +51,7 @@ function dateRange(schedule: Schedule): string {
 }
 
 export default function ScheduleManageScreen() {
+  const compact = useCompactLayout();
   const navigation = useNavigation<Nav>();
   const { userId } = useAuthStore();
   const uid = userId ?? 'local';
@@ -215,9 +217,13 @@ export default function ScheduleManageScreen() {
         style={[styles.card, isPast && styles.cardPast]}
         testID={isPast ? `card-past-${item.schedule.id}` : `card-${item.schedule.id}`}
       >
-        <View style={styles.cardHeader}>
+        <View style={[styles.cardHeader, compact && styles.cardHeaderCompact]}>
           <View style={[styles.colorDot, { backgroundColor: item.medication.color ?? '#d1d5db' }]} />
-          <Text style={[styles.medName, isPast && styles.textMuted]} numberOfLines={1}>
+          {/* 좁으면 한 줄에 다 못 담는다 — 자르기보다 두 줄까지 늘린다 */}
+          <Text
+            style={[styles.medName, isPast && styles.textMuted]}
+            numberOfLines={compact ? 2 : 1}
+          >
             {item.medication.name}
           </Text>
           {item.medication.dosageValue != null && (
@@ -450,12 +456,14 @@ const styles = StyleSheet.create({
   cardHeader: {
     flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12,
   },
+  cardHeaderCompact: { alignItems: 'flex-start' },
   colorDot: { width: 10, height: 10, borderRadius: 5 },
   medName: { flex: 1, fontSize: 17, fontWeight: '700', color: '#111827' },
   dosage:  { fontSize: 13, color: '#6b7280' },
 
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 5 },
-  infoIcon: { fontSize: 14, width: 20, textAlign: 'center' },
+  // 폭 고정이면 배율을 키웠을 때 아이콘이 잘린다 — 글자만 커지고 칸은 그대로라서
+  infoIcon: { fontSize: 14, minWidth: 20, textAlign: 'center' },
   infoText: { fontSize: 14, color: '#374151', flex: 1 },
 
   btnRow: {
