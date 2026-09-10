@@ -34,6 +34,17 @@ export function useFontScale(): number {
   return useSettingsStore((s) => normalizeFontScale(s.settings?.fontScale));
 }
 
+/**
+ * 사용자가 글씨를 기본보다 키웠는지.
+ *
+ * 좁은 기기까지 함께 보는 [useCompactLayout] 과 다르다. 보통 배율에서는 폴더폰(320dp)
+ * 에서도 멀쩡한 배치 — 지표 타일 3열, 세그먼트 버튼 3개 — 는 이 쪽을 써야 한다.
+ * 그러지 않으면 멀쩡한 화면까지 불필요하게 접힌다.
+ */
+export function useLargeFont(): boolean {
+  return useFontScale() > 1;
+}
+
 /** 폰트 크기를 배율에 맞게 계산 */
 export function scaledFont(base: number, scale: number): number {
   return Math.round(base * scale);

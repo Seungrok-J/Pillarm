@@ -12,6 +12,7 @@ import {
   calculateMissedPatterns,
   type MissedPattern,
 } from '../../utils/statsCalculator';
+import { useLargeFont } from '../../utils/fontScale';
 import type { DoseEvent } from '../../domain';
 import CoachingSection from '../../features/aiCoaching/CoachingSection';
 
@@ -118,8 +119,9 @@ function CompletionRing({ rate }: { rate: number }) {
 // ── 지표 카드 (작은 것) ───────────────────────────────────────────────────────
 
 function MetricCard({ icon, value, label, iconBg }: { icon: string; value: string; label: string; iconBg: string }) {
+  const largeFont = useLargeFont();
   return (
-    <View style={st.metricCard}>
+    <View style={[st.metricCard, largeFont && st.metricCardCompact]}>
       <View style={[st.metricIconWrap, { backgroundColor: iconBg }]}>
         <Text style={st.metricIcon}>{icon}</Text>
       </View>
@@ -218,6 +220,7 @@ function MissedList({ patterns }: { patterns: MissedPattern[] }) {
 type Tab = 'week' | 'month';
 
 export default function StatsScreen() {
+  const largeFont = useLargeFont();
   const [tab,       setTab]       = useState<Tab>('week');
   const [events,    setEvents]    = useState<DoseEvent[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -311,7 +314,7 @@ export default function StatsScreen() {
           </View>
 
           {/* ── 3가지 지표 ── */}
-          <View style={st.metricsRow}>
+          <View style={[st.metricsRow, largeFont && st.metricsRowCompact]}>
             <MetricCard icon="🔥" value={streakLabel} label="연속 복용"  iconBg="#e8f3ff" />
             <MetricCard icon="💊" value={`${stats.taken}회`} label="복용 완료" iconBg="#e6f7f4" />
             <MetricCard icon="❌" value={`${stats.missed}회`} label="누락/패스" iconBg="#ffebeb" />
@@ -392,6 +395,9 @@ const st = StyleSheet.create({
 
   // 지표 카드 행
   metricsRow: { flexDirection: 'row', gap: 10 },
+  // 좁으면 3개를 한 줄에 못 담아 라벨이 "연속 복/용" 으로 쪼개진다 — 2개씩 접는다
+  metricsRowCompact: { flexWrap: 'wrap' },
+  metricCardCompact: { flexBasis: '47%' },
   metricCard: {
     flex: 1, backgroundColor: '#fff', borderRadius: 14,
     padding: 14, alignItems: 'flex-start', gap: 8,

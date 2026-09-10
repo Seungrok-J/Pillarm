@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import type { DoseEvent, WithFood } from '../domain';
 import { useThemeStore } from '../store/themeStore';
 import { useFontScale } from '../utils/fontScale';
+import { useCompactLayout } from '../utils/compactLayout';
 import {
   DOSE_EARLY_WINDOW_MS,
   DoseDisplayState,
@@ -89,6 +90,7 @@ export default function DoseCard({
   const theme = useThemeStore((s) => s.activeTheme);
   const insets = useSafeAreaInsets();
   const fontScale = useFontScale();
+  const compact = useCompactLayout();
   const nowMs = (now ?? new Date()).getTime();
   const graceMs = graceMinutes * 60_000;
   const displayState = computeDisplayState(event, nowMs, graceMs);
@@ -215,6 +217,7 @@ export default function DoseCard({
         <Animated.View
           style={[
             styles.card,
+            compact && styles.cardCompact,
             highlighted ? styles.cardHighlighted : styles.cardPlain,
             { transform: [{ translateX }] },
           ]}
@@ -229,10 +232,14 @@ export default function DoseCard({
 
         <View style={styles.infoRow}>
           <View style={styles.info}>
-            <View style={[styles.statusDot, { backgroundColor: meta.dotColor }]} />
+            <View style={[styles.statusDot, compact && styles.statusDotCompact, { backgroundColor: meta.dotColor }]} />
             <View style={styles.nameCol}>
               <View style={styles.nameRow}>
-                <Text testID={`card-name-${event.id}`} style={styles.name} numberOfLines={1}>
+                <Text
+                  testID={`card-name-${event.id}`}
+                  style={styles.name}
+                  numberOfLines={compact ? 2 : 1}
+                >
                   {medicationName}
                 </Text>
                 {withFood && withFood !== 'none' && (
@@ -445,6 +452,8 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: '#fff',
   },
+  // 좁을 때는 좌우 여백을 줄여 약 이름에 폭을 넘긴다
+  cardCompact: { paddingHorizontal: 12 },
   cardPlain: {
     borderWidth: 1,
     borderColor: '#e5e8eb',
@@ -465,6 +474,7 @@ const styles = StyleSheet.create({
   },
   info: { flexDirection: 'row', alignItems: 'center', flex: 1 },
   statusDot: { width: 10, height: 10, borderRadius: 5, marginRight: 12 },
+  statusDotCompact: { marginRight: 8 },
   actionRow: {
     flexDirection: 'row',
     alignItems: 'center',

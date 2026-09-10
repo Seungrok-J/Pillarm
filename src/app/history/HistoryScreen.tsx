@@ -16,11 +16,15 @@ import {
   DOSE_DISPLAY_COLOR,
   type DoseDisplayState,
 } from '../../utils/doseDisplay';
+import { useFontScale, scaledFont } from '../../utils/fontScale';
 import type { DoseEvent } from '../../domain';
 
 // ── 상수 ─────────────────────────────────────────────────────────────────────
 
 // DoseStatus → DOSE_DISPLAY_LABEL/COLOR 를 통해 처리하므로 별도 상수 불필요
+
+/** 'HH:mm' 한 줄이 들어가는 기준 폭(배율 1.0) */
+const TIME_COL_WIDTH = 44;
 
 const MONTHS_KO = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
 
@@ -175,6 +179,13 @@ export default function HistoryScreen() {
   const { fetchByDateRange } = useDoseEventStore();
   const { medications, fetchMedications } = useMedicationStore();
   const graceMinutes = useSettingsStore((s) => s.settings?.missedToLateMinutes ?? 120);
+
+  // 글씨 배율이 커지면 시간 칸도 같이 넓혀야 한다 — 고정 폭이면 'HH:mm' 이 두 줄로 쪼개진다
+  const fontScale = useFontScale();
+  const timeStyle = useMemo(
+    () => [styles.time, { width: scaledFont(TIME_COL_WIDTH, fontScale) }],
+    [fontScale],
+  );
 
   const medicationNames = useMemo<Record<string, string>>(
     () => Object.fromEntries(medications.map((m) => [m.id, m.name])),
@@ -343,7 +354,7 @@ export default function HistoryScreen() {
           onPress={() => setModalEvent(rep)}
           activeOpacity={0.85}
         >
-          <Text style={styles.time}>{fmtLocalTime(rep.plannedAt)}</Text>
+          <Text style={timeStyle} numberOfLines={1}>{fmtLocalTime(rep.plannedAt)}</Text>
           <View style={styles.cardBody}>
             <View style={styles.nameRow}>
               <View style={styles.packetBadge}>
@@ -380,7 +391,7 @@ export default function HistoryScreen() {
         onPress={() => setModalEvent(event)}
         activeOpacity={0.85}
       >
-        <Text testID={`history-time-${event.id}`} style={styles.time}>
+        <Text testID={`history-time-${event.id}`} style={timeStyle} numberOfLines={1}>
           {fmtLocalTime(event.plannedAt)}
         </Text>
         <View style={styles.cardBody}>
@@ -612,7 +623,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 12, marginBottom: 8,
     shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
   },
-  time:     { fontSize: 14, fontWeight: '600', color: '#374151', width: 44 },
+  time:     { fontSize: 14, fontWeight: '600', color: '#374151', width: TIME_COL_WIDTH },
   cardBody: { flex: 1, marginHorizontal: 10 },
   name:     { fontSize: 14, color: '#111827' },
   status:   { fontSize: 12, marginTop: 2 },

@@ -14,7 +14,7 @@ import { reportError, isSentryEnabled, hasSentryDsn } from '../../monitoring';
 import AlertModal, { type AlertModalTone } from '../../components/AlertModal';
 import TimeWheelSheet, { formatTimeKo } from '../../components/TimeWheelSheet';
 import type { UserSettings } from '../../domain';
-import { FONT_SCALE_OPTIONS, normalizeFontScale } from '../../utils/fontScale';
+import { FONT_SCALE_OPTIONS, normalizeFontScale, useLargeFont } from '../../utils/fontScale';
 
 type Nav = StackNavigationProp<RootStackParamList>;
 
@@ -195,6 +195,7 @@ export default function SettingsScreen() {
 
   // 저장된 값이 예전 단계일 수 있어 정규화해서 비교한다
   const currentFontScale = normalizeFontScale(settings?.fontScale);
+  const largeFont = useLargeFont();
 
   async function saveSetting(patch: Partial<UserSettings>) {
     const updated = { ...settings!, ...patch };
@@ -307,7 +308,7 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <View style={styles.fontScaleBlock}>
             <Text style={styles.label}>글씨 크기</Text>
-            <View style={styles.segmentRow}>
+            <View style={[styles.segmentRow, largeFont && styles.segmentColumn]}>
               {FONT_SCALE_OPTIONS.map((opt) => {
                 const active = Math.abs(currentFontScale - opt.value) < 0.001;
                 return (
@@ -799,13 +800,15 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 14, minHeight: 56,
+    paddingHorizontal: 16, paddingVertical: 14, minHeight: 56, gap: 12,
   },
   divider:    { height: 1, backgroundColor: '#f3f4f6', marginLeft: 16 },
 
   // 글씨 크기 — 세그먼트 버튼은 44pt 이상(접근성 원칙)
   fontScaleBlock: { paddingHorizontal: 16, paddingVertical: 14 },
   segmentRow:     { flexDirection: 'row', gap: 8, marginTop: 10 },
+  // 좁으면 3개를 한 줄에 못 담아 "아주 크게" 가 두 줄로 쪼개진다 — 세로로 쌓는다
+  segmentColumn:  { flexDirection: 'column' },
   segmentBtn: {
     flex: 1, minHeight: 48, borderRadius: 10,
     borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#fff',
@@ -815,7 +818,8 @@ const styles = StyleSheet.create({
   segmentTxt:       { fontSize: 15, fontWeight: '600', color: '#6b7280' },
   segmentTxtActive: { color: '#fff' },
   labelBlock: { flex: 1, marginRight: 12 },
-  label:      { fontSize: 15, color: '#111827' },
+  // flexShrink 가 없으면 라벨이 버튼을 밀어내 사이 간격이 사라진다(row 의 gap 과 한 쌍)
+  label:      { fontSize: 15, color: '#111827', flexShrink: 1 },
   hint:       { fontSize: 12, color: '#9ca3af', marginTop: 2 },
   chevron:    { fontSize: 20, color: '#9ca3af' },
   emailText:  { fontSize: 13, color: '#6b7280', flexShrink: 1, marginTop: 2 },
