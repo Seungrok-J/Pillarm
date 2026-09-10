@@ -28,3 +28,6 @@ server/supabase/.temp/
 # 루트 .idea 의 프로젝트 설정은 추적하되, 기기별 캐시와 하위 사본은 무시한다.
 src/.idea/
 .idea/caches/
+
+# EAS 빌드 산출물 — 수동 업로드용으로 내려받는 자리
+build-artifacts/
