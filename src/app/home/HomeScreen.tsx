@@ -21,6 +21,7 @@ import { todayString } from '../../utils';
 import DoseCard from '../../components/DoseCard';
 import PacketCard from '../../components/PacketCard';
 import NextDoseBanner from '../../components/NextDoseBanner';
+import { useCompactLayout } from '../../utils/compactLayout';
 import type { DoseEvent, WithFood } from '../../domain';
 
 type PacketGroup = { kind: 'packet'; packetId: string; plannedAt: string; events: DoseEvent[] };
@@ -54,6 +55,7 @@ export default function HomeScreen() {
   const { fetchBalance } = usePointStore();
   const { userId, isLoggedIn } = useAuthStore();
   const theme = useThemeStore((s) => s.activeTheme);
+  const compact = useCompactLayout();
 
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const [showStreakModal, setShowStreakModal] = useState(false);
@@ -321,7 +323,7 @@ export default function HomeScreen() {
               ? `packet-${item.packetId}-${item.plannedAt}`
               : item.event.id
           }
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, compact && styles.listContentCompact]}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#3182f6" />
           }
@@ -363,6 +365,20 @@ export default function HomeScreen() {
               오늘 예정된 복용이 없습니다
             </Text>
           }
+          ListFooterComponent={
+            compact ? (
+              <TouchableOpacity
+                testID="btn-add-schedule-footer"
+                onPress={() => navigation.navigate('ScheduleNew')}
+                accessibilityLabel="약 일정 추가"
+                accessibilityRole="button"
+                style={[styles.addFooterBtn, { backgroundColor: theme.primary }]}
+              >
+                <Ionicons name="add" size={20} color="#fff" />
+                <Text style={styles.addFooterTxt}>약 일정 추가</Text>
+              </TouchableOpacity>
+            ) : null
+          }
         />
       )}
 
@@ -394,16 +410,19 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </Modal>
 
-      {/* FAB */}
-      <TouchableOpacity
-        testID="btn-fab"
-        onPress={() => navigation.navigate('ScheduleNew')}
-        accessibilityLabel="약 일정 추가"
-        accessibilityRole="button"
-        style={[styles.fab, { backgroundColor: theme.primary }]}
-      >
-        <Text style={styles.fabText}>＋</Text>
-      </TouchableOpacity>
+      {/* 추가 버튼 — 좁은 화면에서는 리스트 위에 떠서 복용 완료 버튼을 가리므로
+          FAB 대신 리스트 끝의 전체 폭 버튼(ListFooterComponent)으로 내린다 */}
+      {!compact && (
+        <TouchableOpacity
+          testID="btn-fab"
+          onPress={() => navigation.navigate('ScheduleNew')}
+          accessibilityLabel="약 일정 추가"
+          accessibilityRole="button"
+          style={[styles.fab, { backgroundColor: theme.primary }]}
+        >
+          <Text style={styles.fabText}>＋</Text>
+        </TouchableOpacity>
+      )}
 
     </View>
     </SafeAreaView>
@@ -462,6 +481,8 @@ const styles = StyleSheet.create({
   doneText: { fontSize: 15, fontWeight: '700', color: '#fff', textAlign: 'center' },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: '#191f28', marginBottom: 12 },
   listContent: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 100 },
+  // 좁을 때는 좌우 여백을 줄이고, FAB 자리를 비우던 아래 여백도 걷는다
+  listContentCompact: { paddingHorizontal: 14, paddingBottom: 24 },
   emptyText: { textAlign: 'center', color: '#8b95a1', marginTop: 40 },
   fab: {
     position: 'absolute',
@@ -479,6 +500,11 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   fabText: { color: '#fff', fontSize: 28, lineHeight: 32 },
+  addFooterBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 6, minHeight: 52, borderRadius: 14, marginTop: 4,
+  },
+  addFooterTxt: { color: '#fff', fontSize: 16, fontWeight: '700' },
 
   piOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center' },
   piCard:    { width: '86%', backgroundColor: '#fff', borderRadius: 18, padding: 20 },

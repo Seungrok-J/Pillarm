@@ -17,7 +17,9 @@ function toDoseEventPayload(e: DoseEvent): DoseEventPayload {
 }
 
 export function isSyncEnabled(): boolean {
-  return useAuthStore.getState().isLoggedIn;
+  const { isLoggedIn, isDevBypass } = useAuthStore.getState();
+  // 개발 우회 세션은 토큰이 없어 서버가 전부 401 로 돌려준다
+  return isLoggedIn && !isDevBypass;
 }
 
 /**
@@ -25,9 +27,9 @@ export function isSyncEnabled(): boolean {
  * App.tsx의 NetInfo 리스너에서 isOnline 전환 시 호출한다.
  */
 export async function retrySyncIfPending(): Promise<void> {
-  const { isLoggedIn, userId } = useAuthStore.getState();
+  const { userId } = useAuthStore.getState();
   const { hasPendingSync, clearPendingSync } = useNetworkStore.getState();
-  if (!isLoggedIn || !userId || !hasPendingSync) return;
+  if (!isSyncEnabled() || !userId || !hasPendingSync) return;
   try {
     await initialPush(userId);
     await clearPendingSync();

@@ -29,6 +29,7 @@ jest.mock('react-native-calendars', () => {
       mockCalendarHandlers.onMonthChange = props.onMonthChange;
       return React.createElement(View, { testID: 'calendar' });
     },
+    LocaleConfig: { locales: {}, defaultLocale: 'en' },
   };
 });
 
@@ -55,12 +56,14 @@ jest.mock('../../../src/db', () => ({
   getAllMedications: jest.fn().mockResolvedValue([]),
 }));
 
-jest.mock('../../../src/utils', () => ({
-  todayString: () => '2026-04-23',
-  generateId: () => 'test-id',
-  addMinutes: (d: Date, m: number) => new Date(d.getTime() + m * 60_000),
-  toDateString: (d: Date) => d.toISOString().slice(0, 10),
-}));
+jest.mock('../../../src/utils', () => {
+  const actual = jest.requireActual('../../../src/utils');
+  return {
+    ...actual,
+    todayString: () => '2026-04-23',
+    generateId: () => 'test-id',
+  };
+});
 
 // ── Imports after mocks ───────────────────────────────────────────────────────
 

@@ -7,6 +7,8 @@ import { useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../../navigation';
 import { getSnapshot, type DoseSnapshot } from './careCircleApi';
+import OfflineBanner from '../../components/OfflineBanner';
+import { useNetworkStore } from '../../store/networkStore';
 
 type Route = RouteProp<RootStackParamList, 'CareMonitor'>;
 
@@ -124,6 +126,8 @@ export default function CareMonitorScreen() {
         setLastSync(new Date());
       } else if (status === 403) {
         setError('보호 그룹 접근이 차단되었습니다.\n피보호자가 그룹을 해제했거나 멤버에서 삭제되었어요.');
+      } else if (!useNetworkStore.getState().isOnline) {
+        setError('오프라인 상태에서는 복용 현황을 볼 수 없습니다');
       } else {
         setError('복용 현황을 불러오지 못했습니다');
       }
@@ -136,6 +140,14 @@ export default function CareMonitorScreen() {
   useEffect(() => {
     loadSnapshot();
   }, [loadSnapshot]);
+
+  // 재연결되면 자동으로 다시 불러온다 — '다시 시도' 를 누르지 않아도 된다
+  const isOnline = useNetworkStore((st) => st.isOnline);
+  const wasOnlineRef = useRef(isOnline);
+  useEffect(() => {
+    if (isOnline && !wasOnlineRef.current) loadSnapshot();
+    wasOnlineRef.current = isOnline;
+  }, [isOnline, loadSnapshot]);
 
   // AppState active 전환 시 조용히 새로고침 (AC1: 실시간 확인)
   useEffect(() => {
@@ -214,6 +226,8 @@ export default function CareMonitorScreen() {
             <Ionicons name="person" size={20} color="#4e5968" />
           </TouchableOpacity>
         </View>
+
+        <OfflineBanner inline message="오프라인 상태입니다 — 복용 현황은 인터넷 연결이 필요합니다. 연결되면 자동으로 다시 불러옵니다." />
 
         {/* 로딩 */}
         {loading && <ActivityIndicator testID="loading-indicator" style={{ marginTop: 40 }} color="#2d8a81" />}

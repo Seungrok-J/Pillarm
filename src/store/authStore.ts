@@ -23,10 +23,26 @@ export interface AuthState {
   isLoggedIn:   boolean;
   isAdmin:      boolean;
 
+  /**
+   * 개발 빌드에서 로그인 없이 화면을 열어보려고 켠 상태인지.
+   *
+   * 진짜 세션이 아니라 토큰이 없다. 서버를 부르는 코드는 이 값을 보고 요청을
+   * 건너뛰어야 한다 — 그러지 않으면 401 만 잔뜩 만든다.
+   */
+  isDevBypass:  boolean;
+
   loadSession:  () => Promise<void>;
   saveSession:  (s: { accessToken: string; refreshToken: string; userId: string; userEmail: string | null; userName?: string | null; isAdmin?: boolean }) => Promise<void>;
   clearSession: () => Promise<void>;
+  /**
+   * 로그인 화면을 지나치지 않고 로그인 뒤 화면을 열어보기 위한 개발 전용 우회.
+   * `__DEV__` 가 아니면 아무 일도 하지 않는다.
+   */
+  enableDevBypass: () => void;
 }
+
+/** 개발 우회로 들어왔을 때 쓰는 userId. 서버에 존재하지 않는 값이다 */
+export const DEV_BYPASS_USER_ID = 'dev-bypass';
 
 export const useAuthStore = create<AuthState>((set) => ({
   accessToken:  null,
@@ -37,6 +53,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   isLoading:    true,
   isLoggedIn:   false,
   isAdmin:      false,
+  isDevBypass:  false,
 
   loadSession: async () => {
     try {
@@ -94,7 +111,23 @@ export const useAuthStore = create<AuthState>((set) => ({
       AsyncStorage.removeItem(K.NAME),
       AsyncStorage.removeItem(K.IS_ADMIN),
     ]);
-    set({ accessToken: null, refreshToken: null, userId: null, userEmail: null, userName: null, isLoggedIn: false, isAdmin: false });
+    set({ accessToken: null, refreshToken: null, userId: null, userEmail: null, userName: null, isLoggedIn: false, isAdmin: false, isDevBypass: false });
     setSentryUser(null);
+  },
+
+  enableDevBypass: () => {
+    if (!__DEV__) return;
+    // 저장하지 않는다 — 앱을 다시 켜면 사라지고, 릴리스 빌드에는 남을 여지가 없다.
+    set({
+      accessToken: null,
+      refreshToken: null,
+      userId:      DEV_BYPASS_USER_ID,
+      userEmail:   'dev@pillarm.local',
+      userName:    '개발용 계정',
+      isLoggedIn:  true,
+      isAdmin:     true,
+      isLoading:   false,
+      isDevBypass: true,
+    });
   },
 }));

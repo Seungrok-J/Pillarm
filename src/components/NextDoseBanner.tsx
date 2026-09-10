@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { AppText as Text } from './AppText';
 import { Ionicons } from '@expo/vector-icons';
+import { useCompactLayout } from '../utils/compactLayout';
 import type { DoseEvent } from '../domain';
 
 interface Props {
@@ -20,6 +21,12 @@ function formatRemaining(ms: number): string {
 export default function NextDoseBanner({ events, medicationNames }: Props) {
   const [now, setNow] = useState(() => Date.now());
   const [collapsed, setCollapsed] = useState(false);
+
+  // 글씨를 키우면 배너가 홈 화면 절반을 차지해 정작 복용 목록이 가려진다.
+  // 줄 수는 아래 numberOfLines 로 3줄에 고정하고, 가로가 빠듯하면 종 아이콘 자리를
+  // 글자에 넘기고 여백도 줄인다. 그러지 않으면 "18:30 메트포르민 500mg 외 1건" 이
+  // 한 줄에 안 들어가 잘린다.
+  const compact = useCompactLayout();
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 60_000);
@@ -75,23 +82,26 @@ export default function NextDoseBanner({ events, medicationNames }: Props) {
   return (
     <TouchableOpacity
       testID="banner-next-dose"
-      style={styles.banner}
+      style={[styles.banner, compact && styles.bannerCompact]}
       onPress={() => setCollapsed(true)}
       activeOpacity={0.9}
     >
       <View style={styles.left}>
-        <View style={styles.bellWrap}>
-          <Ionicons name="notifications" size={18} color="#fff" />
-        </View>
+        {!compact && (
+          <View style={styles.bellWrap}>
+            <Ionicons name="notifications" size={18} color="#fff" />
+          </View>
+        )}
         <View style={styles.textGroup}>
-          <Text style={styles.label}>{label}</Text>
+          <Text style={styles.label} numberOfLines={1}>{label}</Text>
+          <Text testID="banner-message" style={styles.message} numberOfLines={1}>
+            {timeSlot} <Text testID="banner-med-name">{displayName}</Text>
+          </Text>
           {isOverdue ? (
-            <Text testID="banner-message" style={styles.message}>
-              {timeSlot} <Text testID="banner-med-name">{displayName}</Text>{'\n'}지금 복용해주세요
-            </Text>
+            <Text style={styles.message} numberOfLines={1}>지금 복용해주세요</Text>
           ) : (
-            <Text testID="banner-message" style={styles.message}>
-              {timeSlot} <Text testID="banner-med-name">{displayName}</Text>{'\n'}복용까지 <Text testID="banner-remaining">{formatRemaining(remainingMs)}</Text>
+            <Text style={styles.message} numberOfLines={1}>
+              <Text testID="banner-remaining">{formatRemaining(remainingMs)}</Text>
             </Text>
           )}
         </View>
@@ -111,6 +121,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: '#3182f6',
   },
+  bannerCompact: { padding: 12 },
   doneBanner: { backgroundColor: '#00b894' },
   doneText: { fontSize: 15, fontWeight: '700', color: '#fff', textAlign: 'center', width: '100%' },
 
@@ -120,7 +131,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.13)',
     alignItems: 'center', justifyContent: 'center',
   },
-  textGroup: { gap: 2, flexShrink: 1 },
+  textGroup: { gap: 2, flex: 1, flexShrink: 1 },
   label:   { fontSize: 12, color: 'rgba(255,255,255,0.8)', fontWeight: '700' },
   message: { fontSize: 14, color: '#fff', fontWeight: '700', lineHeight: 20 },
 

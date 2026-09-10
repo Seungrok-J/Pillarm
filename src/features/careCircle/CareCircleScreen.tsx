@@ -1,4 +1,4 @@
-import React, { useCallback, useState, Fragment } from 'react';
+import React, { useCallback, useEffect, useRef, useState, Fragment } from 'react';
 import { View, TouchableOpacity, Modal, ActivityIndicator, StyleSheet, ScrollView, Share, RefreshControl } from 'react-native';
 import { AppText as Text, AppTextInput as TextInput } from '../../components/AppText';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,6 +15,7 @@ import {
   type ApiCareCircle, type ApiCareMember,
 } from './careCircleApi';
 import AlertModal, { type AlertModalTone } from '../../components/AlertModal';
+import OfflineBanner from '../../components/OfflineBanner';
 
 const JOIN_WEB_URL = 'https://pillarm.app/join';
 
@@ -116,17 +117,24 @@ export default function CareCircleScreen() {
   const [deleteCircleConfirm, setDeleteCircleConfirm] = useState<ApiCareCircle | null>(null);
   const [leaveCircleConfirm, setLeaveCircleConfirm] = useState<ApiCareCircle | null>(null);
 
+  // 오프라인이면 오류 모달 대신 배너로 알린다 — 연결이 없다는 건 이미 배너가 말하고
+  // 있고, 사용자가 지금 할 수 있는 일도 없다. 모달은 닫아야만 화면을 볼 수 있어 더 나쁘다.
+  const reportLoadFailure = useCallback(() => {
+    if (!useNetworkStore.getState().isOnline) return;
+    setSimpleAlert({ title: '오류', message: '보호 그룹 목록을 불러오지 못했습니다', tone: 'danger' });
+  }, []);
+
   const loadCircles = useCallback(async () => {
     try {
       setLoading(true);
       const data = await listCircles();
       setCircles(data);
     } catch {
-      setSimpleAlert({ title: '오류', message: '보호 그룹 목록을 불러오지 못했습니다', tone: 'danger' });
+      reportLoadFailure();
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [reportLoadFailure]);
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -134,7 +142,7 @@ export default function CareCircleScreen() {
       const data = await listCircles();
       setCircles(data);
     } catch {
-      setSimpleAlert({ title: '오류', message: '보호 그룹 목록을 불러오지 못했습니다', tone: 'danger' });
+      reportLoadFailure();
     } finally {
       setRefreshing(false);
     }
@@ -146,6 +154,13 @@ export default function CareCircleScreen() {
       loadCircles();
     }, [loadCircles]),
   );
+
+  // 재연결되면 자동으로 다시 불러온다 — 사용자가 탭을 나갔다 들어올 필요가 없다
+  const wasOnlineRef = useRef(isOnline);
+  useEffect(() => {
+    if (isOnline && !wasOnlineRef.current) loadCircles();
+    wasOnlineRef.current = isOnline;
+  }, [isOnline, loadCircles]);
 
   const [showCreateForm, setShowCreateForm] = useState(false);
 
@@ -509,11 +524,7 @@ export default function CareCircleScreen() {
       }
     >
       {/* ── 오프라인 배너 ── */}
-      {!isOnline && (
-        <View style={styles.offlineBanner}>
-          <Text style={styles.offlineBannerText}>오프라인 상태입니다 — 보호 그룹 기능은 인터넷 연결이 필요합니다</Text>
-        </View>
-      )}
+      <OfflineBanner inline message="오프라인 상태입니다 — 보호 그룹 기능은 인터넷 연결이 필요합니다. 연결되면 자동으로 다시 불러옵니다." />
 
       {/* ── 내가 관리하는 그룹 (보호자 뷰) ──── */}
       <Text style={styles.sectionTitle}>내가 관리하는 그룹</Text>
@@ -701,13 +712,6 @@ const styles = StyleSheet.create({
     width: 36, height: 36, borderRadius: 18,
     backgroundColor: '#ebf5f3', alignItems: 'center', justifyContent: 'center',
   },
-
-  offlineBanner: {
-    backgroundColor: '#1f2937', borderRadius: 10,
-    paddingVertical: 10, paddingHorizontal: 14,
-    marginBottom: 16, alignItems: 'center',
-  },
-  offlineBannerText: { color: '#f9fafb', fontSize: 13, fontWeight: '500', textAlign: 'center' },
 
   sectionTitle: {
     fontSize: 15, fontWeight: '700', color: '#4e5968',
