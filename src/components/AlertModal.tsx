@@ -2,6 +2,7 @@ import React from 'react';
 import { View, TouchableOpacity, Modal, StyleSheet } from 'react-native';
 import { AppText as Text } from './AppText';
 import { Ionicons } from '@expo/vector-icons';
+import { useLargeFont } from '../utils/fontScale';
 
 export interface AlertModalButton {
   text: string;
@@ -23,6 +24,9 @@ interface AlertModalProps {
   onRequestClose?: () => void;
 }
 
+/** 이 길이부터는 큰 글씨에서 한 칸에 안 들어간다(카드 폭 기준 실측) */
+const LONG_LABEL_CHARS = 4;
+
 const TONE_COLORS: Record<AlertModalTone, { bg: string; fg: string }> = {
   primary: { bg: '#eff6ff', fg: '#3b82f6' },
   success: { bg: '#f0fdf4', fg: '#16a34a' },
@@ -33,6 +37,12 @@ const TONE_COLORS: Record<AlertModalTone, { bg: string; fg: string }> = {
 /** 시스템 Alert.alert 대신 쓰는 앱 스타일 확인창 — 원형 아이콘 뱃지·둥근 카드·브랜드 색상 버튼 */
 export default function AlertModal({ visible, icon, tone = 'primary', title, message, buttons, onRequestClose }: AlertModalProps) {
   const toneColor = TONE_COLORS[tone];
+  const largeFont = useLargeFont();
+
+  // 버튼 두 개를 나란히 두면 큰 글씨에서 긴 라벨이 쪼개진다("계속 등/록").
+  // '취소'·'확인' 같은 짧은 라벨은 나란히 둬도 멀쩡하므로 길 때만 세로로 쌓는다.
+  const hasLongLabel = buttons.some((b) => b.text.length >= LONG_LABEL_CHARS);
+  const stacked = buttons.length > 2 || (largeFont && hasLongLabel);
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onRequestClose}>
@@ -46,7 +56,7 @@ export default function AlertModal({ visible, icon, tone = 'primary', title, mes
           <Text style={styles.title}>{title}</Text>
           {message ? <Text style={styles.message}>{message}</Text> : null}
 
-          <View style={[styles.btnRow, buttons.length > 2 && styles.btnCol]}>
+          <View style={[styles.btnRow, stacked && styles.btnCol]}>
             {buttons.map((b, i) => (
               <TouchableOpacity
                 key={i}

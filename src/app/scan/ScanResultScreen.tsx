@@ -18,6 +18,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useSettingsStore } from '../../store';
 import TimePickerList from '../../components/TimePickerList';
 import AlertModal, { type AlertModalTone } from '../../components/AlertModal';
+import { useLargeFont } from '../../utils/fontScale';
 
 type Nav   = StackNavigationProp<RootStackParamList>;
 type Route = RouteProp<RootStackParamList, 'ScanResult'>;
@@ -238,6 +239,10 @@ function MedicationCard({
   onStartDateChange, onEndDateChange,
   onToggleMealSlot, onRemoveMealSlot, onSetWithFood, onAddManualTime, onRemoveTime, slotTimeLabel,
 }: MedicationCardProps) {
+  // 배율이 커지면 한 줄에 여러 개를 욱여넣은 곳부터 글자가 쪼개진다
+  // ("시간 선/택", "식전 30/분") — 그럴 때는 배치를 풀어준다
+  const largeFont = useLargeFont();
+
   return (
     <View style={width ? [styles.page, { width }] : styles.pageFallback}>
       <View style={[styles.fieldGroup, isSkipped && styles.dimmed]}>
@@ -281,7 +286,10 @@ function MedicationCard({
                   <Ionicons name="time-outline" size={16} color="#4e5968" />
                 </View>
                 <Text style={styles.summaryDetailLabel}>복용 시간 : </Text>
-                <Text style={styles.summaryDetailValue} numberOfLines={1}>
+                {/* 같은 카드의 다른 행처럼 줄 수를 제한하지 않는다 — 제한하면 큰 글씨에서
+                    "09:30 · 17:..." 로 잘려 두 번째 시간과 하루 횟수가 사라진다.
+                    복용 시간은 많아야 네댓 개라 늘어나도 카드가 감당한다 */}
+                <Text style={styles.summaryDetailValue}>
                   {item.suggestedTimes.length > 0
                     ? `${item.suggestedTimes.join(' · ')} (하루 ${item.suggestedTimes.length}회)`
                     : '미설정'}
@@ -361,13 +369,18 @@ function MedicationCard({
             {/* 복용 시간 — 일정추가 화면과 동일 스타일 */}
             <FieldLabel label="복용 시간" />
             {/* 복용 시점 체크 — 아침·점심·저녁은 설정값, 취침전은 직접 지정한 시간 */}
-            <View style={styles.mealRow}>
+            <View style={[styles.mealRow, largeFont && styles.mealRowWrap]}>
               {mealSlotOptions.map((slot) => {
                 const selected = (item.mealSlots ?? []).includes(slot);
                 return (
                   <TouchableOpacity
                     key={slot}
-                    style={[styles.mealBtn, selected && styles.mealBtnActive, isSkipped && { opacity: 0.4 }]}
+                    style={[
+                      styles.mealBtn,
+                      largeFont && styles.mealBtnWrap,
+                      selected && styles.mealBtnActive,
+                      isSkipped && { opacity: 0.4 },
+                    ]}
                     onPress={() => !isSkipped && onToggleMealSlot(idx, slot)}
                   >
                     {slot === 'bedtime' && selected && !isSkipped && (
@@ -393,11 +406,15 @@ function MedicationCard({
               })}
             </View>
             {/* 식전/식후 30분 — 선택하면 위 체크된 시점들의 시간에 반영됨 */}
-            <View style={styles.row}>
+            <View style={[styles.row, largeFont && styles.rowColumn]}>
               {(['before', 'after', 'none'] as const).map((opt) => (
                 <TouchableOpacity
                   key={opt}
-                  style={[styles.segBtn, item.withFood === opt && styles.segBtnActive]}
+                  style={[
+                    styles.segBtn,
+                    largeFont && styles.segBtnColumn,
+                    item.withFood === opt && styles.segBtnActive,
+                  ]}
                   onPress={() => !isSkipped && onSetWithFood(idx, opt)}
                 >
                   <Text style={[styles.segBtnText, item.withFood === opt && styles.segBtnTextActive]}>
@@ -1337,7 +1354,7 @@ const styles = StyleSheet.create({
   summaryEditText: { fontSize: 12, fontWeight: '700', color: '#4e5968' },
   summaryDivider:  { height: 1, backgroundColor: '#f2f3f4' },
   summaryDetailGrid: { gap: 12 },
-  summaryDetailRow:  { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  summaryDetailRow:  { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   summaryDetailIconWrap: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
   summaryDetailLabel: { fontSize: 14, color: '#4e5968' },
   summaryDetailValue: { fontSize: 15, fontWeight: '700', color: '#191f28', flexShrink: 1 },
@@ -1361,6 +1378,7 @@ const styles = StyleSheet.create({
     fontSize: 15, color: '#111827', backgroundColor: '#f9fafb',
   },
   row: { flexDirection: 'row', alignItems: 'center' },
+  rowColumn: { flexDirection: 'column', alignItems: 'stretch' },
 
   unitRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
   unitBtn: {
@@ -1374,6 +1392,9 @@ const styles = StyleSheet.create({
 
   // 식사 시간 단축 버튼 (일정추가 화면과 동일)
   mealRow:       { flexDirection: 'row', gap: 8, marginBottom: 10, marginTop: 4 },
+  // 4개를 한 줄에 두면 큰 글씨에서 각 칸이 좁아 문구가 쪼개진다 — 2x2 로 접는다
+  mealRowWrap:   { flexWrap: 'wrap' },
+  mealBtnWrap:   { flexBasis: '47%' },
   mealBtn:       { flex: 1, paddingVertical: 10, borderWidth: 1, borderColor: '#d1d5db', borderRadius: 10, alignItems: 'center', gap: 2, position: 'relative' },
   mealBtnActive: { backgroundColor: '#eff6ff', borderColor: '#3182f6' },
   mealBtnRemove: { position: 'absolute', top: -6, right: -6, backgroundColor: '#fff', borderRadius: 8 },
@@ -1384,6 +1405,7 @@ const styles = StyleSheet.create({
   mealEditHint:  { fontSize: 9, color: '#93c5fd' },
 
   segBtn:           { flex: 1, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingVertical: 10, alignItems: 'center', marginRight: 6, backgroundColor: '#f9fafb' },
+  segBtnColumn:     { marginRight: 0, marginBottom: 8 },
   segBtnActive:     { backgroundColor: '#3182f6', borderColor: '#3182f6' },
   segBtnText:       { fontSize: 14, fontWeight: '500', color: '#6b7280' },
   segBtnTextActive: { color: '#fff', fontWeight: '700' },
