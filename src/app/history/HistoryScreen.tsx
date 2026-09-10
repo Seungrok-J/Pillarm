@@ -189,6 +189,8 @@ export default function HistoryScreen() {
   // 그럴 때는 주간 스트립으로 시작하고, 헤더 버튼으로 월간을 펼칠 수 있게 한다.
   const compact = useCompactLayout();
   const [monthExpanded, setMonthExpanded] = useState(!compact);
+  // 사용자가 직접 펼치거나 접었으면 그 선택을 존중한다
+  const monthToggledByUser = useRef(false);
   const [refreshing,      setRefreshing]      = useState(false);
 
   const { userId } = useAuthStore();
@@ -202,6 +204,12 @@ export default function HistoryScreen() {
     () => [styles.time, { width: scaledFont(TIME_COL_WIDTH, fontScale) }],
     [fontScale],
   );
+
+  // 첫 렌더 때는 설정이 아직 로드되지 않아 배율이 1.0 으로 읽힌다. 그 값으로 굳으면
+  // '아주 크게' 인데도 월간 달력이 펼쳐진 채 시작한다. compact 이 바뀌면 다시 맞춘다.
+  useEffect(() => {
+    if (!monthToggledByUser.current) setMonthExpanded(!compact);
+  }, [compact]);
 
   const medicationNames = useMemo<Record<string, string>>(
     () => Object.fromEntries(medications.map((m) => [m.id, m.name])),
@@ -476,7 +484,7 @@ export default function HistoryScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             testID="btn-toggle-month"
-            onPress={() => setMonthExpanded((v) => !v)}
+            onPress={() => { monthToggledByUser.current = true; setMonthExpanded((v) => !v); }}
             style={styles.navBtn}
             accessibilityRole="button"
             accessibilityState={{ expanded: monthExpanded }}

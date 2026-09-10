@@ -4,6 +4,8 @@ import { AppText as Text } from './AppText';
 import { Ionicons } from '@expo/vector-icons';
 import type { DoseEvent, WithFood } from '../domain';
 import { useThemeStore } from '../store/themeStore';
+import { useFontScale, scaledFont } from '../utils/fontScale';
+import { useCompactLayout } from '../utils/compactLayout';
 import {
   DOSE_EARLY_WINDOW_MS,
   DoseDisplayState,
@@ -38,6 +40,12 @@ interface PacketCardProps {
   graceMinutes?: number;
 }
 
+/**
+ * 왼쪽 시간 컬럼의 기준 폭(배율 1.0). DoseCard 와 같은 값이어야 두 카드가 나란히 놓였을 때
+ * 시간이 같은 세로선에 선다.
+ */
+const LEFT_TIME_WIDTH = 56;
+
 export default function PacketCard({
   events,
   medicationNames,
@@ -48,6 +56,9 @@ export default function PacketCard({
   now,
   graceMinutes = 120,
 }: PacketCardProps) {
+  // 시간 칸이 고정 폭이면 배율을 키웠을 때 'HH:mm' 이 두 줄로 쪼개진다(DoseCard 와 동일)
+  const fontScale = useFontScale();
+  const compact = useCompactLayout();
   const theme = useThemeStore((s) => s.activeTheme);
   const [expanded, setExpanded] = useState(false);
 
@@ -106,8 +117,8 @@ export default function PacketCard({
 
   return (
     <View style={[styles.row, displayState === 'waiting' && !allDone && styles.dimmed]}>
-      <View style={styles.leftTime}>
-        <Text style={[styles.time, { color: timeColor }]}>{time}</Text>
+      <View style={[styles.leftTime, { width: scaledFont(LEFT_TIME_WIDTH, fontScale) }]}>
+        <Text style={[styles.time, { color: timeColor }]} numberOfLines={1}>{time}</Text>
         <Text style={[styles.stateLabel, { color: labelColor }]} numberOfLines={1}>{label}</Text>
       </View>
 
@@ -127,7 +138,7 @@ export default function PacketCard({
                 <View style={[styles.packetBadge, { backgroundColor: labelColor }]}>
                   <Text style={styles.packetBadgeText}>포</Text>
                 </View>
-                <Text style={styles.name} numberOfLines={1}>{packetName || `약 ${total}개`}</Text>
+                <Text style={styles.name} numberOfLines={compact ? 2 : 1}>{packetName || `약 ${total}개`}</Text>
                 {withFood && withFood !== 'none' && (
                   <Text style={styles.foodTag}>({withFood === 'before' ? '식전' : '식후'})</Text>
                 )}
@@ -161,7 +172,7 @@ export default function PacketCard({
               return (
                 <View key={e.id} style={styles.medRow}>
                   <View style={[styles.dot, { backgroundColor: done ? '#d2e4fc' : color }]} />
-                  <Text style={[styles.medName, done && styles.medNameDone]} numberOfLines={1}>
+                  <Text style={[styles.medName, done && styles.medNameDone]} numberOfLines={compact ? 2 : 1}>
                     {name}
                   </Text>
                   {e.status === 'taken'   && <Text style={styles.takenMark}>✓</Text>}
@@ -192,7 +203,8 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 12 },
   dimmed: { opacity: 0.7 },
 
-  leftTime: { width: 46, paddingTop: 12 },
+  // width 는 배율에 따라 런타임에 계산한다(LEFT_TIME_WIDTH 참고)
+  leftTime: { paddingTop: 12 },
   time:       { fontSize: 14, fontWeight: '700' },
   stateLabel: { fontSize: 10, fontWeight: '600', marginTop: 2 },
 

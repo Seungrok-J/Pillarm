@@ -12,7 +12,7 @@ import {
   calculateMissedPatterns,
   type MissedPattern,
 } from '../../utils/statsCalculator';
-import { useLargeFont } from '../../utils/fontScale';
+import { useLargeFont, useFontScale, scaledFont } from '../../utils/fontScale';
 import type { DoseEvent } from '../../domain';
 import CoachingSection from '../../features/aiCoaching/CoachingSection';
 
@@ -133,10 +133,28 @@ function MetricCard({ icon, value, label, iconBg }: { icon: string; value: strin
 
 // ── 주간 막대 차트 ────────────────────────────────────────────────────────────
 
+/** 막대 한 칸의 기준 폭과 퍼센트 라벨 높이(배율 1.0) */
+const BAR_COL_WIDTH = 32;
+const BAR_PCT_HEIGHT = 14;
+
+/** 막대 칸 크기를 글씨 배율에 맞춰 키운다 — 두 차트가 같은 값을 쓰도록 훅으로 뺀다 */
+function useScaledBarCol() {
+  const fontScale = useFontScale();
+  return useMemo(
+    () => ({
+      col: [st.barCol, { width: scaledFont(BAR_COL_WIDTH, fontScale) }],
+      pct: { height: scaledFont(BAR_PCT_HEIGHT, fontScale) },
+    }),
+    [fontScale],
+  );
+}
+
 const DOW_ORDER = [1, 2, 3, 4, 5, 6, 0];
 const DOW_LABELS = ['일','월','화','수','목','금','토'];
 
 function WeekBars({ byDayOfWeek }: { byDayOfWeek: ReturnType<typeof calculateWeeklyStats>['byDayOfWeek'] }) {
+  // 칸 폭·라벨 높이가 고정이면 배율을 키웠을 때 "100%" 의 % 가 잘린다
+  const barColStyle = useScaledBarCol();
   const maxPct = Math.max(1, ...DOW_ORDER.map(d => byDayOfWeek[d].total > 0 ? byDayOfWeek[d].completionRate * 100 : 0));
   return (
     <View style={st.barsWrap}>
@@ -146,8 +164,8 @@ function WeekBars({ byDayOfWeek }: { byDayOfWeek: ReturnType<typeof calculateWee
         const barH = pct != null ? Math.max(8, (pct / 100) * 80) : 8;
         const color = pct != null ? rateColor(day.completionRate) : '#f2f3f4';
         return (
-          <View key={dow} style={st.barCol}>
-            <Text style={[st.barPctTxt, { color }]}>{pct != null ? `${Math.round(pct)}%` : ''}</Text>
+          <View key={dow} style={barColStyle.col}>
+            <Text style={[st.barPctTxt, barColStyle.pct, { color }]} numberOfLines={1}>{pct != null ? `${Math.round(pct)}%` : ''}</Text>
             <View style={st.barTrackV}>
               <View style={[st.barFillV, { height: barH, backgroundColor: color }]} />
             </View>
@@ -162,6 +180,7 @@ function WeekBars({ byDayOfWeek }: { byDayOfWeek: ReturnType<typeof calculateWee
 // ── 월별 막대 차트 ────────────────────────────────────────────────────────────
 
 function MonthBars({ bars }: { bars: MonthBar[] }) {
+  const barColStyle = useScaledBarCol();
   const visible = bars.filter(b => b.total > 0);
   if (visible.length === 0) {
     return <Text style={st.emptyTxt}>아직 기록이 없습니다</Text>;
@@ -173,8 +192,8 @@ function MonthBars({ bars }: { bars: MonthBar[] }) {
         const barH = pct != null ? Math.max(8, (pct / 100) * 80) : 8;
         const color = pct != null ? rateColor(b.rate) : '#f2f3f4';
         return (
-          <View key={b.ym} style={st.barCol}>
-            <Text style={[st.barPctTxt, { fontSize: 9, color }]}>{pct != null ? `${Math.round(pct)}%` : ''}</Text>
+          <View key={b.ym} style={barColStyle.col}>
+            <Text style={[st.barPctTxt, barColStyle.pct, { fontSize: 9, color }]} numberOfLines={1}>{pct != null ? `${Math.round(pct)}%` : ''}</Text>
             <View style={st.barTrackV}>
               <View style={[st.barFillV, { height: barH, backgroundColor: color }]} />
             </View>
