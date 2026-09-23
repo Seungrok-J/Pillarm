@@ -8,12 +8,12 @@
 
 | 항목 | 내용 |
 |---|---|
-| 기간 | 2026-04-22 ~ 진행 중 (약 4개월) |
+| 기간 | 2026-04-22 ~ 진행 중 (약 5개월) |
 | 형태 | 1인 개발 — Claude Code(AI 코딩 에이전트)와 페어 프로그래밍 |
-| 커밋 수 | 140개 (2026-08-28 기준) |
+| 커밋 수 | 170개 (2026-09-23 기준) |
 | 플랫폼 | iOS / Android — React Native (Expo) + TypeScript |
 | 서버 | Node.js/Express + Prisma + PostgreSQL(Supabase), Railway 배포 |
-| 배포 현황 | **App Store 정식 배포 완료** (iOS v1.0.1 / build 34) · **Google Play 비공개 테스트 진행 중** (v1.0.1 / versionCode 23) |
+| 배포 현황 | **App Store 정식 배포 완료** (iOS v1.0.3 / build 38) · **Google Play 프로덕션 배포 완료** (v1.0.3 / versionCode 25) |
 
 ---
 
@@ -67,8 +67,8 @@
 
 - **서버**: Railway에 Express 서버 배포, PostgreSQL은 Supabase(pgbouncer 커넥션 풀링) 사용, Prisma ORM
 - **CI/배포 파이프라인**: EAS Build로 iOS/Android 네이티브 빌드, EAS Submit으로 App Store Connect 자동 업로드
-- **iOS**: App Store 정식 심사 승인·배포 완료 (최신 v1.0.1 / build 34, 2026-08-27) — 반려 대응 2회 경험(마이크 권한, Guideline 2.1) 포함
-- **Android**: Google Play Console 비공개 테스트 배포 (v1.0.1 / versionCode 23, 2026-08-28 시작). 개인 개발자 계정 정책상 테스터 12명이 14일 연속 유지되어야 프로덕션 승격 신청이 가능해 현재 그 기간을 진행 중
+- **iOS**: App Store 정식 심사 승인·배포 완료 (최신 라이브 v1.0.3 / build 38, 2026-09-04) — 반려 대응 2회 경험(마이크 권한, Guideline 2.1) 포함. v1.0.4/build 39 는 빌드 완료(2026-09-10) 상태로 제출 대기 중
+- **Android**: Google Play **프로덕션 배포 완료** (v1.0.3 / versionCode 25). 개인 개발자 계정 정책상 요구되는 "비공개 테스트 12명 14일 연속 유지" 요건을 충족해 프로덕션 승격 신청 → 승인까지 완료. v1.0.4/versionCode 26 은 빌드 완료 상태로 제출 대기 중
 - **모니터링**: Sentry 도입으로 테스트 기간 중 실사용 크래시 수집
 
 ---
@@ -76,7 +76,7 @@
 ## 테스트
 
 - Jest + React Native Testing Library
-- 클라이언트 테스트 445개, 서버 테스트 70개 전부 통과 (2026-08-28 기준)
+- 클라이언트 테스트 471개, 서버 테스트 85개 전부 통과 (2026-09-23 기준)
 
 ---
 
@@ -86,15 +86,17 @@
 |---|---|---|
 | 1 — MVP | 등록·알림·체크·통계 핵심 루프 | ✅ 완료 |
 | 2 — 확장 | 보호자 공유·약 DB 연동·포인트·AI 코칭 | ✅ 완료 |
-| 3 — 배포 | 소셜 로그인, 서버·스토어 배포, 오프라인 처리, 관리자 패널 | 🔧 iOS 완료 · Android 비공개 테스트 중 |
+| 3 — 배포 | 소셜 로그인, 서버·스토어 배포, 오프라인 처리, 관리자 패널 | ✅ 완료 (iOS App Store · Android 프로덕션 모두 배포 완료) |
 | 4 — 스캔 | 약봉투 촬영 → AI 자동 일정 생성, 영양제 가이드 | ✅ 완료 (지속 개선 중) |
+| 5 — 수익화 | 보호자 결제 기반 프리미엄 구독 | 📋 기획 단계 (Android 프로덕션 액세스 확보로 착수 가능) |
 
-각 Phase 상세 요구사항·완료 기준은 `PRD_PHASE1.md` ~ `PRD_PHASE4.md` 참고.
+각 Phase 상세 요구사항·완료 기준은 `PRD_PHASE1.md` ~ `PRD_PHASE5.md` 참고.
 
 ---
 
 ## 다음 단계
 
-- **Google Play 프로덕션 승격** — 비공개 테스트 14일 요건 충족 후(2026-09-11 예정) 신청
+- **v1.0.4 (iOS build 39 / Android versionCode 26) 스토어 제출** — 빌드는 완료됐으나 아직 제출 전
 - Sentry 로 수집된 테스터 크래시 대응
 - EAS Submit 자동화 복구 (Play 서비스 계정 권한 정리)
+- Phase 5(프리미엄 구독) 착수 여부 검토 — Android 프로덕션 액세스 확보로 선행 조건 충족

@@ -8,15 +8,18 @@
 |-------|------|------|
 | 1 — MVP | 약 등록·알림·복용 체크·통계 | ✅ 완료 |
 | 2 — 확장 | 보호자 공유·포인트·AI 코칭·약 DB | ✅ 완료 |
-| 3 — 배포 | 소셜 로그인·EAS 빌드·스토어 배포 | 🔧 진행 중 (iOS 배포 ✅ · Android 비공개 테스트 중) |
+| 3 — 배포 | 소셜 로그인·EAS 빌드·스토어 배포 | ✅ 완료 (iOS App Store 배포 ✅ · Android **프로덕션 배포 완료**) |
 | 4 — 스캔 | 약봉투 촬영 → AI 자동 일정 생성 | ✅ 완료 (2026-06 배포, 지속 개선 중) |
+| 5 — 수익화 | 보호자 결제 기반 프리미엄 구독 | 📋 기획 단계 |
 
-### 배포 현황 (2026-08-28)
+### 배포 현황 (2026-09-23)
 
 | 플랫폼 | 버전 | 상태 |
 |--------|------|------|
-| iOS | 1.0.1 (buildNumber 34) | App Store 배포 완료 |
-| Android | 1.0.1 (versionCode 23) | Play Console 비공개 테스트 중 (2026-08-28 시작) |
+| iOS | 1.0.3 (buildNumber 38) | App Store 배포 완료 — 현재 라이브 |
+| Android | 1.0.3 (versionCode 25) | Google Play **프로덕션 배포 완료** — 현재 라이브 |
+
+> 최신 빌드(iOS 39 / Android 26, 1.0.4)는 2026-09-10 빌드 완료 후 아직 스토어에 제출되지 않았습니다.
 
 ---
 
@@ -138,14 +141,14 @@ npm run dev     # 포트 3000
 - **AI 코칭** — 최근 30일 누락 패턴 분석, 통계 화면 하단 코칭 메시지
 - **기기 교체 데이터 복원** — 로그인 시 서버 데이터 자동 복원
 
-### Phase 3 — 소셜 로그인 & 배포 🔧 진행 중
+### Phase 3 — 소셜 로그인 & 배포 ✅ 완료
 - **소셜 로그인** — Apple(iOS 전용) · Google · 카카오 (이메일 로그인 완전 제거)
 - **pillarm.app 도메인** — 초대 링크·개인정보처리방침 URL 반영
 - **알림 로그인 연동** — 로그아웃 시 알림 전체 취소, 로그인 시 재스케줄, 계정별 알림 분리
 - **EAS Build** — iOS/Android 프로덕션 빌드 자동화
 - **Railway 서버 배포** — `https://pillarm-production.up.railway.app`
-- **iOS App Store** — v1.0.1 (build 34) 정식 배포 완료
-- **Android 비공개 테스트** — v1.0.1 (versionCode 23), 2026-08-28 시작
+- **iOS App Store** — v1.0.3 (build 38) 정식 배포 완료, 2026-09-04
+- **Android Google Play** — v1.0.3 (versionCode 25) **프로덕션 배포 완료** (비공개 테스트 12명·14일 요건 충족 후 승격)
 - **크래시 리포팅** — Sentry 연동 (개인정보 차단 설정 적용)
 
 ### Phase 4 — 약봉투 스캔 ✅ 완료
@@ -208,7 +211,8 @@ pillarm/
 ├── PRD_PHASE1.md
 ├── PRD_PHASE2.md
 ├── PRD_PHASE3.md
-└── PRD_PHASE4.md
+├── PRD_PHASE4.md
+└── PRD_PHASE5.md
 ```
 
 ---
@@ -217,8 +221,8 @@ pillarm/
 
 | 대상 | 개수 |
 |------|------|
-| 클라이언트 (Jest + RNTL) | 445 |
-| 서버 (Jest) | 70 |
+| 클라이언트 (Jest + RNTL) | 471 |
+| 서버 (Jest) | 85 |
 
 ```bash
 npm test              # 클라이언트
@@ -245,9 +249,9 @@ eas build --platform ios --profile production --auto-submit
 eas build --platform android --profile production
 ```
 
-> **Android 제출 주의** — `eas submit --platform android` 는 현재 Google Play 서비스 계정
-> 권한 부족으로 실패한다. 권한을 정리하기 전까지는 빌드된 `.aab` 를 Play Console 에
-> 수동 업로드해야 한다.
+> **Android 제출 주의** — `eas submit --platform android` 는 과거 Google Play 서비스 계정
+> 권한 부족으로 실패했다. 2026-09 기준 인증·트랙 조회는 통과하지만 번들 업로드는 미검증이라,
+> 현재는 빌드된 `.aab` 를 Play Console 에 수동 업로드한다.
 
 ### 주요 빌드 정보
 
@@ -256,8 +260,8 @@ eas build --platform android --profile production
 | Bundle ID | `com.seungrokj.pillarm` |
 | Apple Team ID | `9AU7GMJTRW` |
 | App Store Connect ID | `6770390217` |
-| 현재 iOS buildNumber | `34` (v1.0.1) |
-| 현재 Android versionCode | `23` (v1.0.1) |
+| 최신 빌드 (미제출) | iOS buildNumber `39` / Android versionCode `26` (v1.0.4, 2026-09-10 빌드) |
+| 현재 스토어 라이브 버전 | iOS buildNumber `38` / Android versionCode `25` (v1.0.3) |
 
 ---
 

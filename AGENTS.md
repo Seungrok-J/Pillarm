@@ -27,6 +27,7 @@ pillarm/
 ├── PRD_PHASE2.md              ← 확장 기능 요구사항
 ├── PRD_PHASE3.md              ← 간편 로그인 & 스토어 배포 (오프라인·관리자 포함)
 ├── PRD_PHASE4.md              ← 약봉투 스캔 (Claude Vision AI) & 영양제 가이드
+├── PRD_PHASE5.md              ← 수익 모델 (프리미엄 구독) — 기획 단계
 ├── PROJECT_SUMMARY.md         ← 프로젝트 진행 이력 요약 (포트폴리오·이력서용)
 ├── docs/
 │   ├── domain-model.md        ← 엔터티 정의
@@ -77,18 +78,24 @@ pillarm/
 |-------|------|------|------|
 | 1 — MVP | `PRD_PHASE1.md` | 핵심 4기능: 등록·알림·체크·통계(기본) | ✅ 완료 |
 | 2 — 확장 | `PRD_PHASE2.md` | 보호자 공유·약 DB 연동·포인트·AI 코칭 | ✅ 완료 |
-| 3 — 배포 | `PRD_PHASE3.md` | 간편 로그인(Apple·Google·카카오) & App Store / Google Play 배포 + 오프라인 처리 + 관리자 패널 | 🔧 진행 중 (iOS 배포 ✅ · Android 비공개 테스트 중) |
+| 3 — 배포 | `PRD_PHASE3.md` | 간편 로그인(Apple·Google·카카오) & App Store / Google Play 배포 + 오프라인 처리 + 관리자 패널 | ✅ 완료 (iOS App Store 배포 ✅ · Android **프로덕션 배포 완료**) |
 | 4 — 스캔 | `PRD_PHASE4.md` | 약봉투 촬영 → Claude Vision AI 자동 일정 생성 | ✅ 완료 (2026-06 배포, 지속 개선 중) |
+| 5 — 수익화 | `PRD_PHASE5.md` | 보호자 결제 기반 프리미엄 구독 | 📋 기획 (Android 프로덕션 액세스 확보 완료 — 착수 가능) |
 
-## 배포 현황 (2026-08-28)
+## 배포 현황 (2026-09-23)
 
 | 플랫폼 | 버전 | 상태 |
 |--------|------|------|
-| iOS | 1.0.1 (buildNumber 34) | App Store 배포 완료 |
-| Android | 1.0.1 (versionCode 23) | Play Console 비공개 테스트 진행 중 (2026-08-28 시작, 테스터 12명+) |
+| iOS | 1.0.4 (buildNumber 39) | 빌드 완료 (2026-09-10), **스토어 미제출** |
+| iOS | 1.0.3 (buildNumber 38) | App Store 배포 완료 (2026-09-04) — 현재 라이브 |
+| Android | 1.0.4 (versionCode 26) | 빌드 완료 (2026-09-10), **스토어 미제출** |
+| Android | 1.0.3 (versionCode 25) | **`production` 트랙 배포 완료** — 현재 라이브 (2026-09-23 확인) |
 
-- Android 프로덕션 승격은 테스터 12명이 14일 연속 유지되어야 신청 가능 — 빠르면 **2026-09-11**.
+- **Android 프로덕션 승격 완료.** 이제 새 버전은 `ver.23` 비공개 테스트를 거치지 않고
+  바로 `production` 트랙에 올려도 된다. 자세한 트랙 이력·주의사항은 `CLAUDE.md` 의
+  "Play Console 트랙" 절 참고.
 - `eas submit --platform android` 는 서비스 계정 권한 부족으로 실패한다. 해결 전까지는 `.aab` 를 Play Console 에 수동 업로드한다.
+  (1.0.4 의 `.aab`/`.ipa` 는 EAS 에 빌드되어 있으나 아직 어느 쪽도 업로드되지 않았다.)
 
 ## 작업 시작 전 체크리스트
 
