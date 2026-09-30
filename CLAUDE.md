@@ -29,7 +29,7 @@
 
 ## 배포
 
-- **1.0.4 (iOS 39 / Android 26) 는 빌드만 끝났고 스토어에 미제출 — 다음 작업 시 제출부터 확인할 것.**
+- **1.0.4 — Android(26) 는 Google Play 제출 완료(2026-09-30). iOS(39) 는 아직 App Store 미제출 — 다음 작업 시 iOS 제출부터 확인할 것.**
 - Sentry 토큰은 EAS Secret 으로만 둔다. 저장소에 넣지 않는다.
 - 배포 현황·Play Console 트랙·Sentry(EU 리전) 설정은 `/release` 스킬(`.claude/skills/release/SKILL.md`) 참고.
 

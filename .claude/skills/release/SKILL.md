@@ -3,13 +3,13 @@ name: release
 description: 필람 스토어 배포 현황·Play Console 트랙·Sentry(EU 리전) 설정 — 빌드 제출, 트랙 선택, eas submit, 소스맵 업로드 작업 시 사용
 ---
 
-## 배포 현황 (2026-09-23)
+## 배포 현황 (2026-09-30)
 
 | 플랫폼 | 버전 | 상태 |
 |--------|------|------|
 | iOS | 1.0.4 (buildNumber 39) | 빌드 완료 (2026-09-10), **스토어 미제출** |
 | iOS | 1.0.3 (buildNumber 38) | App Store 배포 완료 (2026-09-04) — 현재 라이브 |
-| Android | 1.0.4 (versionCode 26) | 빌드 완료 (2026-09-10), **스토어 미제출** |
+| Android | 1.0.4 (versionCode 26) | **Google Play 제출 완료 (2026-09-30)** — 심사·출시 상태는 Play Console 에서 확인 |
 | Android | 1.0.3 (versionCode 25) | **`production` 트랙 배포 완료** — 현재 라이브 (Play Developer API 로 2026-09-23 확인). `ver.23` 비공개 테스트 트랙에도 동일 버전 존재 |
 | Android | 1.0.2 (versionCode 24) | 비공개 테스트 `ver.23` 트랙 출시 완료 (2026-09-01) |
 
@@ -19,8 +19,8 @@ description: 필람 스토어 배포 현황·Play Console 트랙·Sentry(EU 리�
   달력을 주간 스트립 + 월간 펼치기로 전환. 보호자·관리자 화면의 오프라인 오류
   모달을 배너 + 재연결 시 자동 재시도로 교체. 자세한 규칙은
   `docs/design-system.md` 의 "좁은 화면·큰 배율 대응" 절 참고.
-  **빌드는 9/10 에 끝났지만 iOS·Android 모두 아직 스토어에 제출되지 않았다 — 다음 작업 시
-  제출부터 확인할 것.**
+  **Android 는 2026-09-30 Google Play 에 제출 완료. iOS 는 아직 App Store 미제출 — 다음 작업 시
+  iOS 제출부터 확인할 것.**
 - 1.0.3 변경 내용: 글씨 크기 조절(보통/크게/아주 크게) 추가, 설정의 시간 항목을
   타이핑에서 드럼롤 선택으로 교체, 관리자 통계 지표 확장.
 - 1.0.2 변경 내용: 앱 아이콘을 벡터(SVG)로 교체, Sentry 소스맵 업로드 활성화.
@@ -44,7 +44,7 @@ description: 필람 스토어 배포 현황·Play Console 트랙·Sentry(EU 리�
   (`edits.insert` → `edits.tracks.list` → `edits.delete`).
 - `eas submit --platform android` 는 과거 서비스 계정 권한 문제로 실패했다. 2026-09-01 기준
   인증·트랙 조회는 통과하지만 번들 업로드까지는 미검증이라, 현재는 `.aab` 를 수동 업로드한다.
-  (1.0.4 의 `.aab`/`.ipa` 는 EAS 에 빌드되어 있으나 아직 어느 쪽도 업로드되지 않았다.)
+  (1.0.4 `.aab` 는 2026-09-30 제출 완료. `.ipa` 는 EAS 에 빌드되어 있으나 아직 업로드되지 않았다.)
 
 ## Sentry (EU 리전 주의)
 
